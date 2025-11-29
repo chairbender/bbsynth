@@ -2,6 +2,11 @@
 
 on popos, with clang++-20, had to sudo apt install g++ libstdc++-12-dev
 
+todos:
+- cpp_args = ['-std=c++2c', '-Wall', '-Wextra', '-Wshadow', '-Wconversion', '-Wpedantic', '-Werror']
+- set up sanitizer support (asan, ubsan, etc...)
+- double check "right way to write c++ code" https://www.youtube.com/watch?v=q7Gv4J3FyYE
+
 # 🐺 WolfSound's Audio Plugin Template
 
 ![Cmake workflow success badge](https://github.com/JanWilczek/audio-plugin-template/actions/workflows/cmake.yml/badge.svg)
