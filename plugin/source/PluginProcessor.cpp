@@ -93,14 +93,18 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 #endif
               .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
-      ) {
+      ), parameters(*this, nullptr, "ParameterTree", createParameterLayout()) {
+  parameters.addParameterListener("tailOff", this);
   for (auto i = 0; i < 4; ++i) {
     synth.addVoice(new SineWaveVoice());
   }
   synth.addSound(new SineWaveSound());
 }
 
-AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {}
+AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {
+  // todo is this really needed?
+  parameters.removeParameterListener("tailOff", this);
+}
 
 const juce::String AudioPluginAudioProcessor::getName() const {
   return JucePlugin_Name;
@@ -247,6 +251,29 @@ void AudioPluginAudioProcessor::setStateInformation(const void* data,
   // block, whose contents will have been created by the getStateInformation()
   // call.
   juce::ignoreUnused(data, sizeInBytes);
+}
+
+juce::AudioProcessorValueTreeState::ParameterLayout AudioPluginAudioProcessor::createParameterLayout()
+{
+  std::vector<std::unique_ptr<juce::RangedAudioParameter>> parameterList;
+
+  juce::NormalisableRange<float> tailOffRange{0.f, 1.f, 0.1f};
+
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>("tailOff",
+                                                                                  "Tail Off",
+                                                                                  tailOffRange,
+                                                                                  0.f));
+
+  return { parameterList.begin(), parameterList.end() };
+}
+
+void AudioPluginAudioProcessor::parameterChanged(const juce::String& parameterID, float newValue)
+{
+  if (parameterID == "tailOff")
+  {
+    // todo how to pass this properly to active voices??
+    sineWave.setFrequency (newValue);
+  }
 }
 }  // namespace audio_plugin
 
