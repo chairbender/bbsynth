@@ -21,7 +21,7 @@ juce_add_plugin(
   PLUGIN_MANUFACTURER_CODE
   Cbdr # change this (for max compatibility, first letter must be uppercase, remaining lowercase)
   PLUGIN_CODE
-  Bbs # change this (for max compatibility, first letter must be uppercase, remaining lowercase)
+  Bbsy # change this (for max compatibility, first letter must be uppercase, remaining lowercase)
   FORMATS
   Standalone
   VST3 # may change this
@@ -30,9 +30,9 @@ juce_add_plugin(
 )
 
 # Sets the source files of the plugin project.
-set(SOURCE_FILES source/PluginEditor.cpp source/PluginProcessor.cpp)
+set(SOURCE_FILES source/Oscillator.cpp source/PluginEditor.cpp source/PluginProcessor.cpp)
 # Optional; includes header files in the project file tree in Visual Studio
-set(HEADER_FILES ${INCLUDE_DIR}/PluginEditor.h ${INCLUDE_DIR}/PluginProcessor.h)
+set(HEADER_FILES ${INCLUDE_DIR}/Oscillator.h ${INCLUDE_DIR}/PluginEditor.h ${INCLUDE_DIR}/PluginProcessor.h)
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
 
 # Sets the include directories of the plugin project.

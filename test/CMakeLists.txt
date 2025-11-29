@@ -6,7 +6,9 @@ project(AudioPluginTest)
 enable_testing()
 
 # Creates the test console application.
-set(SOURCE_FILES source/AudioProcessorTest.cpp)
+set(SOURCE_FILES source/AudioProcessorTest.cpp
+        ../plugin/include/BBSynth/Oscillator.h
+        ../plugin/source/Oscillator.cpp)
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 # Sets the necessary include directories of googletest.
