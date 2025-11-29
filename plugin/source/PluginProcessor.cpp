@@ -1,9 +1,9 @@
 #include "BBSynth/PluginProcessor.h"
 #include "BBSynth/PluginEditor.h"
 
-namespace audio_plugin {
+#include <sys/socket.h>
 
-// todo fix the warnings / clean up the code and follow best practices
+namespace audio_plugin {
 
 struct SineWaveSound : juce::SynthesiserSound {
   SineWaveSound() {}
@@ -15,13 +15,13 @@ struct SineWaveSound : juce::SynthesiserSound {
 struct SineWaveVoice : juce::SynthesiserVoice {
   SineWaveVoice() {}
 
-  bool canPlaySound(juce::SynthesiserSound*) override {
-    return dynamic_cast<SineWaveSound*>(this) != nullptr;
+  bool canPlaySound(juce::SynthesiserSound* sound) override {
+    return dynamic_cast<SineWaveSound*>(sound) != nullptr;
   }
 
   void startNote(const int midiNoteNumber,
                  const float velocity,
-                 juce::SynthesiserSound* sound,
+                 [[maybe_unused]] juce::SynthesiserSound* sound,
                  [[maybe_unused]] int pitchWheelPos) override {
     currentAngle = 0.0;
     level = static_cast<double>(velocity) * 0.15;
@@ -34,7 +34,7 @@ struct SineWaveVoice : juce::SynthesiserVoice {
     angleDelta = cyclesPerSample * 2.0 * juce::MathConstants<double>::pi;
   }
 
-  void stopNote(float [[maybe_unused]] velocity, const bool allowTailOff) override {
+  void stopNote([[maybe_unused]] float velocity, const bool allowTailOff) override {
     if (allowTailOff) {
       if (tailOff == 0.0) {
         tailOff = 1.0;
@@ -45,20 +45,21 @@ struct SineWaveVoice : juce::SynthesiserVoice {
     }
   }
 
-  void pitchWheelMoved(int newPitchWheelValue) override;
-  void controllerMoved(int controllerNumber, int newControllerValue) override;
+  void pitchWheelMoved([[maybe_unused]] int newPitchWheelValue) override {}
+  void controllerMoved([[maybe_unused]] int controllerNumber, [[maybe_unused]] int newControllerValue) override {}
 
-  void renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override {
+  void renderNextBlock(juce::AudioBuffer<float>& outputBuffer, const int startSample, const int numSamples) override {
+    const auto endSampleIdx{startSample + numSamples};
+    auto curSampleIdx = startSample;
     if (angleDelta != 0.0) {
       if (tailOff > 0.0) {
-        while (--numSamples >= 0) {
+        while (curSampleIdx < endSampleIdx) {
           const float currentSample{static_cast<float>(std::sin(currentAngle) * level * tailOff)};
-          // todo isn't there a better way to do these sorts of loops now?
           for (auto i = outputBuffer.getNumChannels(); --i >= 0;) {
-            outputBuffer.addSample(i, startSample, currentSample);
+            outputBuffer.addSample(i, curSampleIdx, currentSample);
           }
           currentAngle += angleDelta;
-          ++startSample;
+          ++curSampleIdx;
           tailOff *= 0.99;
           if (tailOff <= 0.005) {
             clearCurrentNote();
@@ -67,12 +68,12 @@ struct SineWaveVoice : juce::SynthesiserVoice {
           }
         }
       } else {
-        while (--numSamples >= 0) {
+        while (curSampleIdx < endSampleIdx) {
           const auto currentSample{static_cast<float>(std::sin(currentAngle) * level)};
           for (auto i = outputBuffer.getNumChannels(); --i >= 0;) {
-            outputBuffer.addSample(i, startSample, currentSample);
+            outputBuffer.addSample(i, curSampleIdx, currentSample);
             currentAngle += angleDelta;
-            ++startSample;
+            ++curSampleIdx;
           }
         }
       }
@@ -81,37 +82,6 @@ struct SineWaveVoice : juce::SynthesiserVoice {
 
 private:
   double currentAngle{0.0}, angleDelta{0.0}, level{0.0}, tailOff{0.0};
-};
-
-class SynthAudioSource : juce::AudioSource {
-public:
-  SynthAudioSource(juce::MidiKeyboardState& keyState) : keyboardState{keyState} {
-    for (auto i = 0; i < 4; ++i) {
-      synth.addVoice(new SineWaveVoice());
-    }
-    synth.addSound(new SineWaveSound());
-  }
-
-  void setUsingSineWaveSound() {
-    synth.clearSounds();
-  }
-
-  void prepareToPlay([[maybe_unused]] int samplesPerBlockExpected, double sampleRate) override {
-    synth.setCurrentPlaybackSampleRate(sampleRate);
-  }
-
-  void releaseResources() override {}
-
-  void getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill) override {
-    bufferToFill.clearActiveBufferRegion();
-    juce::MidiBuffer incomingMidi;
-    keyboardState.processNextMidiBuffer(incomingMidi, bufferToFill.startSample, bufferToFill.numSamples, true);
-    synth.renderNextBlock(*bufferToFill.buffer, incomingMidi, bufferToFill.startSample, bufferToFill.numSamples);
-  }
-
-private:
-  juce::MidiKeyboardState& keyboardState;
-  juce::Synthesiser synth;
 };
 
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
@@ -124,6 +94,10 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
               .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
       ) {
+  for (auto i = 0; i < 4; ++i) {
+    synth.addVoice(new SineWaveVoice());
+  }
+  synth.addSound(new SineWaveSound());
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {}
@@ -185,15 +159,14 @@ void AudioPluginAudioProcessor::changeProgramName(int index,
 }
 
 void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
-                                              int samplesPerBlock) {
-  // Use this method as the place to do any pre-playback
-  // initialisation that you need..
-  juce::ignoreUnused(sampleRate, samplesPerBlock);
+                                              [[maybe_unused]] int samplesPerBlock) {
+  synth.setCurrentPlaybackSampleRate(sampleRate);
 }
 
 void AudioPluginAudioProcessor::releaseResources() {
   // When playback stops, you can use this as an opportunity to free up any
   // spare memory, etc.
+  juce::ignoreUnused(index);
 }
 
 bool AudioPluginAudioProcessor::isBusesLayoutSupported(
@@ -220,6 +193,7 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported(
 #endif
 }
 
+
 void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                              juce::MidiBuffer& midiMessages) {
   juce::ignoreUnused(midiMessages);
@@ -243,13 +217,12 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   // the samples and the outer loop is handling the channels.
   // Alternatively, you can process the samples with the channels
   // interleaved by keeping the same state.
-  for (int channel = 0; channel < totalNumInputChannels; ++channel) {
-    auto* channelData = buffer.getWritePointer(channel);
-    juce::ignoreUnused(channelData);
-    // todo left off here - need to pass midiMessages rather than use keybdstate,
-    //  and need to move things to headers
-    // ..do something to the data...
-  }
+  synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+  // for (int channel = 0; channel < totalNumInputChannels; ++channel) {
+  //   // todo maybe use this approach instead: auto* channelData = buffer.getWritePointer(channel);
+  //
+  // }
+  midiMessages.clear();
 }
 
 bool AudioPluginAudioProcessor::hasEditor() const {
