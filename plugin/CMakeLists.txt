@@ -11,22 +11,22 @@ set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/YourPluginName")
 juce_add_plugin(
   ${PROJECT_NAME}
   COMPANY_NAME
-  "MyCompany" # change this
+  "chairbender" # change this
   IS_SYNTH
-  FALSE # may change this
+  TRUE # may change this
   NEEDS_MIDI_INPUT
-  FALSE # may change this
+  TRUE # may change this
   NEEDS_MIDI_OUTPUT
   FALSE # may change this
   PLUGIN_MANUFACTURER_CODE
-  Mcmp # change this (for max compatibility, first letter must be uppercase, remaining lowercase)
+  Cbdr # change this (for max compatibility, first letter must be uppercase, remaining lowercase)
   PLUGIN_CODE
-  Expl # change this (for max compatibility, first letter must be uppercase, remaining lowercase)
+  Bbs # change this (for max compatibility, first letter must be uppercase, remaining lowercase)
   FORMATS
   Standalone
   VST3 # may change this
   PRODUCT_NAME
-  "YourPluginName" # change this
+  "BBSynth" # change this
 )
 
 # Sets the source files of the plugin project.
