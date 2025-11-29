@@ -1,3 +1,7 @@
+# Setup Notes
+
+on popos, with clang++-20, had to sudo apt install g++ libstdc++-12-dev
+
 # 🐺 WolfSound's Audio Plugin Template
 
 ![Cmake workflow success badge](https://github.com/JanWilczek/audio-plugin-template/actions/workflows/cmake.yml/badge.svg)
