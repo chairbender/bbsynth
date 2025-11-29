@@ -23,6 +23,12 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   g.setFont(15.0f);
   g.drawFittedText("Hello World!", getLocalBounds(),
                    juce::Justification::centred, 1);
+
+  addAndMakeVisible(tailOffSlider);
+  tailOffSlider.setRange(0, 1);
+  tailOffSlider.onValueChange = [this] {
+    this.
+  };
 }
 
 void AudioPluginAudioProcessorEditor::resized() {

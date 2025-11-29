@@ -4,7 +4,7 @@
 
 namespace audio_plugin {
 
-class AudioPluginAudioProcessor : public juce::AudioProcessor {
+class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::AudioProcessorValueTreeState::Listener {
 public:
   AudioPluginAudioProcessor();
   ~AudioPluginAudioProcessor() override;
@@ -37,7 +37,15 @@ public:
   void getStateInformation(juce::MemoryBlock& destData) override;
   void setStateInformation(const void* data, int sizeInBytes) override;
 
+  using ParameterState = juce::AudioProcessorValueTreeState;
+
+  ParameterState parameters;
+
 private:
+  ParameterState::ParameterLayout createParameterLayout();
+
+  void parameterChanged(const juce::String& name, float newValue) override;
+
   juce::MidiKeyboardState keyboardState;
   juce::Synthesiser synth;
 
