@@ -24,15 +24,23 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   g.drawFittedText("Hello World!", getLocalBounds(),
                    juce::Justification::centred, 1);
 
-  addAndMakeVisible(tailOffSlider);
-  tailOffSlider.setRange(0, 1);
-  tailOffSlider.onValueChange = [this] {
-    this.
-  };
+  centOffsetSlider.setSliderStyle(juce::Slider::Rotary);
+  centOffsetSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(centOffsetSlider);
+
+  centOffsetLabel.setText("Cent Offset", juce::dontSendNotification);
+  centOffsetLabel.attachToComponent(&centOffsetSlider, false);
+  addAndMakeVisible(centOffsetLabel);
+
+  centOffsetAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+    processorRef.apvts_, "centOffset", centOffsetSlider);
 }
 
 void AudioPluginAudioProcessorEditor::resized() {
   // This is generally where you'll want to lay out the positions of any
   // subcomponents in your editor..
+  auto area = getLocalBounds().reduced(20);
+
+  centOffsetSlider.setBounds(area.removeFromLeft(150).removeFromTop(100));
 }
 }  // namespace audio_plugin

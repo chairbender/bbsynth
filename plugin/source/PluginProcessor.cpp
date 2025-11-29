@@ -6,10 +6,19 @@
 namespace audio_plugin {
 
 struct SineWaveSound : juce::SynthesiserSound {
-  SineWaveSound() {}
+  SineWaveSound(juce::AudioProcessorValueTreeState& apvts)
+      : centOffset_{apvts.getRawParameterValue("centOffset")} {}
 
-  bool appliesToNote([[maybe_unused]] int midiNoteNumber) override { return true; }
-  bool appliesToChannel([[maybe_unused]] int midiChannelNumber) override { return true; }
+  bool appliesToNote([[maybe_unused]] int midiNoteNumber) override {
+    return true;
+  }
+  bool appliesToChannel([[maybe_unused]] int midiChannelNumber) override {
+    return true;
+  }
+  std::atomic<float>* getCentOffset() const { return centOffset_; }
+
+private:
+  std::atomic<float>* centOffset_;
 };
 
 struct SineWaveVoice : juce::SynthesiserVoice {
@@ -27,14 +36,18 @@ struct SineWaveVoice : juce::SynthesiserVoice {
     level = static_cast<double>(velocity) * 0.15;
     tailOff = 0.0;
 
-    auto cyclesPerSecond =
-        juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
-    auto cyclesPerSample = cyclesPerSecond / getSampleRate();
+    if (auto sinSound = dynamic_cast<SineWaveSound*>(sound)) {
+      auto cyclesPerSecond =
+          juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber) +
+          static_cast<double>(sinSound->getCentOffset()->load());
+      auto cyclesPerSample = cyclesPerSecond / getSampleRate();
 
-    angleDelta = cyclesPerSample * 2.0 * juce::MathConstants<double>::pi;
+      angleDelta = cyclesPerSample * 2.0 * juce::MathConstants<double>::pi;
+    }
   }
 
-  void stopNote([[maybe_unused]] float velocity, const bool allowTailOff) override {
+  void stopNote([[maybe_unused]] float velocity,
+                const bool allowTailOff) override {
     if (allowTailOff) {
       if (tailOff == 0.0) {
         tailOff = 1.0;
@@ -46,15 +59,19 @@ struct SineWaveVoice : juce::SynthesiserVoice {
   }
 
   void pitchWheelMoved([[maybe_unused]] int newPitchWheelValue) override {}
-  void controllerMoved([[maybe_unused]] int controllerNumber, [[maybe_unused]] int newControllerValue) override {}
+  void controllerMoved([[maybe_unused]] int controllerNumber,
+                       [[maybe_unused]] int newControllerValue) override {}
 
-  void renderNextBlock(juce::AudioBuffer<float>& outputBuffer, const int startSample, const int numSamples) override {
+  void renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
+                       const int startSample,
+                       const int numSamples) override {
     const auto endSampleIdx{startSample + numSamples};
     auto curSampleIdx = startSample;
     if (angleDelta != 0.0) {
       if (tailOff > 0.0) {
         while (curSampleIdx < endSampleIdx) {
-          const float currentSample{static_cast<float>(std::sin(currentAngle) * level * tailOff)};
+          const float currentSample{
+              static_cast<float>(std::sin(currentAngle) * level * tailOff)};
           for (auto i = outputBuffer.getNumChannels(); --i >= 0;) {
             outputBuffer.addSample(i, curSampleIdx, currentSample);
           }
@@ -69,12 +86,13 @@ struct SineWaveVoice : juce::SynthesiserVoice {
         }
       } else {
         while (curSampleIdx < endSampleIdx) {
-          const auto currentSample{static_cast<float>(std::sin(currentAngle) * level)};
+          const auto currentSample{
+              static_cast<float>(std::sin(currentAngle) * level)};
           for (auto i = outputBuffer.getNumChannels(); --i >= 0;) {
             outputBuffer.addSample(i, curSampleIdx, currentSample);
-            currentAngle += angleDelta;
-            ++curSampleIdx;
           }
+          currentAngle += angleDelta;
+          ++curSampleIdx;
         }
       }
     }
@@ -93,18 +111,15 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 #endif
               .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
-      ), parameters(*this, nullptr, "ParameterTree", createParameterLayout()) {
-  parameters.addParameterListener("tailOff", this);
+              ),
+      apvts_(*this, nullptr, "ParameterTree", createParameterLayout()) {
   for (auto i = 0; i < 4; ++i) {
     synth.addVoice(new SineWaveVoice());
   }
-  synth.addSound(new SineWaveSound());
+  synth.addSound(new SineWaveSound(apvts_));
 }
 
-AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {
-  // todo is this really needed?
-  parameters.removeParameterListener("tailOff", this);
-}
+AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {}
 
 const juce::String AudioPluginAudioProcessor::getName() const {
   return JucePlugin_Name;
@@ -162,8 +177,9 @@ void AudioPluginAudioProcessor::changeProgramName(int index,
   juce::ignoreUnused(index, newName);
 }
 
-void AudioPluginAudioProcessor::prepareToPlay(double sampleRate,
-                                              [[maybe_unused]] int samplesPerBlock) {
+void AudioPluginAudioProcessor::prepareToPlay(
+    double sampleRate,
+    [[maybe_unused]] int samplesPerBlock) {
   synth.setCurrentPlaybackSampleRate(sampleRate);
 }
 
@@ -197,7 +213,6 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported(
 #endif
 }
 
-
 void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                              juce::MidiBuffer& midiMessages) {
   juce::ignoreUnused(midiMessages);
@@ -223,7 +238,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   // interleaved by keeping the same state.
   synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
   // for (int channel = 0; channel < totalNumInputChannels; ++channel) {
-  //   // todo maybe use this approach instead: auto* channelData = buffer.getWritePointer(channel);
+  //   // todo maybe use this approach instead: auto* channelData =
+  //   buffer.getWritePointer(channel);
   //
   // }
   midiMessages.clear();
@@ -253,27 +269,23 @@ void AudioPluginAudioProcessor::setStateInformation(const void* data,
   juce::ignoreUnused(data, sizeInBytes);
 }
 
-juce::AudioProcessorValueTreeState::ParameterLayout AudioPluginAudioProcessor::createParameterLayout()
-{
+juce::AudioProcessorValueTreeState::ParameterLayout
+AudioPluginAudioProcessor::createParameterLayout() {
   std::vector<std::unique_ptr<juce::RangedAudioParameter>> parameterList;
 
-  juce::NormalisableRange<float> tailOffRange{0.f, 1.f, 0.1f};
+  juce::NormalisableRange<float> centOffsetRange{-200.f, 200.f, 1.f};
 
-  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>("tailOff",
-                                                                                  "Tail Off",
-                                                                                  tailOffRange,
-                                                                                  0.f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "centOffset", "Cent Offset", centOffsetRange, 0.f));
 
-  return { parameterList.begin(), parameterList.end() };
+  return {parameterList.begin(), parameterList.end()};
 }
 
-void AudioPluginAudioProcessor::parameterChanged(const juce::String& parameterID, float newValue)
-{
-  if (parameterID == "tailOff")
-  {
-    // todo how to pass this properly to active voices??
-    sineWave.setFrequency (newValue);
-  }
+void AudioPluginAudioProcessor::parameterChanged(
+    const juce::String& parameterID,
+    float newValue) {
+  // todo if needed
+  juce::ignoreUnused(parameterID, newValue);
 }
 }  // namespace audio_plugin
 

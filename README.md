@@ -2,6 +2,9 @@
 
 on popos, with clang++-20, had to sudo apt install g++ libstdc++-12-dev
 
+style guide
+https://google.github.io/styleguide/cppguide.html
+
 todos:
 - add single gui control to change the tailoff
 - use wavetables instead
