@@ -24,7 +24,7 @@ class MinBlepGenerator {
 
   // Basically, we need an oversampled, filtered, nonlinearity .... 1->0 ...
   // This will be added any time the waveform jumps ....
-  // in order to to eliminate aliasing (basically, build a bandlimited wave)
+  // in order to eliminate aliasing (basically, build a bandlimited wave)
 
   // ANTIALIASING FILTER ::::
   // since we are downsampling .... we can filter for better AA
@@ -61,50 +61,48 @@ public:
   MinBlepGenerator();
   ~MinBlepGenerator();
 
-  juce::Array<float> getMinBlepArray();
-  juce::Array<float> getMinBlepDerivArray();
+  static juce::Array<float> getMinBlepArray();
+  static juce::Array<float> getMinBlepDerivArray();
 
-  void setToReturnDerivative(bool derivative) { returnDerivative = derivative; }
+  void setToReturnDerivative(const bool derivative) { returnDerivative = derivative; }
 
   // TEMP
+  // todo not implemented - delete?
   void setTest(double newTest);
 
   // Utility ....
 
   // SINC Function
-  inline double SINC(double x) {
-    double pix;
-
+  static inline double SINC(double x) {
     if (x == 0.0)
       return 1.0;
     else {
-      pix = juce::MathConstants<double>::twoPi * x;
+      double pix = juce::MathConstants<double>::twoPi * x;
       return sin(pix) / pix;
     }
   }
 
   // Generate Blackman Window
-  inline void BlackmanWindow(size_t n, double* w) {
-    size_t m = n - 1;
-    size_t i;
-    double f1, f2, fm;
+  static inline void BlackmanWindow(size_t n, double* w) {
+    const size_t m = n - 1;
 
-    fm = static_cast<double>(m);
-    for (i = 0; i <= m; i++) {
-      f1 = (2.0 * juce::MathConstants<double>::twoPi * static_cast<double>(i)) / fm;
-      f2 = 2.0 * f1;
+    double fm = static_cast<double>(m);
+    for (size_t i = 0; i <= m; i++) {
+      const double f1 =
+          (2.0 * juce::MathConstants<double>::twoPi * static_cast<double>(i)) /
+          fm;
+      const double f2 = 2.0 * f1;
       w[i] = 0.42 - (0.5 * cos(f1)) + (0.08 * cos(f2));
     }
   }
 
   // Discrete Fourier Transform
-  void DFT(size_t n,
-           double* realTime,
-           double* imagTime,
+  static void DFT(const size_t n,
+           const double* realTime,
+           const double* imagTime,
            double* realFreq,
            double* imagFreq) {
-    size_t k, i;
-    double sr, si, p;
+    size_t k;
 
     for (k = 0; k < n; k++) {
       realFreq[k] = 0.0;
@@ -112,25 +110,24 @@ public:
     }
 
     for (k = 0; k < n; k++)
-      for (i = 0; i < n; i++) {
-        p = (2.0 * juce::MathConstants<double>::twoPi *
-             static_cast<double>(k * i)) /
-            static_cast<double>(n);
-        sr = cos(p);
-        si = -sin(p);
+      for (size_t i = 0; i < n; i++) {
+        const double p = (2.0 * juce::MathConstants<double>::twoPi *
+                    static_cast<double>(k * i)) /
+                   static_cast<double>(n);
+        const double sr = cos(p);
+        const double si = -sin(p);
         realFreq[k] += (realTime[i] * sr) - (imagTime[i] * si);
         imagFreq[k] += (realTime[i] * si) + (imagTime[i] * sr);
       }
   }
 
   // Inverse Discrete Fourier Transform
-  void InverseDFT(size_t n,
+  static void InverseDFT(const size_t n,
                   double* realTime,
                   double* imagTime,
-                  double* realFreq,
-                  double* imagFreq) {
-    size_t k, i;
-    double sr, si, p;
+                  const double* realFreq,
+                  const double* imagFreq) {
+    size_t k;
 
     for (k = 0; k < n; k++) {
       realTime[k] = 0.0;
@@ -138,12 +135,12 @@ public:
     }
 
     for (k = 0; k < n; k++) {
-      for (i = 0; i < n; i++) {
-        p = (2.0 * juce::MathConstants<double>::twoPi *
-             static_cast<double>(k * i)) /
-            static_cast<double>(n);
-        sr = cos(p);
-        si = -sin(p);
+      for (size_t i = 0; i < n; i++) {
+        const double p = (2.0 * juce::MathConstants<double>::twoPi *
+                    static_cast<double>(k * i)) /
+                   static_cast<double>(n);
+        const double sr = cos(p);
+        const double si = -sin(p);
         realTime[k] += (realFreq[i] * sr) + (imagFreq[i] * si);
         imagTime[k] += (realFreq[i] * si) - (imagFreq[i] * sr);
       }
@@ -153,26 +150,24 @@ public:
   }
 
   // Complex Absolute Value
-  inline double cabs(double x, double y) { return sqrt((x * x) + (y * y)); }
+  static inline double cabs(const double x, const double y) { return sqrt((x * x) + (y * y)); }
 
   // Complex Exponential
-  inline void cexp(double x, double y, double* zx, double* zy) {
-    double expx;
-
-    expx = exp(x);
+  static inline void cexp(const double x,
+                          const double y, double* zx, double* zy) {
+    const double expx = exp(x);
     *zx = expx * cos(y);
     *zy = expx * sin(y);
   }
 
   // Compute Real Cepstrum Of Signal
-  void RealCepstrum(size_t n, double* signal, double* realCepstrum) {
-    double *realTime, *imagTime, *realFreq, *imagFreq;
+  static void RealCepstrum(const size_t n, const double* signal, double* realCepstrum) {
     size_t i;
 
-    realTime = new double[n];
-    imagTime = new double[n];
-    realFreq = new double[n];
-    imagFreq = new double[n];
+    const auto realTime = new double[n];
+    const auto imagTime = new double[n];
+    const auto realFreq = new double[n];
+    const auto imagFreq = new double[n];
 
     // Compose Complex FFT Input
     for (i = 0; i < n; i++) {
@@ -197,20 +192,22 @@ public:
     for (i = 0; i < n; i++)
       realCepstrum[i] = realTime[i];
 
-    delete realTime;
-    delete imagTime;
-    delete realFreq;
-    delete imagFreq;
+    // todo not sure this is right - original was just delete
+    delete[] realTime;
+    delete[] imagTime;
+    delete[] realFreq;
+    delete[] imagFreq;
   }
 
   // Compute Minimum Phase Reconstruction Of Signal
-  void MinimumPhase(size_t n, double* realCepstrum, double* minimumPhase) {
-    size_t i, nd2;
-    double *realTime, *imagTime, *realFreq, *imagFreq;
+  static void MinimumPhase(const size_t n,
+                           const double* realCepstrum, double* minimumPhase) {
+    size_t i;
+    double *realFreq, *imagFreq;
 
-    nd2 = n / 2;
-    realTime = new double[n];
-    imagTime = new double[n];
+    const size_t nd2 = n / 2;
+    const auto realTime = new double[n];
+    const auto imagTime = new double[n];
     realFreq = new double[n];
     imagFreq = new double[n];
 
@@ -242,8 +239,9 @@ public:
     for (i = 0; i < n; i++)
       minimumPhase[i] = realTime[i];
 
-    delete realTime;
-    delete imagTime;
+    // todo correct to use brackets?
+    delete[] realTime;
+    delete[] imagTime;
     delete realFreq;
     delete imagFreq;
   }
@@ -283,7 +281,7 @@ public:
     coefficients[5] = c6;
   }
   void resetFilters() { filterStates.clear(numChannels); }
-  void applyFilter(float* samples, int num, FilterState& fs) {
+  void applyFilter(float* samples, int num, FilterState& fs) const {
     while (--num >= 0) {
       const double in = static_cast<double>(*samples);
 
@@ -304,7 +302,7 @@ public:
       *samples++ = static_cast<float>(out);
     }
   }
-  float filterSample(float sample, FilterState& fs) {
+  float filterSample(float sample, FilterState& fs) const {
     const double in = static_cast<double>(sample);
 
     double out = coefficients[0] * in + coefficients[1] * fs.x1 +
@@ -325,19 +323,19 @@ public:
   }
 
   void clear();
-  bool isClear();
+  bool isClear() const;
 
   // CUSTOM ::::
   void setLimitingFreq(float proportionOfSamplingRate);
 
   void buildBlep();
   void addBlep(BlepOffset newBlep);
-  void addBlepArray(juce::Array<BlepOffset> newBleps);
+  void addBlepArray(const juce::Array<BlepOffset>& newBleps);
 
   juce::Array<BlepOffset> getNextBleps();
 
   void processBlock(float* buffer, int numSamples);
-  void rescale_bleps_to_buffer(float* buffer,
+  void rescale_bleps_to_buffer(const float* buffer,
                                int numSamples,
                                float shiftBlepsBy = 0);
   void process_currentBleps(float* buffer, int numSamples);
