@@ -6,6 +6,9 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 */
 
 // todo rewrite to modern c++ standards
+// todo cleanup / reduce need for static casting - some places are using size_t in places where the juce lib wants int.
+
+
 #pragma once
 
 #include <juce_audio_basics/juce_audio_basics.h>
@@ -81,14 +84,14 @@ public:
   }
 
   // Generate Blackman Window
-  inline void BlackmanWindow(int n, double* w) {
-    int m = n - 1;
-    int i;
+  inline void BlackmanWindow(size_t n, double* w) {
+    size_t m = n - 1;
+    size_t i;
     double f1, f2, fm;
 
-    fm = m;
+    fm = static_cast<double>(m);
     for (i = 0; i <= m; i++) {
-      f1 = (2.0 * juce::MathConstants<double>::twoPi * i) / fm;
+      f1 = (2.0 * juce::MathConstants<double>::twoPi * static_cast<double>(i)) / fm;
       f2 = 2.0 * f1;
       w[i] = 0.42 - (0.5 * cos(f1)) + (0.08 * cos(f2));
     }

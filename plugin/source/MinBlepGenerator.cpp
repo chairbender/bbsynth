@@ -5,14 +5,15 @@ Used with permission:
 https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 */
 // todo rewrite to modern c++ standards
+// todo cleanup / reduce need for static casting - some places are using size_t in places where the juce lib wants int.
 
 #include "BBSynth/MinBlepGenerator.h"
 
 namespace audio_plugin {
 
 // STATIC ARRAYS - to house the minBlep and integral of the minBlep ...
-static Array<float> minBlepArray;
-static Array<float> minBlepDerivArray;
+static juce::Array<float> minBlepArray;
+static juce::Array<float> minBlepDerivArray;
 
 MinBlepGenerator::MinBlepGenerator() {
   overSamplingRatio = 16;
@@ -24,7 +25,7 @@ MinBlepGenerator::MinBlepGenerator() {
   lastDelta = 0;
 
   // AA FILTER
-  zeromem(coefficients, sizeof(coefficients));
+  juce::zeromem(coefficients, sizeof(coefficients));
 
   numChannels = 2;
   filterStates.calloc(numChannels);
@@ -51,14 +52,14 @@ void MinBlepGenerator::setLimitingFreq(float proportionOfSamplingRate) {
   // SINCE the buffer is only resized to 8x, we can only use blep adjustments
   // down to 0.125
   proportionOfSamplingRate =
-      jlimit<float>(0.0001, 1.0f, proportionOfSamplingRate);
-  proportionalBlepFreq = proportionOfSamplingRate;
+      juce::jlimit<float>(0.0001f, 1.0f, proportionOfSamplingRate);
+  proportionalBlepFreq = static_cast<double>(proportionOfSamplingRate);
 }
 
-Array<float> MinBlepGenerator::getMinBlepArray() {
+juce::Array<float> MinBlepGenerator::getMinBlepArray() {
   return minBlepArray;
 }
-Array<float> MinBlepGenerator::getMinBlepDerivArray() {
+juce::Array<float> MinBlepGenerator::getMinBlepDerivArray() {
   return minBlepDerivArray;
 }
 
@@ -78,33 +79,33 @@ void MinBlepGenerator::buildBlep() {
     return;
 
   // BUILD the BLEP
-  int i, n;
+  size_t i, n;
   double r, a, b;
-  Array<double> buffer1;
-  Array<double> buffer2;
+  juce::Array<double> buffer1;
+  juce::Array<double> buffer2;
 
-  n = (zeroCrossings * 2 * overSamplingRatio) + 1;
+  n = static_cast<size_t>(zeroCrossings * 2 * overSamplingRatio) + 1;
 
-  DBG("BUILD minBLEP - ratio " + String(overSamplingRatio) + " -> " +
-      String(n));
+  DBG("BUILD minBLEP - ratio " + juce::String(overSamplingRatio) + " -> " +
+      juce::String(n));
 
   // Generate Sinc
   const float bandlimit = 0.9f;
-  a = bandlimit * (double)-zeroCrossings;
+  a = static_cast<double>(bandlimit * static_cast<float>(-zeroCrossings));
   b = -a;
   for (i = 0; i < n; i++) {
-    r = ((double)i) / ((double)(n - 1));
+    r = (static_cast<double>(i)) / (static_cast<double>(n - 1));
 
     buffer1.add(SINC(a + (r * (b - a))));
     buffer2.add(0);  // size ...
   }
 
-  jassert(buffer1.size() == n);
-  jassert(buffer2.size() == n);
+  jassert(buffer1.size() == static_cast<int>(n));
+  jassert(buffer2.size() == static_cast<int>(n));
 
   // Window Sinc
   BlackmanWindow(n, buffer2.getRawDataPointer());
-  FloatVectorOperations::multiply(buffer1.getRawDataPointer(),
+  juce::FloatVectorOperations::multiply(buffer1.getRawDataPointer(),
                                   buffer2.getRawDataPointer(), n);
 
   // Minimum Phase Reconstruction
@@ -112,49 +113,49 @@ void MinBlepGenerator::buildBlep() {
   MinimumPhase(n, buffer2.getRawDataPointer(), buffer1.getRawDataPointer());
 
   // Integrate Into MinBLEP
-  minBlepArray.ensureStorageAllocated(n);
-  minBlepDerivArray.ensureStorageAllocated(n);
+  minBlepArray.ensureStorageAllocated(static_cast<int>(n));
+  minBlepDerivArray.ensureStorageAllocated(static_cast<int>(n));
 
   a = 0;
   double secondInt = 0;
   for (i = 0; i < n; i++) {
     a +=
-        buffer1[i];  // full integral ... so that we can normalize (make area=1)
-    minBlepArray.add(a);
+        buffer1[static_cast<int>(i)];  // full integral ... so that we can normalize (make area=1)
+    minBlepArray.add(static_cast<float>(a));
 
     // 2ND ORDER ::::
     secondInt += a;
-    minBlepDerivArray.add(secondInt);
+    minBlepDerivArray.add(static_cast<float>(secondInt));
   }
 
   // Normalize
-  double maxVal = minBlepArray.getUnchecked(n - 1);
-  FloatVectorOperations::multiply(minBlepArray.getRawDataPointer(),
-                                  1.0 / maxVal, n);
+  double maxVal = static_cast<double>(minBlepArray.getUnchecked(static_cast<int>(n - 1)));
+  juce::FloatVectorOperations::multiply(minBlepArray.getRawDataPointer(),
+                                  static_cast<float>(1.0 / maxVal), n);
 
   // Normalize ...
-  float max = FloatVectorOperations::findMaximum(
+  float max = juce::FloatVectorOperations::findMaximum(
       minBlepDerivArray.getRawDataPointer(), n);
   jassert(max = minBlepDerivArray.getLast());
-  FloatVectorOperations::multiply(minBlepDerivArray.getRawDataPointer(),
-                                  1.0 / max, minBlepDerivArray.size());
+  juce::FloatVectorOperations::multiply(minBlepDerivArray.getRawDataPointer(),
+                                  1.0f / max, minBlepDerivArray.size());
 
-  for (double ramp = 0; ramp < n; ramp++) {
+  for (double ramp = 0; ramp < static_cast<double>(n); ramp++) {
     // 2ND ORDER ::::
     minBlepDerivArray.getRawDataPointer()[int(ramp)] -=
-        double(ramp) / double(n - 1);
+        static_cast<float>(ramp / static_cast<double>(n - 1));
   }
 
-  jassert(fabsf(minBlepDerivArray[0]) < 0.01);
-  jassert(fabsf(minBlepDerivArray[n - 1]) < 0.01);
+  jassert(fabsf(minBlepDerivArray[0]) < 0.01f);
+  jassert(fabsf(minBlepDerivArray[static_cast<int>(n - 1)]) < 0.01f);
 
   // SUBTRACT 1 and invert so the signal (so it goes 1->0)
-  FloatVectorOperations::add(minBlepArray.getRawDataPointer(), -1.f,
+  juce::FloatVectorOperations::add(minBlepArray.getRawDataPointer(), -1.f,
                              minBlepArray.size());
-  FloatVectorOperations::multiply(minBlepArray.getRawDataPointer(), -1.f,
+  juce::FloatVectorOperations::multiply(minBlepArray.getRawDataPointer(), -1.f,
                                   minBlepArray.size());
 
-  jassert(fabsf(minBlepArray[n]) < 0.001);
+  jassert(fabsf(minBlepArray[static_cast<int>(n)]) < 0.001f);
 }
 
 void MinBlepGenerator::addBlep(BlepOffset newBlep) {
@@ -165,13 +166,13 @@ void MinBlepGenerator::addBlep(BlepOffset newBlep) {
   currentActiveBlepOffsets.add(newBlep);
 }
 
-void MinBlepGenerator::addBlepArray(Array<BlepOffset> newBleps) {
+void MinBlepGenerator::addBlepArray(juce::Array<BlepOffset> newBleps) {
   //
   currentActiveBlepOffsets.addArray(newBleps, 0, newBleps.size());
 }
 
-Array<MinBlepGenerator::BlepOffset> MinBlepGenerator::getNextBleps() {
-  Array<MinBlepGenerator::BlepOffset> newBleps;
+juce::Array<MinBlepGenerator::BlepOffset> MinBlepGenerator::getNextBleps() {
+  juce::Array<MinBlepGenerator::BlepOffset> newBleps;
   newBleps.addArray(currentActiveBlepOffsets, 0,
                     currentActiveBlepOffsets.size());
 
@@ -231,22 +232,22 @@ void MinBlepGenerator::rescale_bleps_to_buffer(float* buffer,
     // since this is an effect ... it manifests 1 sample later than the
     // discontinuity
     float exactOffset =
-        -blep.offset + shiftBlepsBy;  // +1 here is NEEDED for flanger/chorus !!
+        static_cast<float>(-blep.offset + static_cast<double>(shiftBlepsBy));  // +1 here is NEEDED for flanger/chorus !!
     blep.offset =
         blep.offset -
-        shiftBlepsBy;  // starts compensating on the sample AFTER the blep ....
+        static_cast<double>(shiftBlepsBy);  // starts compensating on the sample AFTER the blep ....
 
     // ACTIVE blep .... (not upcoming)
     if (exactOffset < 0)
       continue;
 
     // CHECK :::: further away than 1 buffer ... should never happen
-    if (exactOffset > numSamples) {
+    if (exactOffset > static_cast<float>(numSamples)) {
       // LFOs have nonlinearities that affect the audio 1 sample later
       // ... so we can get edge cases here ....
       // simply roll it over to the next buffer ...
-      DBG("OUT OF RANGE NONLINEARITY ??? " + String(exactOffset));
-      blep.offset = exactOffset - numSamples;
+      DBG("OUT OF RANGE NONLINEARITY ??? " + juce::String(exactOffset));
+      blep.offset = static_cast<double>(exactOffset - static_cast<float>(numSamples));
       currentActiveBlepOffsets.setUnchecked(i, blep);
       continue;
     }
@@ -259,7 +260,7 @@ void MinBlepGenerator::rescale_bleps_to_buffer(float* buffer,
       // CALCULATE the integer (sample) offset, and the fractional (subsample)
       // offset
       double intOffset = int(exactOffset);
-      double fraction = modf(exactOffset, &intOffset);
+      double fraction = modf(static_cast<double>(exactOffset), &intOffset);
 
       // UNLESS we're on the edge case, we get the most recent value from the
       // buffer ...
@@ -282,7 +283,7 @@ void MinBlepGenerator::rescale_bleps_to_buffer(float* buffer,
           currentDelta = buffer[int(intOffset) + 1] - buffer[int(intOffset)];
 
         // CALCULATE change in velocity
-        double change_in_delta = (currentDelta - lastDelta);
+        double change_in_delta = static_cast<double>(currentDelta - lastDelta);
         double propDepth = proportionalBlepFreq;
 
         // magnitude_velocity = -4*change_in_delta*(1/propDepth);
@@ -291,38 +292,38 @@ void MinBlepGenerator::rescale_bleps_to_buffer(float* buffer,
         // actualCurrentAngleDelta below is added to compensate for higher order
         // nonlinearities 66 here was experimentally determined ...
         magnitude_velocity =
-            64.7 * change_in_delta * (1 / propDepth) * change_in_delta;
+            static_cast<float>(64.7 * change_in_delta * (1 / propDepth) * change_in_delta);
       }
 
       // 0th order (position)
       {
         // CALCULATE the magnitude of the 0 order nonlinearity *change in
         // position*
-        float extrapolated_last_pos = lastValue + lastDelta * (fraction);
+        float extrapolated_last_pos = static_cast<float>(static_cast<double>(lastValue + lastDelta) * fraction);
         float extrapolated_jump_pos =
-            buffer[int(intOffset)] - currentDelta * (1 - fraction);
+            static_cast<float>(static_cast<double>(buffer[static_cast<int>(intOffset)] - currentDelta) * (1 - fraction));
         magnitude_position = extrapolated_last_pos - extrapolated_jump_pos;
       }
     }
 
     // TOO SMALL :::
     /// no need to compensating for tiny discontinuities
-    if (fabsf(magnitude_position) < .001 && fabsf(magnitude_velocity) < .001) {
+    if (fabsf(magnitude_position) < .001f && fabsf(magnitude_velocity) < .001f) {
       currentActiveBlepOffsets.remove(i);
       continue;
     }
 
     // NEGLIGIBLE MAGNITUDES :::
     /// zero out any tiny effects here, so we don't waste time calculating them
-    if (fabsf(magnitude_position) < .001)
+    if (fabsf(magnitude_position) < .001f)
       magnitude_position = 0;
-    if (fabsf(magnitude_velocity) < .001)
+    if (fabsf(magnitude_velocity) < .001f)
       magnitude_velocity = 0;
 
     // ADD ::::
     // GAIN factors ... how big of a discontinutiy are we talking about ?
-    blep.pos_change_magnitude = magnitude_position;
-    blep.vel_change_magnitude = magnitude_velocity;
+    blep.pos_change_magnitude = static_cast<double>(magnitude_position);
+    blep.vel_change_magnitude = static_cast<double>(magnitude_velocity);
 
     // ALTER :::
     currentActiveBlepOffsets.setUnchecked(i, blep);
@@ -338,10 +339,10 @@ void MinBlepGenerator::process_currentBleps(float* buffer, int numSamples) {
     double exactPosition = blep.offset;
 
     // ADD the BLEP to the circular buffer ...
-    for (float p = 0; p < numSamples; p++) {
+    for (float p = 0; p < static_cast<float>(numSamples); p++) {
       double blepPosExact =
           adjusted_Freq *
-          (exactPosition + p +
+          (exactPosition + static_cast<double>(p) +
            1);  // +1 because this needs to trigger on the LOW SAMPLE
       double blepPosSample = 0;
       double fraction = modf(blepPosExact, &blepPosSample);
@@ -351,7 +352,7 @@ void MinBlepGenerator::process_currentBleps(float* buffer, int numSamples) {
       double depthLimited =
           proportionalBlepFreq;  // jlimit<double>(.1, 1, proportionalBlepFreq);
       double blepDeriv_PosExact =
-          depthLimited * overSamplingRatio * (exactPosition + p + 1);
+          depthLimited * overSamplingRatio * (exactPosition + static_cast<double>(p) + 1);
       double blepDeriv_Sample = 0;
       double fraction_Deriv = modf(blepDeriv_PosExact, &blepDeriv_Sample);
 
@@ -376,10 +377,10 @@ void MinBlepGenerator::process_currentBleps(float* buffer, int numSamples) {
           hiValue = minBlepArray.getRawDataPointer()[int(blepPosSample) + 1];
 
         float delta = hiValue - lowValue;
-        float exactValue = lowValue + fraction * delta;
+        float exactValue = static_cast<float>(static_cast<double>(lowValue) + fraction * static_cast<double>(delta));
 
         // SCALE by the discontinuity magnitude
-        exactValue *= blep.pos_change_magnitude;
+        exactValue *= static_cast<float>(blep.pos_change_magnitude);
 
         // ADD to the thruput
         buffer[int(p)] += exactValue;
@@ -392,12 +393,12 @@ void MinBlepGenerator::process_currentBleps(float* buffer, int numSamples) {
           blepDeriv_PosExact < minBlepDerivArray.size()) {
         // LINEAR INTERPOLATION ::::
         double lowValue =
-            minBlepDerivArray.getRawDataPointer()[int(blepDeriv_PosExact)];
+            static_cast<double>(minBlepDerivArray.getRawDataPointer()[int(blepDeriv_PosExact)]);
         double hiValue = lowValue;
 
         if (int(blepDeriv_PosExact) + 1 < minBlepDerivArray.size())
-          hiValue = minBlepDerivArray
-                        .getRawDataPointer()[int(blepDeriv_PosExact) + 1];
+          hiValue = static_cast<double>(minBlepDerivArray
+                        .getRawDataPointer()[int(blepDeriv_PosExact) + 1]);
 
         double delta = hiValue - lowValue;
         double exactValue = lowValue + fraction_Deriv * delta;
@@ -406,7 +407,7 @@ void MinBlepGenerator::process_currentBleps(float* buffer, int numSamples) {
         exactValue *= blep.vel_change_magnitude;
 
         // ADD to the thruput
-        buffer[int(p)] += exactValue;
+        buffer[int(p)] += static_cast<float>(exactValue);
       }
     }
 
