@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 namespace audio_plugin {
+
 class AudioPluginAudioProcessor : public juce::AudioProcessor {
 public:
   AudioPluginAudioProcessor();
@@ -14,6 +15,7 @@ public:
   bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
 
   void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+
   using AudioProcessor::processBlock;
 
   juce::AudioProcessorEditor* createEditor() override;
@@ -36,7 +38,8 @@ public:
   void setStateInformation(const void* data, int sizeInBytes) override;
 
 private:
-  SynthAudioSource synthAudioSource;
+  juce::MidiKeyboardState keyboardState;
+  juce::Synthesiser synth;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessor)
 };
