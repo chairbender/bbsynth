@@ -61,9 +61,8 @@ class WaveGenerator
   bool hardSync = true;
 
 public:
-
-  void setTest(double newTest);
-  void setClear(bool clear);
+  static void setTest(double newTest);
+  static void setClear(bool clear);
 
   enum WaveType {
 
@@ -101,7 +100,7 @@ public:
     else  myBlepGenerator.setToReturnDerivative(false);
   }
 
-  WaveType getWaveType() {
+  WaveType getWaveType() const {
     return myWaveType;
   }
 
@@ -114,7 +113,7 @@ public:
     }
   }
 
-  WaveMode getAntialiasMode() {
+  WaveMode getAntialiasMode() const {
     return myMode;
   }
 
@@ -125,15 +124,14 @@ public:
   }
   void changeBlepSize(float sampleRateForBlep);
 
-  double getSlaveDeltaBase() {
+  double getSlaveDeltaBase() const {
     return slaveDeltaBase;
   }
-  double getMasterDeltaBase() {
+  double getMasterDeltaBase() const {
 
     return masterDeltaBase;
   }
-  double getAngleDeltaActual() {
-
+  double getAngleDeltaActual() const {
     return actualCurrentAngleDelta;
   }
 
@@ -144,11 +142,11 @@ public:
     // SLAVE OSC ::::
     slaveDeltaBase = slavePitchOffset*newAngleDelta;
   }
-  double getCurrentAngle() {
+  double getCurrentAngle() const {
     return currentAngle;
   }
 
-  void setPitchSemitone(int midiNoteValue, double pSampleRate) {
+  void setPitchSemitone(const int midiNoteValue, const double pSampleRate) {
 
     double centerF =
         juce::MidiMessage::getMidiNoteInHertz ( midiNoteValue ); // ....
@@ -166,7 +164,7 @@ public:
     setMasterDelta(static_cast<double>(angleDelta));
   }
 
-  double getCurrentPitchHz() {
+  double getCurrentPitchHz() const {
 
     // float angleDelta = cyclesPerSample * 2.0 * double_Pi;
     double cyclesPerSample = actualCurrentAngleDelta/( 2.0*juce::MathConstants<double>::twoPi);
@@ -176,16 +174,17 @@ public:
 
   }
 
+  // todo no impl - intentional?
   juce::Array<float> getBLEPArray();
 
-  float getSkew() { return static_cast<float>(skew); }
+  float getSkew() const { return static_cast<float>(skew); }
   void setSkew(double newSkew) {
 
     jassert(newSkew >= -1 && newSkew <= 1);
     skew = newSkew;
   }
 
-  double getPhaseTarget() {
+  double getPhaseTarget() const {
 
     return phaseAngleTarget;
   }
@@ -203,43 +202,43 @@ public:
     double slaveToneOffset = getToneOffsetInSemis();
 
     // Convert from semitones to * factor
-    masterPitchOffset = (pow(double(2), double(pitchOffsetInSemitones/12)) );
+    masterPitchOffset = (pow(2, pitchOffsetInSemitones/12.));
 
     // UPDATE the slave freq
     double newToneOffset = pitchOffsetInSemitones + slaveToneOffset;
-    slavePitchOffset = (pow(double(2), double(newToneOffset/12)) );
+    slavePitchOffset = (pow(2, newToneOffset/12));
 
   }
-  double getPitchOffsetInSemis() {
+  double getPitchOffsetInSemis() const {
 
     // return the Log pitch offset ....
     double pitchOffsetInSemis = 12*log2(masterPitchOffset);
     return pitchOffsetInSemis;
   }
 
-  void setToneOffset(double newToneOffsetInSemis) {
+  void setToneOffset(const double newToneOffsetInSemis) {
 
     // Convert from semitones to * factor
-    double masterSemis = getPitchOffsetInSemis();
+    const double masterSemis = getPitchOffsetInSemis();
 
     // TONE is ALWAYS higher than master center (or has no effect)
-    double newToneOffset = masterSemis + newToneOffsetInSemis;
-    slavePitchOffset = (pow(double(2), double(newToneOffset/12)) );
+    const double newToneOffset = masterSemis + newToneOffsetInSemis;
+    slavePitchOffset = (pow(2, newToneOffset/12.));
 
   }
-  double getToneOffsetInSemis() {
+  double getToneOffsetInSemis() const {
 
     // return the Log pitch offset ....
-    double toneOffsetInSemis = 12*log2(slavePitchOffset);
+    const double toneOffsetInSemis = 12*log2(slavePitchOffset);
 
     // RELATIVE to master ...
-    double masterSemis = getPitchOffsetInSemis();
+    const double masterSemis = getPitchOffsetInSemis();
 
     return (toneOffsetInSemis - masterSemis);
 
   }
 
-  void setPitchBend(double newBendInSemiTones) {
+  void setPitchBend(const double newBendInSemiTones) {
 
     jassert(newBendInSemiTones == newBendInSemiTones);
 
@@ -247,32 +246,32 @@ public:
     pitchBendTarget = pow (2.0, (newBendInSemiTones / 12.0));
   }
 
-  double getPitchBendSemis() {
+  double getPitchBendSemis() const {
 
     return 12*log2(pitchBendActual);
   }
 
-  void setVolume(double dBMult) {
+  void setVolume(const double dBMult) {
 
     if (dBMult <= -80) volume = 0;
     else volume = juce::Decibels::decibelsToGain(dBMult);
   }
-  void setPan(double proportionalPan) {
+  void setPan(const double proportionalPan) {
 
     jassert(proportionalPan >= 0);
     jassert(proportionalPan <= 1);
     pan = proportionalPan;
   }
-  void setStereo(bool isStereo) {
+  void setStereo(const bool isStereo) {
     stereo = isStereo;
   }
-  void setHardsync(bool shouldHardSync) {
+  void setHardsync(const bool shouldHardSync) {
 
     hardSync = shouldHardSync;
   }
 
-  bool isStereo() { return stereo; }
-  bool isHardSync() { return hardSync; }
+  bool isStereo() const { return stereo; }
+  bool isHardSync() const { return hardSync; }
 
   juce::Array<float> getHistory() {
 
@@ -301,25 +300,25 @@ public:
     return slaveDeltaBase*samplesSinceRollover + phaseAngleActual;
 
   }
-  double skewAngle(double angle);
+  double skewAngle(double angle) const;
 
   // GET value
   double getCurrentValue() {
 
     // SKEW the "current angle"
-    double skewedAngle = skewAngle(currentAngle);
+    const double skewedAngle = skewAngle(currentAngle);
     return getValueAt(skewedAngle);
 
   }
   double getValueAt(double angle);
 
   // Wave calculations ...
-  inline double getSine(double angle) {
+  static inline double getSine(double angle) {
     const double sample = sin(angle);
     return sample;
   }
 
-  inline double getSawRise(double angle) {
+  static inline double getSawRise(const double angle) {
 
     // remainder ....
     double sample = getSawFall(angle);
@@ -330,26 +329,25 @@ public:
     return sample;
   }
 
-  inline double getSawFall(double angle) {
+  static inline double getSawFall(double angle) {
 
     angle = fmod(angle + juce::MathConstants<double>::twoPi, 2*juce::MathConstants<double>::twoPi); // shift x
-    double sample = angle/juce::MathConstants<double>::twoPi - double(1); // computer as remainder
+    const double sample = angle/juce::MathConstants<double>::twoPi - 1; // computer as remainder
 
     return sample;
 
   }
-  inline double getTriangle(double angle) {
+  static inline double getTriangle(double angle) {
 
     double sample = 0;
 
     // using a simple offset, we can make this a ramp up, then down ....
     //angle += double_Pi/4;
     angle = fmod(angle + juce::MathConstants<double>::twoPi/2,
-      double(2*juce::MathConstants<double>::twoPi)); // ROLL
+      2*juce::MathConstants<double>::twoPi); // ROLL
 
-    double frac = angle/(2*juce::MathConstants<double>::twoPi);
-
-    if (frac < .5) sample = 2*frac; // RAMPS up
+    if (const double frac = angle / (2 * juce::MathConstants<double>::twoPi);
+        frac < .5) sample = 2*frac; // RAMPS up
     else sample = 1 - 2*(frac - .5); // RAMPS down
 
     // SCALE and Y-OFFSET
@@ -362,7 +360,7 @@ public:
 
   }
 
-  inline double getSquare(double angle) {
+  static inline double getSquare(const double angle) {
     if (angle >= juce::MathConstants<double>::twoPi) return -1;
     return 1;
   }
@@ -385,7 +383,7 @@ public:
 
 
   // LOAD / SAVE ::::
-  void loadScene(juce::ValueTree node);
-  void saveScene(juce::ValueTree node);
+  void loadScene(const juce::ValueTree& node);
+  void saveScene(juce::ValueTree node) const;
 };
 }

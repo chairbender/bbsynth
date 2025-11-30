@@ -5,6 +5,8 @@ Used with permission:
 https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 */
 
+// todo restore == checks against the same var as isNaN checks as that was the actual intention
+
 #include "BBSynth/WaveGenerator.h"
 
 namespace audio_plugin {
@@ -14,10 +16,10 @@ constexpr double DELTA{.0000001};
 // DEBUG UI :::
 static double test = 1;
 bool clearWave = false;
-void WaveGenerator::setTest(double newTest) {
+void WaveGenerator::setTest(const double newTest) {
   test = newTest;
 }
-void WaveGenerator::setClear(bool clear) {
+void WaveGenerator::setClear(const bool clear) {
   clearWave = clear;
 }
 
@@ -165,7 +167,7 @@ void WaveGenerator::renderNextBlock (juce::AudioSampleBuffer& outputBuffer, int 
   // TEST :::
   for (int i=0; i < numSamples; i++)
   {
-    outputBuffer.setSample(1, i, float(i)/float(numSamples));
+    outputBuffer.setSample(1, i, static_cast<float>(i)/static_cast<float>(numSamples));
   }
 
 
@@ -176,7 +178,7 @@ void WaveGenerator::renderNextBlock (juce::AudioSampleBuffer& outputBuffer, int 
   float RMS = outputBuffer.getRMSLevel(0, 0, outputBuffer.getNumSamples());
 
   // Aaron - wtf?  How do we get NaN .. but we do .... hmmmm
-  if (RMS != RMS)
+  if (!isnanf(RMS))
   {
     DBG("NaN " + juce::String(outputBuffer.getNumSamples())
         + " " + juce::String(*outputBuffer.getReadPointer(0, 0)) );
@@ -206,7 +208,7 @@ inline void WaveGenerator::buildWave (int numSamples) {
   float* waveData = wave.getRawDataPointer();
 
   // LINEAR CHANGE for now .... over the numsamples (see above)
-  double freqDelta = (pitchBendTarget - pitchBendActual)/double(numSamples);
+  double freqDelta = (pitchBendTarget - pitchBendActual)/ static_cast<double>(numSamples);
   JUCE_SNAP_TO_ZERO(freqDelta);
 
   // SKEWING :::::
@@ -242,7 +244,7 @@ inline void WaveGenerator::buildWave (int numSamples) {
       currentMasterAngle += actualCurrentMasterDelta;
 
       // ADD A BLEP ::::
-      currentMasterAngle = fmod(currentMasterAngle, double(2*juce::MathConstants<double>::twoPi));
+      currentMasterAngle = fmod(currentMasterAngle, static_cast<double>(2 * juce::MathConstants<double>::twoPi));
 
       // MASTER (unskewed) rollover
       if (currentMasterAngle < actualCurrentMasterDelta)
@@ -253,7 +255,7 @@ inline void WaveGenerator::buildWave (int numSamples) {
         // ADD the blep ...
         {
           MinBlepGenerator::BlepOffset blep;
-          blep.offset = percAfterRoll - double(i + 1);
+          blep.offset = percAfterRoll - static_cast<double>(i + 1);
 
 
           // CALCULATE the MAGNITUDE of ths 2nd ORDER (VEL) discontinuity
@@ -309,7 +311,8 @@ inline void WaveGenerator::buildWave (int numSamples) {
 
     // MOVE the ANGLE
     currentAngle += actualCurrentAngleDelta; // MODs based on the PITCH BEND ...
-    currentAngle = fmod(double(currentAngle), double(2*juce::MathConstants<double>::twoPi)); // ROLLOVER :::
+    currentAngle = fmod(static_cast<double>(currentAngle), static_cast<double>(
+                 2 * juce::MathConstants<double>::twoPi)); // ROLLOVER :::
 
     jassert(fabs(currentAngle - currentAngle) < DELTA);
 
@@ -336,7 +339,7 @@ inline void WaveGenerator::buildWave (int numSamples) {
           MinBlepGenerator::BlepOffset blep;
 
           // CALCULATE subsample offset :::
-          blep.offset = percAfterRoll - double(i + 1);
+          blep.offset = percAfterRoll - static_cast<double>(i + 1);
 
           // MAGNITUDE of 1st order nonlinearity is 2 or -2 :::
           if (fmod(currentAngleSkewed, 2*juce::MathConstants<double>::twoPi) < actualCurrentAngleDeltaSkewed)
@@ -364,7 +367,7 @@ inline void WaveGenerator::buildWave (int numSamples) {
 
           // CALCULATE the OFFSET
           MinBlepGenerator::BlepOffset blep;
-          blep.offset = percAfterRoll - double(i + 1);
+          blep.offset = percAfterRoll - static_cast<double>(i + 1);
 
           // MAGNITUDE of 1st order nonlinearity is 2 or -2 :::
           if (myWaveType == sawRise) blep.pos_change_magnitude = -2;
@@ -403,7 +406,7 @@ inline void WaveGenerator::buildWave (int numSamples) {
           }
 
           MinBlepGenerator::BlepOffset blep;
-          blep.offset = percAfterRoll - double(i + 1);
+          blep.offset = percAfterRoll - static_cast<double>(i + 1);
 
           // SYMETRY :::::
           // since this is a triangle
@@ -453,7 +456,7 @@ inline void WaveGenerator::buildWave (int numSamples) {
 
 }
 
-double WaveGenerator::skewAngle(double angle) {
+double WaveGenerator::skewAngle(const double angle) const {
 
   // APPLY PWM to angle ...
 
@@ -497,7 +500,7 @@ void WaveGenerator::moveAngleForward(int numSamples) {
   if (numSamples == 0 || (fabs(slaveDeltaBase) < DELTA)) return;
 
   double angle = currentAngle;
-  int historyPoints = numSamples/20;
+  const int historyPoints = numSamples/20;
 
   // calculate MOD in the angle delta ...
   double modAngleDelta = slaveDeltaBase;
@@ -509,7 +512,8 @@ void WaveGenerator::moveAngleForward(int numSamples) {
   if (fabs(phaseAngleTarget - phaseAngleActual) > DELTA)
   {
     // LINEAR RAMP from current phase to the target
-    float phaseShiftPerSample = static_cast<float>(phaseAngleTarget - phaseAngleActual)/float(100*numSamples);
+    float phaseShiftPerSample = static_cast<float>(phaseAngleTarget - phaseAngleActual)/
+        static_cast<float>(100 * numSamples);
     modAngleDelta += static_cast<double>(phaseShiftPerSample);
     phaseAngleActual = phaseAngleActual + static_cast<double>(phaseShiftPerSample*static_cast<float>(numSamples));
   }
@@ -542,7 +546,7 @@ void WaveGenerator::moveAngleForwardTo(double newAngle) {
 }
 
 // LOAD / SAVE
-void WaveGenerator::loadScene(juce::ValueTree node) {
+void WaveGenerator::loadScene(const juce::ValueTree& node) {
 
   // wavetype ....
   int type = node.getProperty("waveType", 0);
@@ -568,7 +572,7 @@ void WaveGenerator::loadScene(juce::ValueTree node) {
   setToneOffset(static_cast<double>(tone));
 }
 
-void WaveGenerator::saveScene(juce::ValueTree node) {
+void WaveGenerator::saveScene(juce::ValueTree node) const {
 
   node.setProperty("waveType", myWaveType, nullptr);
   node.setProperty("masterPitchOffset", masterPitchOffset,  nullptr);
