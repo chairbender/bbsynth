@@ -14,9 +14,8 @@ bool OscillatorSound::appliesToChannel([[maybe_unused]] int midiChannelIndex) {
 }
 
 OscillatorVoice::OscillatorVoice() {
-  // todo is this really the right place to call this?
   waveGenerator_.prepareToPlay(getSampleRate());
-  waveGenerator_.setMode(WaveGenerator::NO_ANTIALIAS);
+  waveGenerator_.setMode(WaveGenerator::ANTIALIAS);
   waveGenerator_.setWaveType(WaveGenerator::sine);
 }
 
