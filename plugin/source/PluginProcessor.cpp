@@ -147,9 +147,11 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     editor->keyboardState.processNextMidiBuffer(
         midiMessages, 0,
         buffer.getNumSamples(), true);
+
+    synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+    editor->getNextAudioBlock(buffer);
   }
 
-  synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
   // for (int channel = 0; channel < totalNumInputChannels; ++channel) {
   //   // todo maybe use this approach instead: auto* channelData =
   //   buffer.getWritePointer(channel);
