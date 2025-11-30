@@ -2,6 +2,7 @@
 
 #include "PluginProcessor.h"
 #include <juce_audio_utils/juce_audio_utils.h>
+#include <juce_dsp/juce_dsp.h>
 
 namespace audio_plugin {
 
@@ -14,6 +15,8 @@ public:
   void resized() override;
   // todo refactor so this can be private
   juce::MidiKeyboardState keyboardState;
+
+
 private:
   juce::MidiKeyboardComponent keyboardComponent;
 
