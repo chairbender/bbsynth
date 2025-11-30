@@ -512,7 +512,7 @@ void WaveGenerator::moveAngleForward(int numSamples) {
   if (fabs(phaseAngleTarget - phaseAngleActual) > DELTA)
   {
     // LINEAR RAMP from current phase to the target
-    float phaseShiftPerSample = static_cast<float>(phaseAngleTarget - phaseAngleActual)/
+    const float phaseShiftPerSample = static_cast<float>(phaseAngleTarget - phaseAngleActual)/
         static_cast<float>(100 * numSamples);
     modAngleDelta += static_cast<double>(phaseShiftPerSample);
     phaseAngleActual = phaseAngleActual + static_cast<double>(phaseShiftPerSample*static_cast<float>(numSamples));
