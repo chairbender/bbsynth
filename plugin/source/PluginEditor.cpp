@@ -4,9 +4,9 @@
 namespace audio_plugin {
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
     AudioPluginAudioProcessor& p)
-    : AudioProcessorEditor(&p),
-      keyboardComponent(keyboardState,
-                        juce::MidiKeyboardComponent::horizontalKeyboard),
+    : AudioProcessorEditor{&p},
+      keyboardComponent{keyboardState,
+                        juce::MidiKeyboardComponent::horizontalKeyboard},
       processorRef(p) {
   juce::ignoreUnused(processorRef);
 
