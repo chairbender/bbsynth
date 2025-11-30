@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PluginProcessor.h"
+#include <juce_audio_utils/juce_audio_utils.h>
 
 namespace audio_plugin {
 
@@ -11,11 +12,15 @@ public:
 
   void paint(juce::Graphics&) override;
   void resized() override;
-
+  // todo refactor so this can be private
+  juce::MidiKeyboardState keyboardState;
 private:
+  juce::MidiKeyboardComponent keyboardComponent;
+
   // This reference is provided as a quick way for your editor to
   // access the processor object that created it.
   AudioPluginAudioProcessor& processorRef;
+
   juce::Label centOffsetLabel;
   juce::Slider centOffsetSlider;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> centOffsetAttachment;

@@ -1,6 +1,7 @@
 #include "BBSynth/PluginProcessor.h"
 #include "BBSynth/PluginEditor.h"
 #include "BBSynth/Oscillator.h"
+#include "BBSynth/WaveGenerator.h"
 
 namespace audio_plugin {
 
@@ -15,10 +16,10 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 #endif
               ),
       apvts_(*this, nullptr, "ParameterTree", createParameterLayout()) {
-  for (auto i = 0; i < 4; ++i) {
-    synth.addVoice(new SineWaveVoice());
+  for (auto i = 0; i < 1; ++i) {
+    synth.addVoice(new OscillatorVoice());
   }
-  synth.addSound(new SineWaveSound(apvts_));
+  synth.addSound(new OscillatorSound(apvts_));
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {}
@@ -138,6 +139,16 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   // the samples and the outer loop is handling the channels.
   // Alternatively, you can process the samples with the channels
   // interleaved by keeping the same state.
+
+  if (auto editor =
+          dynamic_cast<AudioPluginAudioProcessorEditor*>(getActiveEditor())) {
+    //juce::MidiBuffer incomingMidi;
+    // todo do we need a separate buffer or can we append to existing?
+    editor->keyboardState.processNextMidiBuffer(
+        midiMessages, 0,
+        buffer.getNumSamples(), true);
+  }
+
   synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
   // for (int channel = 0; channel < totalNumInputChannels; ++channel) {
   //   // todo maybe use this approach instead: auto* channelData =

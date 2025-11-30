@@ -179,7 +179,7 @@ void WaveGenerator::renderNextBlock(juce::AudioSampleBuffer& outputBuffer,
 
 #endif
 }
-inline void WaveGenerator::buildWave(int numSamples) {
+inline void WaveGenerator::buildWave(const int numSamples) {
   if (slaveDeltaBase == 0.0)
     return;
 

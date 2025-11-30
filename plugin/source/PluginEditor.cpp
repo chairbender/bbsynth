@@ -4,8 +4,12 @@
 namespace audio_plugin {
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
     AudioPluginAudioProcessor& p)
-    : AudioProcessorEditor(&p), processorRef(p) {
+    : AudioProcessorEditor(&p),
+      keyboardComponent(keyboardState,
+                        juce::MidiKeyboardComponent::horizontalKeyboard),
+      processorRef(p) {
   juce::ignoreUnused(processorRef);
+
   // Make sure that before the constructor has finished, you've set the
   // editor's size to whatever you need it to be.
   setSize(400, 300);
@@ -32,8 +36,11 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   centOffsetLabel.attachToComponent(&centOffsetSlider, false);
   addAndMakeVisible(centOffsetLabel);
 
-  centOffsetAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-    processorRef.apvts_, "centOffset", centOffsetSlider);
+  centOffsetAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+          processorRef.apvts_, "centOffset", centOffsetSlider);
+
+  addAndMakeVisible(keyboardComponent);
 }
 
 void AudioPluginAudioProcessorEditor::resized() {
@@ -42,5 +49,7 @@ void AudioPluginAudioProcessorEditor::resized() {
   auto area = getLocalBounds().reduced(20);
 
   centOffsetSlider.setBounds(area.removeFromLeft(150).removeFromTop(100));
+
+  keyboardComponent.setBounds(10, 10, getWidth() - 20, getHeight() - 20);
 }
 }  // namespace audio_plugin

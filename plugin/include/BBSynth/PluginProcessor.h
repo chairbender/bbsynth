@@ -44,7 +44,6 @@ private:
 
   void parameterChanged(const juce::String& name, float newValue) override;
 
-  juce::MidiKeyboardState keyboardState;
   juce::Synthesiser synth;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessor)
