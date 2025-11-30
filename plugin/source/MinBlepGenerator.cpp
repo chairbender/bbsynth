@@ -9,11 +9,49 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 
 #include "BBSynth/MinBlepGenerator.h"
 
+#include <fstream>
+
 namespace audio_plugin {
 
 // STATIC ARRAYS - to house the minBlep and integral of the minBlep ...
 static juce::Array<float> minBlepArray;
 static juce::Array<float> minBlepDerivArray;
+
+// Helper: dump a numeric buffer to a CSV file in the user's Documents folder
+static void dumpArrayToCsv(const juce::Array<double>& buffer, const juce::String& fileName)
+{
+  juce::File outFile = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                            .getChildFile(fileName);
+  std::ofstream csv(outFile.getFullPathName().toStdString(), std::ios::out | std::ios::trunc);
+  if (!csv.is_open())
+    return;
+
+  csv << "index,value\n";
+  const int count = buffer.size();
+  for (int i = 0; i < count; ++i)
+  {
+    csv << i << "," << buffer.getUnchecked(i) << "\n";
+  }
+  csv.flush();
+}
+
+// todo use template to dedupe
+static void dumpArrayToCsv(const juce::Array<float>& buffer, const juce::String& fileName)
+{
+  juce::File outFile = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                            .getChildFile(fileName);
+  std::ofstream csv(outFile.getFullPathName().toStdString(), std::ios::out | std::ios::trunc);
+  if (!csv.is_open())
+    return;
+
+  csv << "index,value\n";
+  const int count = buffer.size();
+  for (int i = 0; i < count; ++i)
+  {
+    csv << i << "," << buffer.getUnchecked(i) << "\n";
+  }
+  csv.flush();
+}
 
 MinBlepGenerator::MinBlepGenerator() {
   overSamplingRatio = 16;
@@ -103,18 +141,28 @@ void MinBlepGenerator::buildBlep() {
   jassert(buffer1.size() == static_cast<int>(n));
   jassert(buffer2.size() == static_cast<int>(n));
 
+  dumpArrayToCsv(buffer1, "sinc.csv");
+
   // Window Sinc
   BlackmanWindow(n, buffer2.getRawDataPointer());
   juce::FloatVectorOperations::multiply(buffer1.getRawDataPointer(),
                                   buffer2.getRawDataPointer(), n);
 
+  dumpArrayToCsv(buffer1, "blackman.csv");
+
+
   // Minimum Phase Reconstruction
   RealCepstrum(n, buffer1.getRawDataPointer(), buffer2.getRawDataPointer());
   MinimumPhase(n, buffer2.getRawDataPointer(), buffer1.getRawDataPointer());
 
+  dumpArrayToCsv(buffer1, "minphase.csv");
+
+
   // Integrate Into MinBLEP
   minBlepArray.ensureStorageAllocated(static_cast<int>(n));
   minBlepDerivArray.ensureStorageAllocated(static_cast<int>(n));
+
+
 
   a = 0;
   double secondInt = 0;
@@ -127,6 +175,10 @@ void MinBlepGenerator::buildBlep() {
     secondInt += a;
     minBlepDerivArray.add(static_cast<float>(secondInt));
   }
+
+  dumpArrayToCsv(minBlepArray, "minbleparr.csv");
+  dumpArrayToCsv(minBlepDerivArray, "minblepDevarr.csv");
+
 
   // Normalize
   double maxVal = static_cast<double>(minBlepArray.getUnchecked(static_cast<int>(n - 1)));
@@ -156,6 +208,10 @@ void MinBlepGenerator::buildBlep() {
                                   minBlepArray.size());
 
   jassert(fabsf(minBlepArray[static_cast<int>(n)]) < 0.001f);
+
+
+  dumpArrayToCsv(minBlepArray, "minbleparrNormSub.csv");
+  dumpArrayToCsv(minBlepDerivArray, "minblepDevarrNormSub.csv");
 }
 
 void MinBlepGenerator::addBlep(BlepOffset newBlep) {
