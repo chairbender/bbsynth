@@ -50,6 +50,6 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   centOffsetSlider.setBounds(area.removeFromLeft(150).removeFromTop(100));
 
-  keyboardComponent.setBounds(10, 10, getWidth() - 20, getHeight() - 20);
+  keyboardComponent.setBounds(0, 150, 400, 150);
 }
 }  // namespace audio_plugin
