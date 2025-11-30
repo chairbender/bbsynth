@@ -167,7 +167,7 @@ void WaveGenerator::renderNextBlock(juce::AudioSampleBuffer& outputBuffer,
   float RMS = outputBuffer.getRMSLevel(0, 0, outputBuffer.getNumSamples());
 
   // Aaron - wtf?  How do we get NaN .. but we do .... hmmmm
-  if (!isnanf(RMS)) {
+  if (isnanf(RMS)) {
     DBG("NaN " + juce::String(outputBuffer.getNumSamples()) + " " +
         juce::String(*outputBuffer.getReadPointer(0, 0)));
   }
