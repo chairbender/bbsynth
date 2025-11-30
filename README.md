@@ -6,7 +6,11 @@ style guide
 https://google.github.io/styleguide/cppguide.html
 
 todos:
-- add single gui control to change the tailoff
+- maybe DC offset issues in the minblep implementation at high sawtooth freqs. I suspect this could be from
+  precision issues due to the many implicit conversions in the original impl 
+ (which I have made explicit). 
+ Have to go through these carefully and keep the precision as much as possible and minimize the conversions.
+  
 - use wavetables instead
 - cpp_args = ['-std=c++2c', '-Wall', '-Wextra', '-Wshadow', '-Wconversion', '-Wpedantic', '-Werror']
 - set up sanitizer support (asan, ubsan, etc...)

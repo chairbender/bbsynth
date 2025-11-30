@@ -187,9 +187,6 @@ void MinBlepGenerator::processBlock(float* buffer, int numSamples) {
   // look for non-linearities ....
   jassert(numSamples > 0);
 
-  // todo this could possibly be made more efficient by knowledge of the
-  //  oscillator rather than scanning for nonlins
-
   // NON-LINEARITIES :::::
   // This is for processing detected nonlinearities about which we ONLY know the
   // POSITION process_nonlinearities(buffer, numSamples, nonlinearities);
