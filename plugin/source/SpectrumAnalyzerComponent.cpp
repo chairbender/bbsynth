@@ -2,184 +2,97 @@
 
 namespace audio_plugin {
 
-struct SpectrumAnalyzerComponent::ChannelInfo {
-  ChannelInfo(SpectrumAnalyzerComponent& o, int bufferSize) : owner(o) {
-    setBufferSize(bufferSize);
-    clear();
-  }
-
-  void clear() noexcept {
-    levels.fill({});
-    value = {};
-    subSample = 0;
-  }
-
-  void pushSamples(const float* inputSamples, int num) noexcept {
-    for (int i = 0; i < num; ++i)
-      pushSample(inputSamples[i]);
-  }
-
-  void pushSample(float newSample) noexcept {
-    if (--subSample <= 0) {
-      if (++nextSample == levels.size())
-        nextSample = 0;
-
-      levels.getReference(nextSample) = value;
-      subSample = owner.getSamplesPerBlock();
-      value = juce::Range<float>(newSample, newSample);
-    } else {
-      value = value.getUnionWith(newSample);
-    }
-  }
-
-  void setBufferSize(int newSize) {
-    levels.removeRange(newSize, levels.size());
-    levels.insertMultiple(-1, {}, newSize - levels.size());
-
-    if (nextSample >= newSize)
-      nextSample = 0;
-  }
-
-  SpectrumAnalyzerComponent& owner;
-  juce::Array<juce::Range<float>> levels;
-  juce::Range<float> value;
-  std::atomic<int> nextSample{0}, subSample{0};
-
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChannelInfo)
-};
-
-SpectrumAnalyzerComponent::SpectrumAnalyzerComponent(int initialNumChannels)
-    : numSamples(1024),
-      inputSamplesPerBlock(256),
-      backgroundColour(juce::Colours::black),
-      waveformColour(juce::Colours::white),
-      forwardFFT{fftOrder},
+SpectrumAnalyzerComponent::SpectrumAnalyzerComponent()
+    : forwardFFT{fftOrder},
       window{fftSize, juce::dsp::WindowingFunction<float>::hann} {
   setOpaque(true);
-  setNumChannels(initialNumChannels);
-  setRepaintRate(60);
+  startTimerHz(30);
 }
 
 SpectrumAnalyzerComponent::~SpectrumAnalyzerComponent() {}
 
-void SpectrumAnalyzerComponent::setNumChannels(int numChannels) {
-  channels.clear();
-
-  for (int i = 0; i < numChannels; ++i)
-    channels.add(new ChannelInfo(*this, numSamples));
-}
-
-void SpectrumAnalyzerComponent::setBufferSize(int newNumSamples) {
-  numSamples = newNumSamples;
-
-  for (auto* c : channels)
-    c->setBufferSize(newNumSamples);
-}
-
-void SpectrumAnalyzerComponent::clear() {
-  for (auto* c : channels)
-    c->clear();
-}
-
-void SpectrumAnalyzerComponent::pushBuffer(const float* const* d,
-                                           int numChannels,
-                                           int num) {
-  numChannels = juce::jmin(numChannels, channels.size());
-
-  for (int i = 0; i < numChannels; ++i)
-    channels.getUnchecked(i)->pushSamples(d[i], num);
-}
-
-void SpectrumAnalyzerComponent::pushBuffer(
+void SpectrumAnalyzerComponent::getNextAudioBlock(
     const juce::AudioBuffer<float>& buffer) {
-  pushBuffer(buffer.getArrayOfReadPointers(), buffer.getNumChannels(),
-             buffer.getNumSamples());
+  if (buffer.getNumChannels() > 0) {
+    // todo is 0 correct for sampleidx?
+    auto* channelData =
+        buffer.getReadPointer(0, 0);
+
+    for (auto i = 0; i < buffer.getNumSamples(); ++i)
+      pushNextSampleIntoFifo(channelData[i]);
+  }
 }
 
-void SpectrumAnalyzerComponent::pushBuffer(
-    const juce::AudioSourceChannelInfo& buffer) {
-  auto numChannels =
-      juce::jmin(buffer.buffer->getNumChannels(), channels.size());
+//==============================================================================
+void SpectrumAnalyzerComponent::paint(juce::Graphics& g) {
+  g.fillAll(juce::Colours::black);
 
-  for (int i = 0; i < numChannels; ++i)
-    channels.getUnchecked(i)->pushSamples(
-        buffer.buffer->getReadPointer(i, buffer.startSample),
-        buffer.numSamples);
-}
-
-void SpectrumAnalyzerComponent::pushSample(const float* d, int numChannels) {
-  numChannels = juce::jmin(numChannels, channels.size());
-
-  for (int i = 0; i < numChannels; ++i)
-    channels.getUnchecked(i)->pushSample(d[i]);
-}
-
-void SpectrumAnalyzerComponent::setSamplesPerBlock(
-    int newSamplesPerPixel) noexcept {
-  inputSamplesPerBlock = newSamplesPerPixel;
-}
-
-void SpectrumAnalyzerComponent::setRepaintRate(int frequencyInHz) {
-  startTimerHz(frequencyInHz);
+  g.setOpacity(1.0f);
+  g.setColour(juce::Colours::white);
+  drawFrame(g);
 }
 
 void SpectrumAnalyzerComponent::timerCallback() {
-  repaint();
+  if (nextFFTBlockReady) {
+    drawNextFrameOfSpectrum();
+    nextFFTBlockReady = false;
+    repaint();
+  }
 }
 
-void SpectrumAnalyzerComponent::setColours(juce::Colour bk,
-                                           juce::Colour fg) noexcept {
-  backgroundColour = bk;
-  waveformColour = fg;
-  repaint();
-}
+void SpectrumAnalyzerComponent::pushNextSampleIntoFifo(float sample) noexcept {
+  // if the fifo contains enough data, set a flag to say
+  // that the next frame should now be rendered..
+  if (fifoIndex == fftSize)  // [11]
+  {
+    if (!nextFFTBlockReady)  // [12]
+    {
+      juce::zeromem(fftData, sizeof(fftData));
+      memcpy(fftData, fifo, sizeof(fifo));
+      nextFFTBlockReady = true;
+    }
 
-void SpectrumAnalyzerComponent::paint(juce::Graphics& g) {
-  g.fillAll(backgroundColour);
-
-  auto r = getLocalBounds().toFloat();
-  auto channelHeight = r.getHeight() / static_cast<float>(channels.size());
-
-  g.setColour(waveformColour);
-
-  for (auto* c : channels)
-    paintChannel(g, r.removeFromTop(channelHeight), c->levels.begin(),
-                 c->levels.size(), c->nextSample);
-}
-
-void SpectrumAnalyzerComponent::getChannelAsPath(
-    juce::Path& path,
-    const juce::Range<float>* levels,
-    int numLevels,
-    int nextSample) {
-  path.preallocateSpace(4 * numLevels + 8);
-
-  for (int i = 0; i < numLevels; ++i) {
-    auto level = -(levels[(nextSample + i) % numLevels].getEnd());
-
-    if (i == 0)
-      path.startNewSubPath(0.0f, level);
-    else
-      path.lineTo(static_cast<float>(i), level);
+    fifoIndex = 0;
   }
 
-  for (int i = numLevels; --i >= 0;)
-    path.lineTo(static_cast<float>(i), -(levels[(nextSample + i) % numLevels].getStart()));
-
-  path.closeSubPath();
+  fifo[fifoIndex++] = sample;  // [12]
 }
 
-void SpectrumAnalyzerComponent::paintChannel(juce::Graphics& g,
-                                             juce::Rectangle<float> area,
-                                             const juce::Range<float>* levels,
-                                             int numLevels,
-                                             int nextSample) {
-  juce::Path p;
-  getChannelAsPath(p, levels, numLevels, nextSample);
+void SpectrumAnalyzerComponent::drawNextFrameOfSpectrum() {
+  // first apply a windowing function to our data
+  window.multiplyWithWindowingTable(fftData, fftSize);  // [1]
 
-  g.fillPath(p, juce::AffineTransform::fromTargetPoints(
-                    0.0f, -1.0f, area.getX(), area.getY(), 0.0f, 1.0f,
-                    area.getX(), area.getBottom(), static_cast<float>(numLevels), -1.0f,
-                    area.getRight(), area.getY()));
+  // then render our FFT data..
+  forwardFFT.performFrequencyOnlyForwardTransform(fftData);  // [2]
+
+  auto mindB = -100.0f;
+  auto maxdB = 0.0f;
+
+  for (int i = 0; i < scopeSize; ++i)  // [3]
+  {
+    auto skewedProportionX =
+        1.0f - std::exp(std::log(1.0f - static_cast<float>(i) / static_cast<float>(scopeSize)) * 0.2f);
+    auto fftDataIndex = juce::jlimit(
+        0, fftSize / 2, static_cast<int>(skewedProportionX * static_cast<float>(fftSize) * 0.5f));
+    auto level = juce::jmap(
+        juce::jlimit(mindB, maxdB,
+                     juce::Decibels::gainToDecibels(fftData[fftDataIndex]) -
+                         juce::Decibels::gainToDecibels(static_cast<float>(fftSize))),
+        mindB, maxdB, 0.0f, 1.0f);
+
+    scopeData[i] = level;  // [4]
+  }
+}
+
+void SpectrumAnalyzerComponent::drawFrame(juce::Graphics& g) {
+  for (int i = 1; i < scopeSize; ++i) {
+    auto width = getLocalBounds().getWidth();
+    auto height = getLocalBounds().getHeight();
+
+    g.drawLine({static_cast<float>(juce::jmap(i - 1, 0, scopeSize - 1, 0, width)),
+                juce::jmap(scopeData[i - 1], 0.0f, 1.0f, static_cast<float>(height), 0.0f),
+                static_cast<float>(juce::jmap(i, 0, scopeSize - 1, 0, width)),
+                juce::jmap(scopeData[i], 0.0f, 1.0f, static_cast<float>(height), 0.0f)});
+  }
 }
 }  // namespace audio_plugin

@@ -15,6 +15,11 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
   setSize(400, 300);
 }
 
+void AudioPluginAudioProcessorEditor::getNextAudioBlock(
+    juce::AudioBuffer<float>& buffer) {
+  spectrumAnalyzer.getNextAudioBlock(buffer);
+}
+
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {}
 
 void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
@@ -36,6 +41,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   centOffsetLabel.attachToComponent(&centOffsetSlider, false);
   addAndMakeVisible(centOffsetLabel);
 
+  addAndMakeVisible(spectrumAnalyzer);
+
   centOffsetAttachment =
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "centOffset", centOffsetSlider);
@@ -51,5 +58,7 @@ void AudioPluginAudioProcessorEditor::resized() {
   centOffsetSlider.setBounds(area.removeFromLeft(150).removeFromTop(100));
 
   keyboardComponent.setBounds(0, 150, 400, 150);
+
+  spectrumAnalyzer.setBounds(0, 0, 400, 150);
 }
 }  // namespace audio_plugin
