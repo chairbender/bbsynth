@@ -10,7 +10,9 @@ set(SOURCE_FILES source/AudioProcessorTest.cpp
         ../plugin/include/BBSynth/Oscillator.h
         ../plugin/source/Oscillator.cpp
         ../plugin/include/BBSynth/MinBlepGenerator.h
-        ../plugin/source/MinBlepGenerator.cpp)
+        ../plugin/source/MinBlepGenerator.cpp
+        ../plugin/include/BBSynth/WaveGenerator.h
+        ../plugin/source/WaveGenerator.cpp)
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 # Sets the necessary include directories of googletest.
