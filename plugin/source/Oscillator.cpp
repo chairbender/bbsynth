@@ -17,7 +17,7 @@ OscillatorVoice::OscillatorVoice() {
   waveGenerator_.prepareToPlay(getSampleRate());
   //waveGenerator_.setHardsync(false);
   waveGenerator_.setMode(WaveGenerator::ANTIALIAS);
-  waveGenerator_.setWaveType(WaveGenerator::triangle);
+  waveGenerator_.setWaveType(WaveGenerator::sawFall);
 }
 
 bool OscillatorVoice::canPlaySound(juce::SynthesiserSound* sound) {
