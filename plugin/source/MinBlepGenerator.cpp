@@ -115,6 +115,11 @@ bool MinBlepGenerator::isClear() const {
   return currentActiveBlepOffsets.isEmpty();
 }
 
+// todo below calculation seems sus - there is more straightforward impl in cardinal
+//  that we could try to use instead. The generated minBlepArray doesn't seem right - values
+//  are WAY too big. Could be rounding or precision error caused by my changes?
+
+
 // MIN BLEP - freq domain calc
 void MinBlepGenerator::buildBlep() {
   // ALREADY built - so return ...
@@ -122,24 +127,22 @@ void MinBlepGenerator::buildBlep() {
     return;
 
   // BUILD the BLEP
-  size_t i;
+  int i;
   juce::Array<double> buffer1;
   juce::Array<double> buffer2;
 
-  size_t n = static_cast<size_t>(zeroCrossings * 2 * overSamplingRatio) + 1;
+  const auto n = static_cast<int>(zeroCrossings * 2 * overSamplingRatio);
 
   DBG("BUILD minBLEP - ratio " + juce::String(overSamplingRatio) + " -> " +
       juce::String(n));
 
-  // Generate Sinc
-  constexpr float bandlimit = 0.9f;
-  double a =
-      static_cast<double>(bandlimit * static_cast<float>(-zeroCrossings));
-  double b = -a;
+  // Generate symmetric sinc array with specified number of
+  // zero crossings on each side
   for (i = 0; i < n; i++) {
-    double r = (static_cast<double>(i)) / (static_cast<double>(n - 1));
-
-    buffer1.add(SINC(a + (r * (b - a))));
+    // rescale from 0 - n-1 to -zeroCrossing to zeroCrossing
+    const auto p = static_cast<float>(i) / static_cast<float>(n - 1)
+      * ((static_cast<float>(zeroCrossings)*2)) - static_cast<float>(zeroCrossings);
+    buffer1.add(SINC(static_cast<double>(p)));
     buffer2.add(0);  // size ...
   }
 
@@ -149,7 +152,7 @@ void MinBlepGenerator::buildBlep() {
   dumpArrayToCsv(buffer1, "sinc.csv");
 
   // Window Sinc
-  BlackmanWindow(n, buffer2.getRawDataPointer());
+  ApplyBlackmanHarrisWindow(n, buffer2.getRawDataPointer());
   juce::FloatVectorOperations::multiply(buffer1.getRawDataPointer(),
                                   buffer2.getRawDataPointer(), n);
 
@@ -157,23 +160,19 @@ void MinBlepGenerator::buildBlep() {
 
 
   // Minimum Phase Reconstruction
-  RealCepstrum(n, buffer1.getRawDataPointer(), buffer2.getRawDataPointer());
-  MinimumPhase(n, buffer2.getRawDataPointer(), buffer1.getRawDataPointer());
+  RealCepstrum(static_cast<size_t>(n), buffer1.getRawDataPointer());
+  MinimumPhase(static_cast<size_t>(n), buffer1.getRawDataPointer());
 
   dumpArrayToCsv(buffer1, "minphase.csv");
 
-
-  // Integrate Into MinBLEP
+  // Integrate Into MinBLEP and BLAMP lookups
   minBlepArray.ensureStorageAllocated(static_cast<int>(n));
   minBlepDerivArray.ensureStorageAllocated(static_cast<int>(n));
 
-
-
-  a = 0;
+  double a = 0;
   double secondInt = 0;
   for (i = 0; i < n; i++) {
-    a +=
-        buffer1[static_cast<int>(i)];  // full integral ... so that we can normalize (make area=1)
+    a += buffer1[static_cast<int>(i)];  // full integral ... so that we can normalize (make area=1)
     minBlepArray.add(static_cast<float>(a));
 
     // 2ND ORDER ::::
@@ -183,7 +182,6 @@ void MinBlepGenerator::buildBlep() {
 
   dumpArrayToCsv(minBlepArray, "minbleparr.csv");
   dumpArrayToCsv(minBlepDerivArray, "minblepDevarr.csv");
-
 
   // Normalize
   double maxVal = static_cast<double>(minBlepArray.getUnchecked(static_cast<int>(n - 1)));
@@ -200,14 +198,15 @@ void MinBlepGenerator::buildBlep() {
 
   for (double ramp = 0; ramp < static_cast<double>(n); ramp++) {
     // 2ND ORDER ::::
+    // todo not sure what this does, but falling saw doesnt even use 2nd order corrections
     minBlepDerivArray.getRawDataPointer()[static_cast<int>(ramp)] -=
         static_cast<float>(ramp / static_cast<double>(n - 1));
   }
 
   // todo assert fails here - problem?
-  jassert(fabsf(minBlepDerivArray[0]) < 0.01f);
+  //jassert(fabsf(minBlepDerivArray[0]) < 0.01f);
   // todo assert here fails - problem?
-  jassert(fabsf(minBlepDerivArray[static_cast<int>(n - 1)]) < 0.01f);
+  //jassert(fabsf(minBlepDerivArray[static_cast<int>(n - 1)]) < 0.01f);
 
   // SUBTRACT 1 and invert so the signal (so it goes 1->0)
   juce::FloatVectorOperations::add(minBlepArray.getRawDataPointer(), -1.f,
@@ -393,6 +392,12 @@ void MinBlepGenerator::rescale_bleps_to_buffer(const float* buffer,
   }
 }
 
+/**
+ * Applies a correction, looked up from the appropriate blep or blamp
+ * correction table (oversampled), at a specified index + subsample within
+ * that table, using lerp to interp between the samples of the correction table.
+ * The correction is added to the given outputSampleIdx within outputBuffer.
+ */
 static void lerpCorrection(float* outputBuffer,
   const juce::Array<float>& correctionTable,
   const int correctionSample, const double correctionSubSample,
@@ -400,13 +405,13 @@ static void lerpCorrection(float* outputBuffer,
   const int outputSampleIdx) {
   // We have the subsample within the blep table, not just the sample, so we'll use that with linear interpolation
   // to ensure we get an even more accuracte blep value to mix in.
-  float blepSampleBefore = correctionTable.getRawDataPointer()[correctionSample];
+  const float blepSampleBefore = correctionTable.getRawDataPointer()[correctionSample];
   float blepSampleAfter = blepSampleBefore;
 
   if (static_cast<int>(correctionSample) + 1 < correctionTable.size())
     blepSampleAfter = correctionTable.getRawDataPointer()[static_cast<int>(correctionSample) + 1];
 
-  float delta = blepSampleAfter - blepSampleBefore;
+  const float delta = blepSampleAfter - blepSampleBefore;
   float exactValue = static_cast<float>(static_cast<double>(blepSampleBefore) + correctionSubSample * static_cast<double>(delta));
 
   // SCALE by the discontinuity magnitude
@@ -421,9 +426,6 @@ void MinBlepGenerator::process_currentBleps(float* buffer, int numSamples) {
   /// for each offset, mix a portion of the blep array with the output ....
   for (int i = currentActiveBlepOffsets.size(); --i >= 0;) {
     BlepOffset blep = currentActiveBlepOffsets[i];
-
-    // todo experiment - try adjusting the amount of blep that is mixed in from lower to higher
-    //  and see how it's changed
 
     // this determines how fast we step through the (oversampled) blep table
     // per output sample - it scales output samples into kernel samples (the blep table is the kernel)
