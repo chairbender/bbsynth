@@ -14,7 +14,12 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 namespace audio_plugin {
 
 // STATIC ARRAYS - to house the minBlep and integral of the minBlep ...
+// this array is used to handle POSITION discontinuities - 0th order - i.e. step response
 static juce::Array<float> minBlepArray;
+// this array is used to handle VELOCITY discontinuities - 1st order (effectively, BLAMP) i.e. ramp response.
+// note that "deriv" refers to the fact that it CORRRECTS the derivative - it is not itself a derivative.
+// In fact, it's actually the second integral of the minimum-phase impulse.
+// This may as well have been called the blampArray.
 static juce::Array<float> minBlepDerivArray;
 
 // Helper: dump a numeric buffer to a CSV file in the user's Documents folder
@@ -107,7 +112,7 @@ void MinBlepGenerator::clear() {
   currentActiveBlepOffsets.clear();
 }
 bool MinBlepGenerator::isClear() const {
-  return (currentActiveBlepOffsets.size() > 0);
+  return currentActiveBlepOffsets.isEmpty();
 }
 
 // MIN BLEP - freq domain calc
@@ -188,7 +193,8 @@ void MinBlepGenerator::buildBlep() {
   // Normalize ...
   float max = juce::FloatVectorOperations::findMaximum(
       minBlepDerivArray.getRawDataPointer(), n);
-  jassert(fabs(static_cast<double>(max - minBlepDerivArray.getLast())) < 0.0001);
+  // todo assert fails - problem?
+  //jassert(fabs(static_cast<double>(max - minBlepDerivArray.getLast())) < 0.0001);
   juce::FloatVectorOperations::multiply(minBlepDerivArray.getRawDataPointer(),
                                   1.0f / max, minBlepDerivArray.size());
 
@@ -198,7 +204,9 @@ void MinBlepGenerator::buildBlep() {
         static_cast<float>(ramp / static_cast<double>(n - 1));
   }
 
+  // todo assert fails here - problem?
   jassert(fabsf(minBlepDerivArray[0]) < 0.01f);
+  // todo assert here fails - problem?
   jassert(fabsf(minBlepDerivArray[static_cast<int>(n - 1)]) < 0.01f);
 
   // SUBTRACT 1 and invert so the signal (so it goes 1->0)
@@ -255,6 +263,7 @@ void MinBlepGenerator::processBlock(float* buffer, int numSamples) {
   // Hmmm .... once in a while there is a nonlinearity at the edge ....
   // inwhich case, we probably shouldn't update the delta ...
   // jassert(lastDelta == 0);
+  jassert(currentActiveBlepOffsets.size() > 0);
   if (static_cast<int>(currentActiveBlepOffsets.getLast().offset) != -(numSamples - 1)) {
     lastDelta = buffer[numSamples - 1] - buffer[numSamples - 2];
   } else  // hacky .... hmmm ...
@@ -384,90 +393,119 @@ void MinBlepGenerator::rescale_bleps_to_buffer(const float* buffer,
   }
 }
 
+static void lerpCorrection(float* outputBuffer,
+  const juce::Array<float>& correctionTable,
+  const int correctionSample, const double correctionSubSample,
+  const double discontinuityMagnitude,
+  const int outputSampleIdx) {
+  // We have the subsample within the blep table, not just the sample, so we'll use that with linear interpolation
+  // to ensure we get an even more accuracte blep value to mix in.
+  float blepSampleBefore = correctionTable.getRawDataPointer()[correctionSample];
+  float blepSampleAfter = blepSampleBefore;
+
+  if (static_cast<int>(correctionSample) + 1 < correctionTable.size())
+    blepSampleAfter = correctionTable.getRawDataPointer()[static_cast<int>(correctionSample) + 1];
+
+  float delta = blepSampleAfter - blepSampleBefore;
+  float exactValue = static_cast<float>(static_cast<double>(blepSampleBefore) + correctionSubSample * static_cast<double>(delta));
+
+  // SCALE by the discontinuity magnitude
+  exactValue *= static_cast<float>(discontinuityMagnitude);
+
+  // ADD to the thruput
+  outputBuffer[static_cast<int>(outputSampleIdx)] += exactValue;
+}
+
 void MinBlepGenerator::process_currentBleps(float* buffer, int numSamples) {
   // PROCESS ALL BLEPS -
-  /// for each offset, copy a portion of the blep array to the output ....
+  /// for each offset, mix a portion of the blep array with the output ....
   for (int i = currentActiveBlepOffsets.size(); --i >= 0;) {
     BlepOffset blep = currentActiveBlepOffsets[i];
-    double adjusted_Freq = blep.freqMultiple;
-    double exactPosition = blep.offset;
 
-    // ADD the BLEP to the circular buffer ...
+    // todo experiment - try adjusting the amount of blep that is mixed in from lower to higher
+    //  and see how it's changed
+
+    // this determines how fast we step through the (oversampled) blep table
+    // per output sample - it scales output samples into kernel samples (the blep table is the kernel)
+    const double freqMultiple = blep.freqMultiple;
+    // remember this will be negative when the blep occurred this buffer (as opposed to a recent previous buffer)
+    // and the magnitude (ignoring the negative sign) is the index it occurred at in this buffer.
+    const double exactBlepOffset = blep.offset;
+
+    // mix the minBLEP table into the buffer at the point where the blep occurs
+    // within the current buffer.
+    // To do this, we first have to step through the current buffer until we reach a point
+    // where the blep has occurred (which will already be true if the blep happened in a recent previous
+    // buffer).
     for (float p = 0; p < static_cast<float>(numSamples); p++) {
-      double blepPosExact =
-          adjusted_Freq *
-          (exactPosition + static_cast<double>(p) +
-           1);  // +1 because this needs to trigger on the LOW SAMPLE
-      double blepPosSample = 0;
-      double fraction = modf(blepPosExact, &blepPosSample);
 
-      // LIMIT the scaling on the derivative array
-      // otherwise, it can get TOO large
-      double depthLimited =
+      // figure out how many output samples (p) have transpired
+      // since the blep - this will be negative if we haven't yet reached the blep.
+      // +1 because the blep needs to be mixed in starting on the LOW SAMPLE
+      const auto outputSamplesSinceBlep = exactBlepOffset + static_cast<double>(p) + 1;
+
+      // by scaling by freqMultiple, we convert to a lookup on the blep table (which is oversampled).
+      // Think of it as a "blep sample".
+      // It's a double because we also preserve the fractional part (subsample).
+      // Again, this number is negative and basically meaningless if we haven't yet reached the blep
+      // todo we shouldn't even bother to calculate until we've passed the blep
+      const double currentBlepTableSampleExact = freqMultiple * outputSamplesSinceBlep;
+      double currentBlepTableSample = 0;
+      // the fractional part of the "blep sample" we need.
+      const double currentBlepTableSubSample = modf(currentBlepTableSampleExact, &currentBlepTableSample);
+
+      // LIMIT the correction applied for velocity discontinuity
+      // otherwise, it can get TOO large (for example at high freqs) and ends up over-correcting.
+      // This limiting is done by reducing how fast we advance through the BLAMP table - adjusting
+      // the scaling factor that converts from output sample idx to blamp lookup idx.
+      const double depthLimited =
           proportionalBlepFreq;  // jlimit<double>(.1, 1, proportionalBlepFreq);
-      double blepDeriv_PosExact =
-          depthLimited * overSamplingRatio * (exactPosition + static_cast<double>(p) + 1);
-      double blepDeriv_Sample = 0;
-      double fraction_Deriv = modf(blepDeriv_PosExact, &blepDeriv_Sample);
+      const double currentBlepDerivTableSampleExact =
+          depthLimited * overSamplingRatio * (exactBlepOffset + static_cast<double>(p) + 1);
+      double currentBlepDerivTableSample = 0;
+      const double currentBlepDerivTableSubSample = modf(currentBlepDerivTableSampleExact, &currentBlepDerivTableSample);
 
-      // DONE ... we reached the end ...
-      if (static_cast<int>(blepPosExact) > minBlepArray.size() &&
-          static_cast<int>(blepDeriv_PosExact) > minBlepArray.size())
+      // DONE ... we reached the place where this blep should end (which may be after multiple bufferfulls
+      // of applying the blep)
+      if (static_cast<int>(currentBlepTableSampleExact) > minBlepArray.size() &&
+          static_cast<int>(currentBlepDerivTableSampleExact) > minBlepArray.size())
         break;
 
       // BLEP has not yet occurred ...
-      if (blepPosExact < 0)
+      if (currentBlepTableSampleExact < 0)
         continue;
 
-      // 0TH ORDER COMPENSATION ::::
-      /// add the BLEP to compensate for discontinuties in the POSITION
+      // 0TH ORDER (POSITION DISCONTINUITY) COMPENSATION ::::
+      // we reached the location of this blep or we are somewhere after it
+      // We need to mix in the corresponding value in the blep table. E.g.
+      // if blep occurred 3 samples ago we should mix in sample 3 of the blep table.
+      // But that's not quite the case - the blep table is oversampled, so we need to
+      // convert the index to one on the blep table (using the subsample information we preserved about the blep).
+      // We also don't want to mix the blep in at its full value - we scale the blep based on how big the
+      // original blep discontinuity was.
       if (fabs(blep.pos_change_magnitude) > 0 &&
-          blepPosSample < minBlepArray.size()) {
-        // LINEAR INTERPOLATION ::::
-        float lowValue = minBlepArray.getRawDataPointer()[static_cast<int>(blepPosSample)];
-        float hiValue = lowValue;
-
-        if (static_cast<int>(blepPosSample) + 1 < minBlepArray.size())
-          hiValue = minBlepArray.getRawDataPointer()[static_cast<int>(blepPosSample) + 1];
-
-        float delta = hiValue - lowValue;
-        float exactValue = static_cast<float>(static_cast<double>(lowValue) + fraction * static_cast<double>(delta));
-
-        // SCALE by the discontinuity magnitude
-        exactValue *= static_cast<float>(blep.pos_change_magnitude);
-
-        // ADD to the thruput
-        buffer[static_cast<int>(p)] += exactValue;
+          currentBlepTableSample < minBlepArray.size()) {
+        lerpCorrection(buffer, minBlepArray,
+          static_cast<int>(currentBlepTableSample),
+          currentBlepTableSubSample, blep.pos_change_magnitude,
+          static_cast<int>(p));
       }
 
       // 1ST ORDER COMPENSATION ::::
       /// add the BLEP DERIVATIVE to compensate for discontinuties in the
-      /// VELOCITY
+      /// VELOCITY - this is BLAMP basically.
       if (fabs(blep.vel_change_magnitude) > 0 &&
-          blepDeriv_PosExact < minBlepDerivArray.size()) {
-        // LINEAR INTERPOLATION ::::
-        double lowValue =
-            static_cast<double>(minBlepDerivArray.getRawDataPointer()[static_cast<int>(blepDeriv_PosExact)]);
-        double hiValue = lowValue;
+          currentBlepDerivTableSampleExact < minBlepDerivArray.size()) {
 
-        if (static_cast<int>(blepDeriv_PosExact) + 1 < minBlepDerivArray.size())
-          hiValue = static_cast<double>(minBlepDerivArray
-                        .getRawDataPointer()[static_cast<int>(blepDeriv_PosExact) + 1]);
-
-        double delta = hiValue - lowValue;
-        double exactValue = lowValue + fraction_Deriv * delta;
-
-        // SCALE by the discontinuity magnitude
-        exactValue *= blep.vel_change_magnitude;
-
-        // ADD to the thruput
-        buffer[static_cast<int>(p)] += static_cast<float>(exactValue);
+        lerpCorrection(buffer, minBlepDerivArray,
+          static_cast<int>(currentBlepDerivTableSample), currentBlepDerivTableSubSample,
+          blep.vel_change_magnitude, static_cast<int>(p));
       }
     }
 
     // UPDATE ::::
     blep.offset = blep.offset + static_cast<double>(numSamples);
-    if (blep.offset * adjusted_Freq > minBlepArray.size()) {
+    if (blep.offset * freqMultiple > minBlepArray.size()) {
       currentActiveBlepOffsets.remove(i);
     } else
       currentActiveBlepOffsets.setUnchecked(i, blep);

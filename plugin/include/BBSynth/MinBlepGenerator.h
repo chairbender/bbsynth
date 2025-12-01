@@ -49,6 +49,22 @@ public:
                           // (for first der. discontinuities)
 
   struct BlepOffset {
+    /**
+     * This is a value representing a sample index (integer part) + subsample (fractional part).
+     * But what is offset from is a little unintuitive...
+     * Consider just the integer part for now:
+     * When the blep occured in the current buffer, this will be a negative value
+     * where the magnitude of the value matches the index
+     * the blep occurred at.
+     * It's set up so that as you walk through the current buffer (i + offset) = 0
+     * when you've reached the sample where the blep happend, and gets more positive as you
+     * continue to step through samples. This is used to convert to a lookup against the blep
+     * table so we know what part of the blep table we should be mixing in for a given offset in
+     * output samples from the start of the blep.
+     * The sign flips to positive once we start processing the next buffer of audio, and
+     * (todo presumably) the magnitude at that point represents how many samples ago the blep occurred
+     * (so the blep tail is processed when it spans multiple buffers).
+     */
     double offset = 0;
     double freqMultiple = 0;
     double pos_change_magnitude = 0;
