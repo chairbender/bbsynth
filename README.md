@@ -6,7 +6,7 @@ style guide
 https://google.github.io/styleguide/cppguide.html
 
 todos:
-- fix the bad way i've included pffft 
+- fix dc offset being introduced (try saw at high freq)
 - refactor to use more things in juce::dsp vs the hand-rolled stuff
 - maybe DC offset issues in the minblep implementation at high sawtooth freqs. I suspect this could be from
   precision issues due to the many implicit conversions in the original impl 
