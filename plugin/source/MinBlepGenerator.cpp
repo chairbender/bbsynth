@@ -129,7 +129,6 @@ void MinBlepGenerator::buildBlep() {
   // BUILD the BLEP
   int i;
   juce::Array<double> buffer1;
-  juce::Array<double> buffer2;
 
   const auto n = static_cast<int>(zeroCrossings * 2 * overSamplingRatio);
 
@@ -143,21 +142,20 @@ void MinBlepGenerator::buildBlep() {
     const auto p = static_cast<float>(i) / static_cast<float>(n - 1)
       * ((static_cast<float>(zeroCrossings)*2)) - static_cast<float>(zeroCrossings);
     buffer1.add(SINC(static_cast<double>(p)));
-    buffer2.add(0);  // size ...
   }
 
   jassert(buffer1.size() == static_cast<int>(n));
-  jassert(buffer2.size() == static_cast<int>(n));
 
   dumpArrayToCsv(buffer1, "sinc.csv");
 
   // Window Sinc
-  ApplyBlackmanHarrisWindow(n, buffer2.getRawDataPointer());
+  ApplyBlackmanHarrisWindow(n, buffer1.getRawDataPointer());
 
   dumpArrayToCsv(buffer1, "blackman.csv");
 
   // Minimum Phase Reconstruction
   RealCepstrum(static_cast<size_t>(n), buffer1.getRawDataPointer());
+  dumpArrayToCsv(buffer1, "cepstrum.csv");
   MinimumPhase(static_cast<size_t>(n), buffer1.getRawDataPointer());
 
   dumpArrayToCsv(buffer1, "minphase.csv");
