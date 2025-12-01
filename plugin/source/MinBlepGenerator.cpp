@@ -153,11 +153,8 @@ void MinBlepGenerator::buildBlep() {
 
   // Window Sinc
   ApplyBlackmanHarrisWindow(n, buffer2.getRawDataPointer());
-  juce::FloatVectorOperations::multiply(buffer1.getRawDataPointer(),
-                                  buffer2.getRawDataPointer(), n);
 
   dumpArrayToCsv(buffer1, "blackman.csv");
-
 
   // Minimum Phase Reconstruction
   RealCepstrum(static_cast<size_t>(n), buffer1.getRawDataPointer());
