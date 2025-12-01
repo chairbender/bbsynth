@@ -95,7 +95,7 @@ void WaveGenerator::renderNextBlock(juce::AudioSampleBuffer& outputBuffer,
   if (slaveDeltaBase == 0.0)
     return;
 
-  // FIX !!!!
+  // todo FIX !!!!
   if (volume == 0. && gainLast[0] == 0. && gainLast[1] == 0. &&
       myBlepGenerator.isClear())
     return;
@@ -156,10 +156,11 @@ void WaveGenerator::renderNextBlock(juce::AudioSampleBuffer& outputBuffer,
   gainLast[1] = volume * panGain[1];
 
   // TEST :::
-  for (int i = 0; i < numSamples; i++) {
-    outputBuffer.setSample(
-        1, i, static_cast<float>(i) / static_cast<float>(numSamples));
-  }
+  // todo - no idea what this was here for previously...
+  // for (int i = 0; i < numSamples; i++) {
+  //   outputBuffer.setSample(
+  //       1, i, static_cast<float>(i) / static_cast<float>(numSamples));
+  // }
 
 #if JUCE_DEBUG
 
@@ -322,7 +323,7 @@ inline void WaveGenerator::buildWave(const int numSamples) {
       double actualCurrentAngleDeltaSkewed =
           currentAngleSkewed - lastAngleSkewed;
       if (actualCurrentAngleDeltaSkewed < 0)
-        actualCurrentAngleDeltaSkewed += juce::MathConstants<double>::twoPi;
+        actualCurrentAngleDeltaSkewed += 2*juce::MathConstants<double>::twoPi;
 
       // ROLLED through 2*PI
       if (myWaveType == square) {
@@ -358,11 +359,23 @@ inline void WaveGenerator::buildWave(const int numSamples) {
                 actualCurrentAngleDeltaSkewed &&
             fmod(currentAngleSkewed, juce::MathConstants<double>::twoPi) <
                 actualCurrentAngleDeltaSkewed) {
+          /*
+          percAfterRoll is the fractional position (WITHING a single sample - a subsample)
+          (in the current output sample)
+          of where the waveform’s discontinuity (the “roll”/wrap) happened,
+          measured as a fraction of one sample, but expressed as
+          “how much of the sample occurs after the roll.”
+          */
           double percAfterRoll =
               fmod(currentAngleSkewed, juce::MathConstants<double>::twoPi) /
               actualCurrentAngleDeltaSkewed;  // LINEAR interpolation
 
           // CALCULATE the OFFSET
+          /*
+           * The offset is from the end of the output buffer.
+           * It indicates where the "roll" / blep / discontinuity STARTS, at an
+           * exact subsample (sample = integer part, subsample = fractional part)
+           */
           MinBlepGenerator::BlepOffset blep;
           blep.offset = percAfterRoll - static_cast<double>(i + 1);
 
