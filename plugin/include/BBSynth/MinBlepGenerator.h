@@ -93,22 +93,26 @@ public:
     if (x == 0.0)
       return 1.0;
     else {
-      double pix = juce::MathConstants<double>::twoPi * x;
+      double pix = juce::MathConstants<double>::pi * x;
       return sin(pix) / pix;
     }
   }
 
   // Generate Blackman Window
-  static inline void BlackmanWindow(size_t n, double* w) {
-    const size_t m = n - 1;
+  static inline double blackmanHarris(double p) {
+    return
+      + 0.35875
+      - 0.48829 * std::cos(2 * juce::MathConstants<double>::pi * p)
+      + 0.14128 * std::cos(4 * juce::MathConstants<double>::pi * p)
+      - 0.01168 * std::cos(6 * juce::MathConstants<double>::pi * p);
+  }
 
-    double fm = static_cast<double>(m);
-    for (size_t i = 0; i <= m; i++) {
-      const double f1 =
-          (2.0 * juce::MathConstants<double>::twoPi * static_cast<double>(i)) /
-          fm;
-      const double f2 = 2.0 * f1;
-      w[i] = 0.42 - (0.5 * cos(f1)) + (0.08 * cos(f2));
+  /**
+   * Applies the window to x
+   */
+  static inline void ApplyBlackmanHarrisWindow(int n, double* x) {
+    for (int i = 0; i < n; i++) {
+      x[i] *= blackmanHarris(static_cast<double>(i) / (n - 1));
     }
   }
 
@@ -137,7 +141,8 @@ public:
       }
   }
 
-  // Inverse Discrete Fourier Transform
+  // Inverse Discrete Fourier Transform.
+  // Note the result is scaled by 1/n, which assumes the DFT was NOT scaled.
   static void InverseDFT(const size_t n,
                   double* realTime,
                   double* imagTime,
@@ -156,9 +161,10 @@ public:
                     static_cast<double>(k * i)) /
                    static_cast<double>(n);
         const double sr = cos(p);
-        const double si = -sin(p);
-        realTime[k] += (realFreq[i] * sr) + (imagFreq[i] * si);
-        imagTime[k] += (realFreq[i] * si) - (imagFreq[i] * sr);
+        const double si = sin(p);
+        // Using x[n] = (1/N) * sum_k X[k] * e^{+j 2πkn/N}
+        realTime[k] += (realFreq[i] * sr) - (imagFreq[i] * si);
+        imagTime[k] += (realFreq[i] * si) + (imagFreq[i] * sr);
       }
       realTime[k] /= static_cast<double>(n);
       imagTime[k] /= static_cast<double>(n);
@@ -176,8 +182,8 @@ public:
     *zy = expx * sin(y);
   }
 
-  // Compute Real Cepstrum Of Signal
-  static void RealCepstrum(const size_t n, const double* signal, double* realCepstrum) {
+  // Compute Real Cepstrum Of x
+  static void RealCepstrum(const size_t n, double* x) {
     size_t i;
 
     const auto realTime = new double[n];
@@ -187,79 +193,78 @@ public:
 
     // Compose Complex FFT Input
     for (i = 0; i < n; i++) {
-      realTime[i] = signal[i];
+      realTime[i] = x[i];
       imagTime[i] = 0.0;
     }
 
     // Perform DFT
-
     DFT(n, realTime, imagTime, realFreq, imagFreq);
 
-    // Calculate Log Of Absolute Value
-    for (i = 0; i < n; i++) {
-      realFreq[i] = log(cabs(realFreq[i], imagFreq[i]));
-      imagFreq[i] = 0.0;
+    realFreq[0] = std::log(std::fabs(realFreq[0]));
+    for (i = 1; i < n; i++) {
+      realFreq[i] = std::log(std::hypot(realFreq[i], imagFreq[i]));
+      imagFreq[i] = 0.;
+    }
+    imagFreq[1] = std::log(std::fabs(imagFreq[1]));
+    // Clamp values in case we have -inf
+    for (i = 0; i < 2 * n; i++) {
+      realFreq[i] = std::fmax(-30.f, realFreq[i]);
+      imagFreq[i] = std::fmax(-30.f, imagFreq[i]);
     }
 
-    // Perform Inverse FFT
+    // Perform Inverse FFT (this also scales by 1/n)
     InverseDFT(n, realTime, imagTime, realFreq, imagFreq);
 
     // Output Real Part Of FFT
     for (i = 0; i < n; i++)
-      realCepstrum[i] = realTime[i];
+      x[i] = realTime[i];
 
-    // todo not sure this is right - original was just delete
     delete[] realTime;
     delete[] imagTime;
     delete[] realFreq;
     delete[] imagFreq;
   }
 
-  // Compute Minimum Phase Reconstruction Of Signal
-  static void MinimumPhase(const size_t n,
-                           const double* realCepstrum, double* minimumPhase) {
-    size_t i;
-    double *realFreq, *imagFreq;
-
-    const size_t nd2 = n / 2;
-    const auto realTime = new double[n];
-    const auto imagTime = new double[n];
-    realFreq = new double[n];
-    imagFreq = new double[n];
-
-    if ((n % 2) == 1) {
-      realTime[0] = realCepstrum[0];
-      for (i = 1; i < nd2; i++)
-        realTime[i] = 2.0 * realCepstrum[i];
-      for (i = nd2; i < n; i++)
-        realTime[i] = 0.0;
-    } else {
-      realTime[0] = realCepstrum[0];
-      for (i = 1; i < nd2; i++)
-        realTime[i] = 2.0 * realCepstrum[i];
-      realTime[nd2] = realCepstrum[nd2];
-      for (i = nd2 + 1; i < n; i++)
-        realTime[i] = 0.0;
+  // Compute Minimum Phase Reconstruction Of x
+  static void MinimumPhase(const size_t n, double* x) {
+    for (size_t i = 1; i < n / 2; i++) {
+      x[i] *= 2.;
+    }
+    for (size_t i = (n + 1) / 2; i < n; i++) {
+      x[i] = 0.;
     }
 
-    for (i = 0; i < n; i++)
+    const auto realTime = new double[n];
+    const auto imagTime = new double[n];
+    const auto realFreq = new double[n];
+    const auto imagFreq = new double[n];
+
+    // Compose Complex FFT Input
+    for (size_t i = 0; i < n; i++) {
+      realTime[i] = x[i];
       imagTime[i] = 0.0;
+    }
 
     DFT(n, realTime, imagTime, realFreq, imagFreq);
 
-    for (i = 0; i < n; i++)
-      cexp(realFreq[i], imagFreq[i], &realFreq[i], &imagFreq[i]);
+    realFreq[0] = std::exp(realFreq[0]);
+    for (size_t i = 1; i < n; i++) {
+      auto re = std::exp(realFreq[i]);
+      auto im = imagFreq[i];
+      realFreq[i] = re * std::cos(im);
+      imagFreq[i] = re * std::sin(im);
+    }
+    imagFreq[1] = std::exp(imagFreq[1]);
 
     InverseDFT(n, realTime, imagTime, realFreq, imagFreq);
 
-    for (i = 0; i < n; i++)
-      minimumPhase[i] = realTime[i];
+    for (size_t i = 0; i < n; i++)
+      x[i] = realTime[i];
 
-    // todo correct to use brackets?
     delete[] realTime;
     delete[] imagTime;
-    delete realFreq;
-    delete imagFreq;
+    delete[] realFreq;
+    delete[] imagFreq;
   }
 
   // FILTER ::::::
