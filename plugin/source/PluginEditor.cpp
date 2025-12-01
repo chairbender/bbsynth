@@ -12,7 +12,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
 
   // Make sure that before the constructor has finished, you've set the
   // editor's size to whatever you need it to be.
-  setSize(400, 300);
+  setSize(800, 600);
 }
 
 void AudioPluginAudioProcessorEditor::getNextAudioBlock(
@@ -57,8 +57,8 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   centOffsetSlider.setBounds(area.removeFromLeft(150).removeFromTop(100));
 
-  keyboardComponent.setBounds(0, 150, 400, 150);
+  keyboardComponent.setBounds(0, area.getHeight() / 2, area.getWidth(), area.getHeight() / 2);
 
-  spectrumAnalyzer.setBounds(0, 0, 400, 150);
+  spectrumAnalyzer.setBounds(0, 0, area.getWidth(), area.getHeight()/2);
 }
 }  // namespace audio_plugin

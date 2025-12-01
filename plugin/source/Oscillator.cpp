@@ -17,7 +17,7 @@ OscillatorVoice::OscillatorVoice() {
   waveGenerator_.prepareToPlay(getSampleRate());
   //waveGenerator_.setHardsync(false);
   waveGenerator_.setMode(WaveGenerator::ANTIALIAS);
-  waveGenerator_.setWaveType(WaveGenerator::sawFall);
+  waveGenerator_.setWaveType(WaveGenerator::triangle);
 }
 
 bool OscillatorVoice::canPlaySound(juce::SynthesiserSound* sound) {
@@ -29,7 +29,7 @@ void OscillatorVoice::startNote(const int midiNoteNumber,
                               [[maybe_unused]] juce::SynthesiserSound* sound,
                               [[maybe_unused]] int pitchWheelPos) {
   waveGenerator_.setPitchSemitone(midiNoteNumber, getSampleRate());
-  waveGenerator_.setVolume(-48);
+  waveGenerator_.setVolume(0);
 
 }
 

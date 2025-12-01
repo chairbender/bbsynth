@@ -117,57 +117,70 @@ public:
   }
 
   // Discrete Fourier Transform
-  static void DFT(const size_t n,
+  static void DFT(const size_t N,
            const double* realTime,
            const double* imagTime,
            double* realFreq,
            double* imagFreq) {
-    size_t k;
-
-    for (k = 0; k < n; k++) {
+    for (size_t k = 0; k < N; k++) {
       realFreq[k] = 0.0;
       imagFreq[k] = 0.0;
     }
 
-    for (k = 0; k < n; k++)
-      for (size_t i = 0; i < n; i++) {
-        const double p = (2.0 * juce::MathConstants<double>::twoPi *
-                    static_cast<double>(k * i)) /
-                   static_cast<double>(n);
-        const double sr = cos(p);
-        const double si = -sin(p);
-        realFreq[k] += (realTime[i] * sr) - (imagTime[i] * si);
-        imagFreq[k] += (realTime[i] * si) + (imagTime[i] * sr);
+    // Calculate DFT for each frequency bin k
+    for (size_t k = 0; k < N; k++) {
+      double realSum = 0.0;
+      double imagSum = 0.0;
+
+      // Sum over all input samples n
+      for (size_t n = 0; n < N; n++) {
+        double angle = -2.0 * M_PI * static_cast<double>(k)
+          * static_cast<double>(n) / static_cast<double>(N);
+        double cosAngle = cos(angle);
+        double sinAngle = sin(angle);
+
+        // Complex multiplication: (inputReal[n] + i*inputImag[n]) * (cos(angle) + i*sin(angle))
+        realSum += realTime[n] * cosAngle - imagTime[n] * sinAngle;
+        imagSum += realTime[n] * sinAngle + imagTime[n] * cosAngle;
       }
+
+      realFreq[k] = realSum;
+      imagFreq[k] = imagSum;
+    }
   }
 
   // Inverse Discrete Fourier Transform.
   // Note the result is scaled by 1/n, which assumes the DFT was NOT scaled.
-  static void InverseDFT(const size_t n,
+  static void InverseDFT(const size_t N,
                   double* realTime,
                   double* imagTime,
                   const double* realFreq,
                   const double* imagFreq) {
-    size_t k;
-
-    for (k = 0; k < n; k++) {
+    for (size_t k = 0; k < N; k++) {
       realTime[k] = 0.0;
       imagTime[k] = 0.0;
     }
 
-    for (k = 0; k < n; k++) {
-      for (size_t i = 0; i < n; i++) {
-        const double p = (2.0 * juce::MathConstants<double>::twoPi *
-                    static_cast<double>(k * i)) /
-                   static_cast<double>(n);
-        const double sr = cos(p);
-        const double si = sin(p);
-        // Using x[n] = (1/N) * sum_k X[k] * e^{+j 2πkn/N}
-        realTime[k] += (realFreq[i] * sr) - (imagFreq[i] * si);
-        imagTime[k] += (realFreq[i] * si) + (imagFreq[i] * sr);
+    // Calculate IDFT for each time sample n
+    for (size_t n = 0; n < N; n++) {
+      double realSum = 0.0;
+      double imagSum = 0.0;
+
+      // Sum over all frequency bins k
+      for (size_t k = 0; k < N; k++) {
+        double angle = 2.0 * M_PI * static_cast<double>(k)
+          * static_cast<double>(n) / static_cast<double>(N);  // Note: positive angle (opposite of DFT)
+        double cosAngle = cos(angle);
+        double sinAngle = sin(angle);
+
+        // Complex multiplication: (inputReal[k] + i*inputImag[k]) * (cos(angle) + i*sin(angle))
+        realSum += realFreq[k] * cosAngle - imagFreq[k] * sinAngle;
+        imagSum += realFreq[k] * sinAngle + imagFreq[k] * cosAngle;
       }
-      realTime[k] /= static_cast<double>(n);
-      imagTime[k] /= static_cast<double>(n);
+
+      // Normalize by dividing by N
+      realTime[n] = realSum / static_cast<double>(N);
+      imagTime[n] = imagSum / static_cast<double>(N);
     }
   }
 
@@ -197,19 +210,19 @@ public:
       imagTime[i] = 0.0;
     }
 
-    // Perform DFT
     DFT(n, realTime, imagTime, realFreq, imagFreq);
 
-    realFreq[0] = std::log(std::fabs(realFreq[0]));
-    for (i = 1; i < n; i++) {
-      realFreq[i] = std::log(std::hypot(realFreq[i], imagFreq[i]));
-      imagFreq[i] = 0.;
-    }
-    imagFreq[1] = std::log(std::fabs(imagFreq[1]));
-    // Clamp values in case we have -inf
-    for (i = 0; i < 2 * n; i++) {
-      realFreq[i] = std::fmax(-30.f, realFreq[i]);
-      imagFreq[i] = std::fmax(-30.f, imagFreq[i]);
+    // Note: For real cepstrum, we only return the real part
+    // The imaginary part should be negligible (numerical errors only)
+    for (i = 0; i < n; i++) {
+      // Calculate magnitude: sqrt(real^2 + imag^2)
+      double magnitude = sqrt(realFreq[i] * realFreq[i] +
+                             imagFreq[i] * imagFreq[i]);
+
+      // Take natural log (add small epsilon to avoid log(0))
+      const double epsilon = 1e-10;
+      realFreq[i] = log(magnitude + epsilon);
+      imagFreq[i] = 0;
     }
 
     // Perform Inverse FFT (this also scales by 1/n)
@@ -227,34 +240,45 @@ public:
 
   // Compute Minimum Phase Reconstruction Of x
   static void MinimumPhase(const size_t n, double* x) {
-    for (size_t i = 1; i < n / 2; i++) {
-      x[i] *= 2.;
-    }
-    for (size_t i = (n + 1) / 2; i < n; i++) {
-      x[i] = 0.;
-    }
-
     const auto realTime = new double[n];
     const auto imagTime = new double[n];
     const auto realFreq = new double[n];
     const auto imagFreq = new double[n];
 
     // Compose Complex FFT Input
-    for (size_t i = 0; i < n; i++) {
+    // keep DC component
+    realTime[0] = x[0];
+    for (size_t i = 1; i < n; i++) {
       realTime[i] = x[i];
       imagTime[i] = 0.0;
     }
 
+    // double the positive freqs (causal part)
+    for (size_t i = 0; i < n / 2; i++) {
+      realTime[i] *= 2;
+    }
+
+    // nyquist freq (for even N)
+    // todo assumes nyquist bin is half the input - is this correct?
+    if (n % 2 == 0) {
+      realTime[n / 2] = x[n / 2];
+    }
+
+    // zero out negative freqs (anti-causal part)
+    for (size_t i = (n / 2) + 1; i < n; i++) {
+      realTime[i] = 0;
+    }
+
     DFT(n, realTime, imagTime, realFreq, imagFreq);
 
-    realFreq[0] = std::exp(realFreq[0]);
-    for (size_t i = 1; i < n; i++) {
-      auto re = std::exp(realFreq[i]);
-      auto im = imagFreq[i];
-      realFreq[i] = re * std::cos(im);
-      imagFreq[i] = re * std::sin(im);
+    // exponentiate to get complex spectrum
+    for (size_t k = 0; k < n; k++) {
+      double magnitude = exp(realFreq[k]);
+      double phase = imagFreq[k];
+
+      realFreq[k] = magnitude * cos(phase);
+      imagFreq[k] = magnitude * sin(phase);
     }
-    imagFreq[1] = std::exp(imagFreq[1]);
 
     InverseDFT(n, realTime, imagTime, realFreq, imagFreq);
 
