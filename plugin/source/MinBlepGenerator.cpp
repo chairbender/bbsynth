@@ -211,7 +211,6 @@ void MinBlepGenerator::buildBlep() {
 
   jassert(fabsf(minBlepArray[static_cast<int>(n)]) < 0.001f);
 
-
   dumpArrayToCsv(minBlepArray, "minbleparrNormSub.csv");
   dumpArrayToCsv(minBlepDerivArray, "minblepDevarrNormSub.csv");
 }

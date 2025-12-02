@@ -32,9 +32,13 @@ class WaveGenerator {
   double currentAngleSkewed = 0;
   double lastAngleSkewed = 0;
 
-  // ACTUAL OUTPUT
+  // ACTUAL OUTPUT (pre-AA)
   double lastSample = 0;
   double lastSampleDelta = 0;
+
+  // post-AA output (not defined unless AA enabled)
+  double prevBufferLastSampleFiltered = 0;
+  double prevBufferLastSampleRaw = 0;
 
   // PITCH BEND
   double pitchBendTarget = 0;
