@@ -39,6 +39,7 @@ class WaveGenerator {
   // post-AA output (not defined unless AA enabled)
   double prevBufferLastSampleFiltered = 0;
   double prevBufferLastSampleRaw = 0;
+  bool dcBlockerEnabled = true;
 
   // PITCH BEND
   double pitchBendTarget = 0;
@@ -96,6 +97,10 @@ public:
   WaveGenerator();
 
   void prepareToPlay(double newSampleRate);
+
+  // Enable/disable the post-BLEP DC blocker (1st-order high-pass) used in ANTIALIAS mode
+  void setDcBlockerEnabled(bool enabled) { dcBlockerEnabled = enabled; }
+  bool isDcBlockerEnabled() const { return dcBlockerEnabled; }
 
   void setWaveType(WaveType newWaveType) {
     myWaveType = newWaveType;
@@ -163,9 +168,6 @@ public:
 
     return Freq;
   }
-
-  // todo no impl - intentional?
-  juce::Array<float> getBLEPArray();
 
   float getSkew() const { return static_cast<float>(skew); }
   void setSkew(double newSkew) {

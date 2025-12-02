@@ -37,6 +37,11 @@ struct OscillatorVoice : juce::SynthesiserVoice {
                        int startSample,
                        int numSamples) override;
 
+  // Test-only accessor to inspect internal generator state
+  // todo below comment needed?
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
+  WaveGenerator& getWaveGeneratorForTest() { return waveGenerator_; }
+
 private:
   // todo better split up sound vs voice params
   WaveGenerator waveGenerator_;
