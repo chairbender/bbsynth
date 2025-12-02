@@ -116,6 +116,30 @@ void WaveGenerator::renderNextBlock(juce::AudioSampleBuffer& outputBuffer,
     myBlepGenerator.setLimitingFreq(
         static_cast<float>(relativeFreq));  // up to the 2nd harmonic ..
     myBlepGenerator.processBlock(wave.getRawDataPointer(), numSamples);
+
+    // dc blocker (1st-order high-pass): y[n] = x[n] - x[n-1] + R*y[n-1]
+    auto samples = wave.getRawDataPointer();
+    const float R = 0.995f;  // pole close to 1.0
+
+    // Preserve last raw input of this block (before we overwrite samples)
+    const float lastInputRaw = samples[numSamples - 1];
+
+    // Use persistent states from previous block
+    float xPrev = static_cast<float>(prevBufferLastSampleRaw);
+    float yPrev = static_cast<float>(prevBufferLastSampleFiltered);
+
+    for (int i = 0; i < numSamples; ++i) {
+      const float x = samples[i];
+      const float y = (x - xPrev) + R * yPrev;
+      samples[i] = y;
+      xPrev = x;
+      yPrev = y;
+    }
+
+    // Update states for next block
+    prevBufferLastSampleRaw = static_cast<double>(lastInputRaw);
+    prevBufferLastSampleFiltered = static_cast<double>(yPrev);
+
   }
 
   // BUILD ::::
