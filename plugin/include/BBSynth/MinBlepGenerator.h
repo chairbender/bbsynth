@@ -82,10 +82,6 @@ public:
 
   void setToReturnDerivative(const bool derivative) { returnDerivative = derivative; }
 
-  // TEMP
-  // todo not implemented - delete?
-  void setTest(double newTest);
-
   // Utility ....
 
   // SINC Function

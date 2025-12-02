@@ -46,9 +46,6 @@ void OscillatorVoice::controllerMoved([[maybe_unused]] int controllerNumber,
 void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                       [[maybe_unused]] int startSample,
                                       int numSamples) {
-  // todo can't be right? It needs to know startsample?
-  // waveGenerator_.renderNextBlock(outputBuffer, numSamples);
-
   // todo: is this really right? why the buffer copying?
   juce::AudioSampleBuffer nextBuffer(2, numSamples);
   nextBuffer.clear();
