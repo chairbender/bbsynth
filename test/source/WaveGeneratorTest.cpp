@@ -9,14 +9,25 @@ using audio_plugin::WaveGenerator;
 
 namespace audio_plugin_test {
 
-TEST(WaveGenerator, RendersSawFallAndReportsBleps) {
+struct SawCase {
+  WaveGenerator::WaveType type;
+  double expected_pos_change;   // +2 or -2
+  bool ramp_up;                 // true for sawFall ramp segments
+  float reset_level;            // +-0.69
+};
+
+class WaveGeneratorSawTest : public ::testing::TestWithParam<SawCase> {};
+
+TEST_P(WaveGeneratorSawTest, RendersAndReportsBleps) {
   constexpr double sampleRate = 48000.0;
   constexpr double freq = 440.0;
   constexpr int numSamples = 1024;
 
+  const auto [type, expectedPosChange, rampUp, resetLevel] = GetParam();
+
   WaveGenerator gen;
   gen.prepareToPlay(sampleRate);
-  gen.setWaveType(WaveGenerator::sawFall);
+  gen.setWaveType(type);
   gen.setPitchHz(freq);
   // for more predictable results, we disable the dc blocker so there isn't
   // any filtering going on
@@ -47,27 +58,37 @@ TEST(WaveGenerator, RendersSawFallAndReportsBleps) {
     // so will always be negative w.r.t. the current buffer if they occurred in the current buffer.
     // however, they will occur in reverse order in the list (closest to end of buffer is first in list)
     EXPECT_NEAR(b.offset, -12.27 - i * periodSamples , 1);
-    EXPECT_NEAR(b.pos_change_magnitude, 2.0, 1e-3) << "sawFall should report +2 position change magnitude.";
+    EXPECT_NEAR(b.pos_change_magnitude, expectedPosChange, 1e-3);
     // Velocity change is zero for ideal saws
     EXPECT_NEAR(b.vel_change_magnitude, 0.0, 1e-6);
   }
 
   const float* raw = rawBuf.getReadPointer(0);
+  const float* raw2 = rawBuf.getReadPointer(1);
 
   // check the raw output matches the expected values
   auto prevSample = raw[0];
   for (int i = 1; i < numSamples; ++i) {
     const auto sample = raw[i];
-    if (sample > prevSample) {
-      // ramp up
-      EXPECT_NEAR(sample, prevSample + .013f, 1e-2);
+    EXPECT_NEAR(raw2[i], sample, 1e-3);
+    if (rampUp ? (sample > prevSample) : (sample < prevSample)) {
+      // ramp segment
+      EXPECT_NEAR(sample, prevSample + (rampUp ? +.013f : -.013f), 1e-2);
     } else {
       // reset
-      EXPECT_NEAR(sample, -.69, 1e-1);
+      EXPECT_NEAR(sample, resetLevel, 1e-1);
     }
     prevSample = sample;
   }
-
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    WaveGenerator,
+    WaveGeneratorSawTest,
+    ::testing::Values(
+        SawCase{WaveGenerator::sawFall, +2.0, true, -.69f},
+        SawCase{WaveGenerator::sawRise, -2.0, false, +.69f}
+    ));
+
 
 }  // namespace audio_plugin_test
