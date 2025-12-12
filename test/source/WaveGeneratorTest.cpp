@@ -10,25 +10,25 @@ using audio_plugin::WaveGenerator;
 namespace audio_plugin_test {
 
 struct SawCase {
-  WaveGenerator::WaveType type;
-  double expected_pos_change;   // +2 or -2
-  bool ramp_up;                 // true for sawFall ramp segments
-  float reset_level;            // +-0.69
+  WaveGenerator::WaveType type_;
+  double expected_pos_change_;   // +2 or -2
+  bool ramp_up_;                 // true for sawFall ramp segments
+  float reset_level_;            // +-0.69
 };
 
 class WaveGeneratorSawTest : public ::testing::TestWithParam<SawCase> {};
 
 TEST_P(WaveGeneratorSawTest, RendersAndReportsBleps) {
-  constexpr double sampleRate = 48000.0;
-  constexpr double freq = 440.0;
-  constexpr int numSamples = 1024;
+  constexpr double kSampleRate = 48000.0;
+  constexpr double kFreq = 440.0;
+  constexpr int kNumSamples = 1024;
 
-  const auto [type, expectedPosChange, rampUp, resetLevel] = GetParam();
+  const auto [type, expected_pos_change, ramp_up, reset_level] = GetParam();
 
   WaveGenerator gen;
-  gen.prepareToPlay(sampleRate);
+  gen.prepareToPlay(kSampleRate);
   gen.setWaveType(type);
-  gen.setPitchHz(freq);
+  gen.setPitchHz(kFreq);
   // for more predictable results, we disable the dc blocker so there isn't
   // any filtering going on
   gen.setDcBlockerEnabled(false);
@@ -37,48 +37,48 @@ TEST_P(WaveGeneratorSawTest, RendersAndReportsBleps) {
   // (so no AA filtering is going on)
   gen.setMode(WaveGenerator::BUILD_AA);
 
-  juce::AudioSampleBuffer rawBuf(2, numSamples);
-  rawBuf.clear();
+  juce::AudioSampleBuffer raw_buf(2, kNumSamples);
+  raw_buf.clear();
   // Warm up gain ramp so second call uses constant gain
-  gen.renderNextBlock(rawBuf, numSamples);
-  rawBuf.clear();
+  gen.renderNextBlock(raw_buf, kNumSamples);
+  raw_buf.clear();
   gen.getBlepGenerator()->currentActiveBlepOffsets.clear();
-  gen.renderNextBlock(rawBuf, numSamples);
+  gen.renderNextBlock(raw_buf, kNumSamples);
 
   // Validate BLEPs were detected at expected rate (one per period)
-  auto* blepGen = gen.getBlepGenerator();
-  const auto& bleps = blepGen->currentActiveBlepOffsets;
+  auto* blep_gen = gen.getBlepGenerator();
+  const auto& bleps = blep_gen->currentActiveBlepOffsets;
 
   ASSERT_EQ(bleps.size(), 10);
 
   for (int i = 0; i < bleps.size(); ++i) {
-    constexpr double periodSamples = 109.09; // samplerate / freq
+    constexpr double kPeriodSamples = 109.09; // samplerate / freq
     const auto& b = bleps.getUnchecked(i);
     // offsets are expected to be relative to the end of the buffer they occurred in,
     // so will always be negative w.r.t. the current buffer if they occurred in the current buffer.
     // however, they will occur in reverse order in the list (closest to end of buffer is first in list)
-    EXPECT_NEAR(b.offset, -12.27 - i * periodSamples , 1);
-    EXPECT_NEAR(b.pos_change_magnitude, expectedPosChange, 1e-3);
+    EXPECT_NEAR(b.offset, -12.27 - i * kPeriodSamples , 1);
+    EXPECT_NEAR(b.pos_change_magnitude, expected_pos_change, 1e-3);
     // Velocity change is zero for ideal saws
     EXPECT_NEAR(b.vel_change_magnitude, 0.0, 1e-6);
   }
 
-  const float* raw = rawBuf.getReadPointer(0);
-  const float* raw2 = rawBuf.getReadPointer(1);
+  const float* raw = raw_buf.getReadPointer(0);
+  const float* raw2 = raw_buf.getReadPointer(1);
 
   // check the raw output matches the expected values
-  auto prevSample = raw[0];
-  for (int i = 1; i < numSamples; ++i) {
+  auto prev_sample = raw[0];
+  for (int i = 1; i < kNumSamples; ++i) {
     const auto sample = raw[i];
     EXPECT_NEAR(raw2[i], sample, 1e-3);
-    if (rampUp ? (sample > prevSample) : (sample < prevSample)) {
+    if (ramp_up ? (sample > prev_sample) : (sample < prev_sample)) {
       // ramp segment
-      EXPECT_NEAR(sample, prevSample + (rampUp ? +.013f : -.013f), 1e-2);
+      EXPECT_NEAR(sample, prev_sample + (ramp_up ? +.013f : -.013f), 1e-2);
     } else {
       // reset
-      EXPECT_NEAR(sample, resetLevel, 1e-1);
+      EXPECT_NEAR(sample, reset_level, 1e-1);
     }
-    prevSample = sample;
+    prev_sample = sample;
   }
 }
 
