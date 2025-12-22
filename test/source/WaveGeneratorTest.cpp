@@ -4,19 +4,20 @@
 
 #include <numeric>
 #include <vector>
+#include <cmath>
 
 using audio_plugin::WaveGenerator;
 
 namespace audio_plugin_test {
-
 struct SawCase {
   WaveGenerator::WaveType type_;
-  double expected_pos_change_;   // +2 or -2
-  bool ramp_up_;                 // true for sawFall ramp segments
-  float reset_level_;            // +-0.69
+  double expected_pos_change_; // +2 or -2
+  bool ramp_up_; // true for sawFall ramp segments
+  float reset_level_; // +-0.69
 };
 
-class WaveGeneratorSawTest : public ::testing::TestWithParam<SawCase> {};
+class WaveGeneratorSawTest : public ::testing::TestWithParam<SawCase> {
+};
 
 TEST_P(WaveGeneratorSawTest, RendersAndReportsBleps) {
   constexpr double kSampleRate = 48000.0;
@@ -57,7 +58,7 @@ TEST_P(WaveGeneratorSawTest, RendersAndReportsBleps) {
     // offsets are expected to be relative to the end of the buffer they occurred in,
     // so will always be negative w.r.t. the current buffer if they occurred in the current buffer.
     // however, they will occur in reverse order in the list (closest to end of buffer is first in list)
-    EXPECT_NEAR(b.offset, -12.27 - i * kPeriodSamples , 1);
+    EXPECT_NEAR(b.offset, -12.27 - i * kPeriodSamples, 1);
     EXPECT_NEAR(b.pos_change_magnitude, expected_pos_change, 1e-3);
     // Velocity change is zero for ideal saws
     EXPECT_NEAR(b.vel_change_magnitude, 0.0, 1e-6);
@@ -86,9 +87,83 @@ INSTANTIATE_TEST_SUITE_P(
     WaveGenerator,
     WaveGeneratorSawTest,
     ::testing::Values(
-        SawCase{WaveGenerator::sawFall, +2.0, true, -.69f},
-        SawCase{WaveGenerator::sawRise, -2.0, false, +.69f}
+      SawCase{WaveGenerator::sawFall, +2.0, true, -.69f},
+      SawCase{WaveGenerator::sawRise, -2.0, false, +.69f}
     ));
 
 
-}  // namespace audio_plugin_test
+TEST(WaveGeneratorTriangleTest, RendersAndReportsTriangleBleps) {
+  constexpr double kSampleRate = 48000.0;
+  constexpr double kFreq = 440.0;
+  constexpr int kNumSamples = 1024;
+
+  WaveGenerator gen;
+  gen.prepareToPlay(kSampleRate);
+  gen.setWaveType(WaveGenerator::triangle);
+  gen.setPitchHz(kFreq);
+  // Disable dc blocker for predictable raw output
+  gen.setDcBlockerEnabled(false);
+
+  // BUILD_AA so BLEP offsets are populated but not consumed
+  gen.setMode(WaveGenerator::BUILD_AA);
+
+  juce::AudioSampleBuffer raw_buf(2, kNumSamples);
+  raw_buf.clear();
+  // Warm up gain ramp so second call uses constant gain
+  gen.renderNextBlock(raw_buf, kNumSamples);
+  raw_buf.clear();
+  gen.getBlepGenerator()->currentActiveBlepOffsets.clear();
+  gen.renderNextBlock(raw_buf, kNumSamples);
+
+  // Validate BLEPs: triangle has first-derivative discontinuities twice per period
+  auto* blep_gen = gen.getBlepGenerator();
+  const auto& bleps = blep_gen->currentActiveBlepOffsets;
+
+  // Expect roughly 2 BLEPs per period in this buffer (~18.8 -> 19)
+  EXPECT_EQ(bleps.size(), 19);
+
+  if (bleps.size() >= 2) {
+    constexpr double kPeriodSamples = kSampleRate / kFreq; // ~109.09
+    constexpr double kHalfPeriod = kPeriodSamples / 2.0; // ~54.545
+
+    // Offsets are ordered from closest to end of buffer first; spacing should be ~half-period
+    for (int i = 0; i < bleps.size(); ++i) {
+      const auto& b = bleps.getUnchecked(i);
+      // Triangle: no position jump, but there is a velocity jump (BLAMP)
+      EXPECT_NEAR(b.pos_change_magnitude, 0.0, 1e-6);
+      EXPECT_NE(b.vel_change_magnitude, 0.0);
+
+      if (i + 1 < bleps.size()) {
+        const auto& next = bleps.getUnchecked(i + 1);
+        // Successive BLEPs should be spaced by approximately half a period in samples
+        EXPECT_NEAR(b.offset - next.offset, kHalfPeriod, 1.5);
+        // Sign of velocity change should alternate at each corner
+        EXPECT_LT(b.vel_change_magnitude * next.vel_change_magnitude, 0.0);
+      }
+    }
+  }
+
+  // Validate raw output shape: linear segments with slope magnitude ~peak_to_peak/half_period
+  const float* ch0 = raw_buf.getReadPointer(0);
+  const float* ch1 = raw_buf.getReadPointer(1);
+
+  // Channels should match
+  for (int i = 0; i < kNumSamples; ++i) {
+    EXPECT_NEAR(ch0[i], ch1[i], 1e-3);
+  }
+
+  // Expected per-sample slope magnitude: peak-to-peak (~1.38) over half-period (~54.545)
+  constexpr float kExpectedAbsSlope = 1.38f / 54.545f; // ~0.0253
+
+  float prev = ch0[0];
+  for (int i = 1; i < kNumSamples; ++i) {
+    const float s = ch0[i];
+    // only check when we're not crossing / near a corner
+    if (std::abs((i - 3) % 55) <= 1) {
+      const float diff = s - prev;
+      EXPECT_NEAR(std::abs(diff), kExpectedAbsSlope, 1e-2);
+    }
+    prev = s;
+  }
+}
+} // namespace audio_plugin_test
