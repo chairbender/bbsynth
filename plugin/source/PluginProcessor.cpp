@@ -4,6 +4,9 @@
 #include "BBSynth/WaveGenerator.h"
 
 namespace audio_plugin {
+OTAFilter::OTAFilter() : s1{0}, s2{0}, s3{0}, s4{0} {
+}
+
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
   : AudioProcessor(
         BusesProperties()
@@ -14,7 +17,9 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
         ),
-    apvts_(*this, nullptr, "ParameterTree", CreateParameterLayout()) {
+    apvts_(*this, nullptr, "ParameterTree", CreateParameterLayout()),
+    // todo is this even needed or does it defaulth/
+    filter_{OTAFilter{}, OTAFilter{}} {
   for (auto i = 0; i < 1; ++i) {
     synth.addVoice(new OscillatorVoice());
   }
@@ -144,12 +149,58 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       dynamic_cast<AudioPluginAudioProcessorEditor*>(getActiveEditor())) {
     //juce::MidiBuffer incomingMidi;
     // todo do we need a separate buffer or can we append to existing?
-    editor->keyboardState.processNextMidiBuffer(
+    editor->keyboard_state_.processNextMidiBuffer(
         midiMessages, 0,
         buffer.getNumSamples(), true);
 
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
-    editor->getNextAudioBlock(buffer);
+
+    // 4 pass OTA filter, analog emulation
+    // todo refactor to separate class?
+    // todo vectorize
+    const auto freq = apvts_.getRawParameterValue("filterCutoffFreq")->load();
+    constexpr auto res_scale = 1.0f;
+    const auto resonance = res_scale * apvts_.getRawParameterValue(
+                                                 "filterResonance")
+                                             ->load();
+    const auto g = tanf(
+        juce::MathConstants<float>::pi * freq / static_cast<float>(synth.
+          getSampleRate()));
+
+    // todo 1st-degree ADAA - this will generate a LOT of aliasing due to
+    //  all the tanh calls.
+    for (auto j = 0; j < buffer.getNumChannels(); ++j) {
+      auto* input = buffer.getWritePointer(j);
+      auto filter = filter_[static_cast<size_t>(j)];
+      for (auto i = 0; i < buffer.getNumSamples(); ++i) {
+        const auto sample = input[i];
+        // resonance feedback from output
+        const auto feedback = resonance * filter.s4;
+
+        // input with feedback compensation
+        const auto u = sample - feedback;
+
+        // stage 1
+        const auto v1 = tanhf(u);
+        filter.s1 += g * (v1 - tanhf(filter.s1));
+
+        // stage 2
+        const auto v2 = tanhf(filter.s1);
+        filter.s2 += g * (v2 - tanhf(filter.s2));
+
+        // stage 3
+        const auto v3 = tanhf(filter.s2);
+        filter.s3 += g * (v3 - tanhf(filter.s3));
+
+        // stage 4
+        const auto v4 = tanhf(filter.s3);
+        filter.s4 += g * (v4 - tanhf(filter.s4));
+
+        input[i] = v4;
+      }
+    }
+
+    editor->GetNextAudioBlock(buffer);
   }
 
   // for (int channel = 0; channel < totalNumInputChannels; ++channel) {
@@ -193,10 +244,11 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "centOffset", "Cent Offset", centOffsetRange, 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "cutoffFreq", "Cutoff Frequency",
+      "filterCutoffFreq", "Filter Cutoff Frequency",
       juce::NormalisableRange(20.f, 20000.f, 1.f), 1000.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "resonance", "Resonance", juce::NormalisableRange(0.f, 10.f, 0.1f),
+      "filterResonance", "Filter Resonance",
+      juce::NormalisableRange(0.f, 4.f, 0.1f),
       1.f));
 
   return {parameterList.begin(), parameterList.end()};

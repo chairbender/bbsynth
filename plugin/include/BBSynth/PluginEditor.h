@@ -14,13 +14,13 @@ public:
   /**
    * must be called by root component to update audio-reactive components
    */
-  void getNextAudioBlock(juce::AudioBuffer<float>& buffer);
+  void GetNextAudioBlock(juce::AudioBuffer<float>& buffer);
   ~AudioPluginAudioProcessorEditor() override;
 
   void paint(juce::Graphics&) override;
   void resized() override;
   // todo refactor so this can be private
-  juce::MidiKeyboardState keyboardState;
+  juce::MidiKeyboardState keyboard_state_;
 
 
 private:
@@ -30,10 +30,19 @@ private:
   // access the processor object that created it.
   AudioPluginAudioProcessor& processorRef;
 
-  juce::Label centOffsetLabel;
-  juce::Slider centOffsetSlider;
-  SpectrumAnalyzerComponent spectrumAnalyzer;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> centOffsetAttachment;
+  juce::Label cent_offset_label_;
+  juce::Slider cent_offset_slider_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> cent_offset_attachment_;
+
+  juce::Slider filter_cutoff_slider_;
+  juce::Label filter_cutoff_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filter_cutoff_attachment_;
+
+  juce::Slider filter_resonance_slider_;
+  juce::Label filter_resonance_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filter_resonance_attachment_;
+
+  SpectrumAnalyzerComponent spectrum_analyzer_;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessorEditor)
 };

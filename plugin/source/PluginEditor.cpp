@@ -5,7 +5,7 @@ namespace audio_plugin {
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
     AudioPluginAudioProcessor& p)
     : AudioProcessorEditor{&p},
-      keyboardComponent{keyboardState,
+      keyboardComponent{keyboard_state_,
                         juce::MidiKeyboardComponent::horizontalKeyboard},
       processorRef(p) {
   juce::ignoreUnused(processorRef);
@@ -15,9 +15,9 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
   setSize(800, 600);
 }
 
-void AudioPluginAudioProcessorEditor::getNextAudioBlock(
+void AudioPluginAudioProcessorEditor::GetNextAudioBlock(
     juce::AudioBuffer<float>& buffer) {
-  spectrumAnalyzer.getNextAudioBlock(buffer);
+  spectrum_analyzer_.getNextAudioBlock(buffer);
 }
 
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {}
@@ -30,22 +30,41 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 
   g.setColour(juce::Colours::white);
   g.setFont(15.0f);
-  g.drawFittedText("Hello World!", getLocalBounds(),
-                   juce::Justification::centred, 1);
 
-  centOffsetSlider.setSliderStyle(juce::Slider::Rotary);
-  centOffsetSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
-  addAndMakeVisible(centOffsetSlider);
+  cent_offset_slider_.setSliderStyle(juce::Slider::Rotary);
+  cent_offset_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(cent_offset_slider_);
+  cent_offset_attachment_ =
+    std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        processorRef.apvts_, "centOffset", cent_offset_slider_);
 
-  centOffsetLabel.setText("Cent Offset", juce::dontSendNotification);
-  centOffsetLabel.attachToComponent(&centOffsetSlider, false);
-  addAndMakeVisible(centOffsetLabel);
+  cent_offset_label_.setText("Cent Offset", juce::dontSendNotification);
+  cent_offset_label_.attachToComponent(&cent_offset_slider_, false);
+  addAndMakeVisible(cent_offset_label_);
 
-  addAndMakeVisible(spectrumAnalyzer);
+  filter_cutoff_slider_.setSliderStyle(juce::Slider::Rotary);
+  filter_cutoff_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(filter_cutoff_slider_);
+  filter_cutoff_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+    processorRef.apvts_, "filterCutoffFreq", filter_cutoff_slider_);
 
-  centOffsetAttachment =
-      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-          processorRef.apvts_, "centOffset", centOffsetSlider);
+  filter_cutoff_label_.setText("Fiter Cutoff", juce::dontSendNotification);
+  filter_cutoff_label_.attachToComponent(&filter_cutoff_slider_, false);
+  addAndMakeVisible(filter_cutoff_label_);
+
+  filter_resonance_slider_.setSliderStyle(juce::Slider::Rotary);
+  filter_resonance_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(filter_resonance_slider_);
+  filter_resonance_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+    processorRef.apvts_, "filterResonance", filter_resonance_slider_);
+
+  filter_resonance_label_.setText("Fiter Resonance", juce::dontSendNotification);
+  filter_resonance_label_.attachToComponent(&filter_resonance_slider_, false);
+  addAndMakeVisible(filter_resonance_label_);
+
+  addAndMakeVisible(spectrum_analyzer_);
+
+
 
   addAndMakeVisible(keyboardComponent);
 }
@@ -57,10 +76,12 @@ void AudioPluginAudioProcessorEditor::resized() {
   // subcomponents in your editor..
   auto area = getLocalBounds().reduced(20);
 
-  centOffsetSlider.setBounds(area.removeFromLeft(150).removeFromTop(100));
+  cent_offset_slider_.setBounds(area.removeFromLeft(150).removeFromTop(100));
+  filter_cutoff_slider_.setBounds(area.removeFromLeft(200).removeFromTop(100));
+  filter_resonance_slider_.setBounds(area.removeFromLeft(250).removeFromTop(100));
 
   keyboardComponent.setBounds(0, area.getHeight() / 2, area.getWidth(), area.getHeight() / 2);
 
-  spectrumAnalyzer.setBounds(0, 0, area.getWidth(), area.getHeight()/2);
+  spectrum_analyzer_.setBounds(0, area.getHeight() / 4, area.getWidth(), area.getHeight()/4);
 }
 }  // namespace audio_plugin

@@ -118,6 +118,10 @@ void WaveGenerator::renderNextBlock(juce::AudioSampleBuffer& outputBuffer,
     myBlepGenerator.processBlock(wave.getRawDataPointer(), numSamples);
 
     // dc blocker (1st-order high-pass): y[n] = x[n] - x[n-1] + R*y[n-1]
+    // this is needed because (afaict) a properly-implemented minblep adds
+    // a DC offset due to the effect of multiple bleps (which themselves
+    // have a positive bias) adding together, which gets worse as the note
+    // gets higher.
     if (dcBlockerEnabled) {
       auto samples = wave.getRawDataPointer();
       const float R = 0.995f;  // pole close to 1.0
