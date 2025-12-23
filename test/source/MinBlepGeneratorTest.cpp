@@ -167,4 +167,67 @@ TEST(MinBlepGenerator, ProcessBlock_Applies0ThOrderBlep) {
     EXPECT_NEAR(buffer[i], expected, 1.0e-5f);
   }
 }
+
+TEST(MinBlepGenerator, ProcessBlock_Applies1StOrderBlep) {
+  audio_plugin::MinBlepGenerator gen;
+
+  constexpr int kNumSamples = 64;
+  float buffer[kNumSamples] = {};
+
+  // Create a BLEP that occurs within the current buffer (negative offset)
+  // and only has a 1st-order (velocity) discontinuity.
+  audio_plugin::MinBlepGenerator::BlepOffset blep;
+  blep.offset = -32.0; // happened about halfway through the current buffer
+  blep.freqMultiple = 8.0; // used for initial gating in process_currentBleps
+  blep.pos_change_magnitude = 0.0; // ensure we're only testing 1st-order BLEP
+  blep.vel_change_magnitude = 2.0; // apply a noticeable correction
+
+  // Add directly to the active BLEPs for this block
+  gen.currentActiveBlepOffsets.add(blep);
+
+  const auto blampTable = audio_plugin::MinBlepGenerator::getMinBlepDerivArray();
+  const float expectedFirst = static_cast<float>(blep.vel_change_magnitude) *
+                              blampTable.getUnchecked(0);
+
+  gen.processBlock(buffer, kNumSamples);
+
+  // all samples should stay 0 (unmodified) until the blep
+  for (int i = 0; i < 31; ++i) {
+    ASSERT_EQ(buffer[i], 0.0f);
+  }
+
+  // The very first affected sample should match the scaled BLAMP start value
+  EXPECT_NEAR(buffer[31], expectedFirst, 1.0e-5f);
+
+  // For the rest, mirror the production stepping and interpolation logic for 1st-order correction
+  for (int i = 32; i < kNumSamples; ++i) {
+    // Gating uses the position branch stepping based on freqMultiple
+    const double outputSamplesSinceBlep = static_cast<double>(blep.offset) + static_cast<double>(i) + 1.0;
+    const double sampleExactGate = static_cast<double>(blep.freqMultiple) * outputSamplesSinceBlep;
+
+    float expected = 0.0f;
+    if (sampleExactGate >= 0.0) {
+      // Derivative table stepping is depth-limited to proportionalBlepFreq
+      const double derivExact = static_cast<double>(gen.proportionalBlepFreq) *
+                                static_cast<double>(gen.overSamplingRatio) *
+                                outputSamplesSinceBlep;
+      double derivIdxD = 0.0;
+      const double derivFrac = std::modf(derivExact, &derivIdxD);
+      const int derivIdx = static_cast<int>(derivIdxD);
+
+      if (derivIdx < blampTable.size()) {
+        const float before = blampTable.getUnchecked(derivIdx);
+        const float after = (derivIdx + 1 < blampTable.size())
+                                ? blampTable.getUnchecked(derivIdx + 1)
+                                : before;
+        const float interp = before + static_cast<float>(derivFrac) * (after - before);
+        expected = static_cast<float>(blep.vel_change_magnitude) * interp;
+      } else {
+        expected = 0.0f; // past end of table
+      }
+    }
+
+    EXPECT_NEAR(buffer[i], expected, 1.0e-5f);
+  }
+}
 }
