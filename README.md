@@ -8,6 +8,8 @@ https://google.github.io/styleguide/cppguide.html
 todos:
 - 4-pole OTA filter simulation
 - analog oscillator simulation (drift, calibration)
+- analog VCA simulation
+- ADSR envelope simulation
 - refactor to follow the style guide (can be a work in progress / gradual)
 - refactor to use more things in juce::dsp vs the hand-rolled stuff
 - cpp_args = ['-std=c++2c', '-Wall', '-Wextra', '-Wshadow', '-Wconversion', '-Wpedantic', '-Werror']

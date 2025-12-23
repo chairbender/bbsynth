@@ -40,7 +40,7 @@ public:
   juce::AudioProcessorValueTreeState apvts_;
 
 private:
-  juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+  static juce::AudioProcessorValueTreeState::ParameterLayout CreateParameterLayout();
 
   void parameterChanged(const juce::String& name, float newValue) override;
 

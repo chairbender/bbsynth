@@ -46,39 +46,4 @@ private:
   // todo better split up sound vs voice params
   WaveGenerator waveGenerator_;
 };
-
-struct SineWaveSound : juce::SynthesiserSound {
-  SineWaveSound(juce::AudioProcessorValueTreeState& apvts);
-
-  bool appliesToNote([[maybe_unused]] int midiNoteNumber) override;
-  bool appliesToChannel([[maybe_unused]] int midiChannelNumber) override;
-  std::atomic<float>* getCentOffset() const;
-
-private:
-  std::atomic<float>* centOffset_;
-};
-
-struct SineWaveVoice : juce::SynthesiserVoice {
-  SineWaveVoice();
-
-  bool canPlaySound(juce::SynthesiserSound* sound) override;
-
-  void startNote(int midiNoteNumber,
-                 float velocity,
-                 [[maybe_unused]] juce::SynthesiserSound* sound,
-                 [[maybe_unused]] int pitchWheelPos) override;
-
-  void stopNote([[maybe_unused]] float velocity, bool allowTailOff) override;
-
-  void pitchWheelMoved([[maybe_unused]] int newPitchWheelValue) override;
-  void controllerMoved([[maybe_unused]] int controllerNumber,
-                       [[maybe_unused]] int newControllerValue) override;
-
-  void renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
-                       int startSample,
-                       int numSamples) override;
-
-private:
-  double currentAngle{0.0}, angleDelta{0.0}, level{0.0}, tailOff{0.0};
-};
 }
