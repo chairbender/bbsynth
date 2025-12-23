@@ -6,14 +6,8 @@ style guide
 https://google.github.io/styleguide/cppguide.html
 
 todos:
-- fix dc offset being introduced (try saw at high freq)
+- refactor to follow the style guide (can be a work in progress / gradual)
 - refactor to use more things in juce::dsp vs the hand-rolled stuff
-- maybe DC offset issues in the minblep implementation at high sawtooth freqs. I suspect this could be from
-  precision issues due to the many implicit conversions in the original impl 
- (which I have made explicit). 
- Have to go through these carefully and keep the precision as much as possible and minimize the conversions.
-  
-- use wavetables instead
 - cpp_args = ['-std=c++2c', '-Wall', '-Wextra', '-Wshadow', '-Wconversion', '-Wpedantic', '-Werror']
 - set up sanitizer support (asan, ubsan, etc...)
 - double check "right way to write c++ code" https://www.youtube.com/watch?v=q7Gv4J3FyYE
