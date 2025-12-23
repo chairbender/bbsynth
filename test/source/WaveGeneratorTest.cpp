@@ -11,7 +11,7 @@ constexpr double kSampleRate = 48000.0;
 constexpr double kFreq = 440.0;
 constexpr int kNumSamples = 1024;
 
-inline void prepareAndRender(WaveGenerator& gen,
+inline void PrepareAndRender(WaveGenerator& gen,
                              juce::AudioSampleBuffer& raw_buf,
                              const WaveGenerator::WaveType type) {
   gen.prepareToPlay(kSampleRate);
@@ -47,7 +47,7 @@ TEST_P(WaveGeneratorSawTest, RendersAndReportsBleps) {
 
   WaveGenerator gen;
   juce::AudioSampleBuffer raw_buf(2, kNumSamples);
-  prepareAndRender(gen, raw_buf, type);
+  PrepareAndRender(gen, raw_buf, type);
 
   // Validate BLEPs were detected at expected rate (one per period)
   auto* blep_gen = gen.getBlepGenerator();
@@ -98,7 +98,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(WaveGeneratorTriangleTest, RendersAndReportsTriangleBleps) {
   WaveGenerator gen;
   juce::AudioSampleBuffer raw_buf(2, kNumSamples);
-  prepareAndRender(gen, raw_buf, WaveGenerator::triangle);
+  PrepareAndRender(gen, raw_buf, WaveGenerator::triangle);
 
   // Validate BLEPs: triangle has first-derivative discontinuities twice per period
   auto* blep_gen = gen.getBlepGenerator();
@@ -154,7 +154,7 @@ TEST(WaveGeneratorTriangleTest, RendersAndReportsTriangleBleps) {
 TEST(WaveGeneratorSquareTest, RendersAndReportsSquareBleps) {
   WaveGenerator gen;
   juce::AudioSampleBuffer raw_buf(2, kNumSamples);
-  prepareAndRender(gen, raw_buf, WaveGenerator::square);
+  PrepareAndRender(gen, raw_buf, WaveGenerator::square);
 
   // BLEPs: square has position discontinuities twice per period
   auto* blep_gen = gen.getBlepGenerator();
