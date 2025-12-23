@@ -16,11 +16,13 @@ TEST(MinBlepGenerator, BuildBlep_MatchesExpectedTable) {
   gen.buildBlep();
 
   // assert table within expected values
-  auto arr = audio_plugin::MinBlepGenerator::getMinBlepArray();
+  const auto arr = audio_plugin::MinBlepGenerator::getMinBlepArray();
   ASSERT_EQ(arr.size(), 512);
   for (unsigned long i = 0; i < 512; i++) {
     EXPECT_NEAR(arr[static_cast<int>(i)], kExpectedMinBlepTable[i], 1.0e-3f);
   }
 }
+
+TEST(MinBlepGenerator, )
 
 }  // namespace audio_plugin_test
