@@ -2,13 +2,36 @@
 #include <BBSynth/WaveGenerator.h>
 #include <gtest/gtest.h>
 
-#include <numeric>
-#include <vector>
 #include <cmath>
 
 using audio_plugin::WaveGenerator;
 
 namespace audio_plugin_test {
+constexpr double kSampleRate = 48000.0;
+constexpr double kFreq = 440.0;
+constexpr int kNumSamples = 1024;
+
+inline void prepareAndRender(WaveGenerator& gen,
+                             juce::AudioSampleBuffer& raw_buf,
+                             const WaveGenerator::WaveType type) {
+  gen.prepareToPlay(kSampleRate);
+  gen.setWaveType(type);
+  gen.setPitchHz(kFreq);
+  // for more predictable results, we disable the dc blocker so there isn't
+  // any filtering going on
+  gen.setDcBlockerEnabled(false);
+  // build with BUILD_AA to populate BLEP offsets without consuming them
+  // (so no AA filtering is going on)
+  gen.setMode(WaveGenerator::BUILD_AA);
+
+  raw_buf.clear();
+  // Warm up gain ramp so second call uses constant gain
+  gen.renderNextBlock(raw_buf, kNumSamples);
+  raw_buf.clear();
+  gen.getBlepGenerator()->currentActiveBlepOffsets.clear();
+  gen.renderNextBlock(raw_buf, kNumSamples);
+}
+
 struct SawCase {
   WaveGenerator::WaveType type_;
   double expected_pos_change_; // +2 or -2
@@ -20,31 +43,11 @@ class WaveGeneratorSawTest : public ::testing::TestWithParam<SawCase> {
 };
 
 TEST_P(WaveGeneratorSawTest, RendersAndReportsBleps) {
-  constexpr double kSampleRate = 48000.0;
-  constexpr double kFreq = 440.0;
-  constexpr int kNumSamples = 1024;
-
   const auto [type, expected_pos_change, ramp_up, reset_level] = GetParam();
 
   WaveGenerator gen;
-  gen.prepareToPlay(kSampleRate);
-  gen.setWaveType(type);
-  gen.setPitchHz(kFreq);
-  // for more predictable results, we disable the dc blocker so there isn't
-  // any filtering going on
-  gen.setDcBlockerEnabled(false);
-
-  // build with BUILD_AA to populate BLEP offsets without consuming them
-  // (so no AA filtering is going on)
-  gen.setMode(WaveGenerator::BUILD_AA);
-
   juce::AudioSampleBuffer raw_buf(2, kNumSamples);
-  raw_buf.clear();
-  // Warm up gain ramp so second call uses constant gain
-  gen.renderNextBlock(raw_buf, kNumSamples);
-  raw_buf.clear();
-  gen.getBlepGenerator()->currentActiveBlepOffsets.clear();
-  gen.renderNextBlock(raw_buf, kNumSamples);
+  prepareAndRender(gen, raw_buf, type);
 
   // Validate BLEPs were detected at expected rate (one per period)
   auto* blep_gen = gen.getBlepGenerator();
@@ -93,33 +96,14 @@ INSTANTIATE_TEST_SUITE_P(
 
 
 TEST(WaveGeneratorTriangleTest, RendersAndReportsTriangleBleps) {
-  constexpr double kSampleRate = 48000.0;
-  constexpr double kFreq = 440.0;
-  constexpr int kNumSamples = 1024;
-
   WaveGenerator gen;
-  gen.prepareToPlay(kSampleRate);
-  gen.setWaveType(WaveGenerator::triangle);
-  gen.setPitchHz(kFreq);
-  // Disable dc blocker for predictable raw output
-  gen.setDcBlockerEnabled(false);
-
-  // BUILD_AA so BLEP offsets are populated but not consumed
-  gen.setMode(WaveGenerator::BUILD_AA);
-
   juce::AudioSampleBuffer raw_buf(2, kNumSamples);
-  raw_buf.clear();
-  // Warm up gain ramp so second call uses constant gain
-  gen.renderNextBlock(raw_buf, kNumSamples);
-  raw_buf.clear();
-  gen.getBlepGenerator()->currentActiveBlepOffsets.clear();
-  gen.renderNextBlock(raw_buf, kNumSamples);
+  prepareAndRender(gen, raw_buf, WaveGenerator::triangle);
 
   // Validate BLEPs: triangle has first-derivative discontinuities twice per period
   auto* blep_gen = gen.getBlepGenerator();
   const auto& bleps = blep_gen->currentActiveBlepOffsets;
 
-  // Expect roughly 2 BLEPs per period in this buffer (~18.8 -> 19)
   EXPECT_EQ(bleps.size(), 19);
 
   if (bleps.size() >= 2) {
@@ -166,4 +150,4 @@ TEST(WaveGeneratorTriangleTest, RendersAndReportsTriangleBleps) {
     prev = s;
   }
 }
-} // namespace audio_plugin_test
+}
