@@ -150,4 +150,55 @@ TEST(WaveGeneratorTriangleTest, RendersAndReportsTriangleBleps) {
     prev = s;
   }
 }
+
+TEST(WaveGeneratorSquareTest, RendersAndReportsSquareBleps) {
+  WaveGenerator gen;
+  juce::AudioSampleBuffer raw_buf(2, kNumSamples);
+  prepareAndRender(gen, raw_buf, WaveGenerator::square);
+
+  // BLEPs: square has position discontinuities twice per period
+  auto* blep_gen = gen.getBlepGenerator();
+  const auto& bleps = blep_gen->currentActiveBlepOffsets;
+
+  EXPECT_EQ(bleps.size(), 19);
+
+  constexpr double kPeriodSamples = kSampleRate / kFreq; // ~109.09
+  constexpr double kHalfPeriod = kPeriodSamples / 2.0; // ~54.545
+
+  for (int i = 0; i < bleps.size(); ++i) {
+    const auto& b = bleps.getUnchecked(i);
+    // Square: position jump magnitude should be 2 (sign alternates), no velocity jump
+    EXPECT_NEAR(std::abs(b.pos_change_magnitude), 2.0, 1e-3);
+    EXPECT_NEAR(b.vel_change_magnitude, 0.0, 1e-6);
+
+    if (i + 1 < bleps.size()) {
+      const auto& next = bleps.getUnchecked(i + 1);
+      // Spacing between successive BLEPs should be approximately half a period
+      EXPECT_NEAR(b.offset - next.offset, kHalfPeriod, 1.5);
+      // Sign of position change should alternate each transition
+      EXPECT_LT(b.pos_change_magnitude * next.pos_change_magnitude, 0.0);
+    }
+  }
+
+  // Raw output: two flat levels near +/-0.69 with sharp transitions; channels should match
+  const float* ch0 = raw_buf.getReadPointer(0);
+  const float* ch1 = raw_buf.getReadPointer(1);
+
+  for (int i = 0; i < kNumSamples; ++i) {
+    EXPECT_NEAR(ch0[i], ch1[i], 1e-3);
+  }
+
+  // Verify most adjacent samples are equal (away from transitions) and near expected levels
+  float prev = ch0[0];
+  for (int i = 1; i < kNumSamples; ++i) {
+    const float s = ch0[i];
+    const float diff = std::abs(s - prev);
+    // if not a transition (keep a generous threshold), sample should stay essentially constant
+    if (diff < 0.2f) {
+      // level near +/-0.70
+      EXPECT_NEAR(std::abs(s), .70f, 1e-2);
+    }
+    prev = s;
+  }
+}
 }
