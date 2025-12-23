@@ -4,25 +4,25 @@
 #include "BBSynth/WaveGenerator.h"
 
 namespace audio_plugin {
-
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
-    : AudioProcessor(
-          BusesProperties()
+  : AudioProcessor(
+        BusesProperties()
 #if !JucePlugin_IsMidiEffect
 #if !JucePlugin_IsSynth
               .withInput("Input", juce::AudioChannelSet::stereo(), true)
 #endif
-              .withOutput("Output", juce::AudioChannelSet::stereo(), true)
+        .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
-              ),
-      apvts_(*this, nullptr, "ParameterTree", createParameterLayout()) {
+        ),
+    apvts_(*this, nullptr, "ParameterTree", CreateParameterLayout()) {
   for (auto i = 0; i < 1; ++i) {
     synth.addVoice(new OscillatorVoice());
   }
   synth.addSound(new OscillatorSound(apvts_));
 }
 
-AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {}
+AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {
+}
 
 const juce::String AudioPluginAudioProcessor::getName() const {
   return JucePlugin_Name;
@@ -57,9 +57,9 @@ double AudioPluginAudioProcessor::getTailLengthSeconds() const {
 }
 
 int AudioPluginAudioProcessor::getNumPrograms() {
-  return 1;  // NB: some hosts don't cope very well if you tell them there are 0
-             // programs, so this should be at least 1, even if you're not
-             // really implementing programs.
+  return 1; // NB: some hosts don't cope very well if you tell them there are 0
+  // programs, so this should be at least 1, even if you're not
+  // really implementing programs.
 }
 
 int AudioPluginAudioProcessor::getCurrentProgram() {
@@ -141,7 +141,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   // interleaved by keeping the same state.
 
   if (auto editor =
-          dynamic_cast<AudioPluginAudioProcessorEditor*>(getActiveEditor())) {
+      dynamic_cast<AudioPluginAudioProcessorEditor*>(getActiveEditor())) {
     //juce::MidiBuffer incomingMidi;
     // todo do we need a separate buffer or can we append to existing?
     editor->keyboardState.processNextMidiBuffer(
@@ -161,7 +161,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 }
 
 bool AudioPluginAudioProcessor::hasEditor() const {
-  return true;  // (change this to false if you choose to not supply an editor)
+  return true; // (change this to false if you choose to not supply an editor)
 }
 
 juce::AudioProcessorEditor* AudioPluginAudioProcessor::createEditor() {
@@ -185,13 +185,19 @@ void AudioPluginAudioProcessor::setStateInformation(const void* data,
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout
-AudioPluginAudioProcessor::createParameterLayout() {
+AudioPluginAudioProcessor::CreateParameterLayout() {
   std::vector<std::unique_ptr<juce::RangedAudioParameter>> parameterList;
 
   juce::NormalisableRange<float> centOffsetRange{-200.f, 200.f, 1.f};
 
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "centOffset", "Cent Offset", centOffsetRange, 0.f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "cutoffFreq", "Cutoff Frequency",
+      juce::NormalisableRange(20.f, 20000.f, 1.f), 1000.f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "resonance", "Resonance", juce::NormalisableRange(0.f, 10.f, 0.1f),
+      1.f));
 
   return {parameterList.begin(), parameterList.end()};
 }
@@ -202,7 +208,7 @@ void AudioPluginAudioProcessor::parameterChanged(
   // todo if needed
   juce::ignoreUnused(parameterID, newValue);
 }
-}  // namespace audio_plugin
+} // namespace audio_plugin
 
 // This creates new instances of the plugin.
 // This function definition must be in the global namespace.

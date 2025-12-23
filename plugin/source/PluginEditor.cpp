@@ -51,6 +51,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 }
 
 void AudioPluginAudioProcessorEditor::resized() {
+  // todo filter cutoff and freq params as juce params
+
   // This is generally where you'll want to lay out the positions of any
   // subcomponents in your editor..
   auto area = getLocalBounds().reduced(20);
