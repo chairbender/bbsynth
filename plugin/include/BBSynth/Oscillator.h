@@ -58,5 +58,6 @@ private:
   OTAFilter filter_;
   juce::AudioBuffer<float> oversample_buffer_;
   Downsampler downsampler_;
+  juce::ADSR envelope_;
 };
 }

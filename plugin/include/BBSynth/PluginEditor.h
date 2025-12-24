@@ -50,6 +50,23 @@ private:
   juce::Label filter_enabled_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> filter_enabled_attachment_;
 
+  // ADSR controls
+  juce::Slider adsr_attack_slider_;
+  juce::Label adsr_attack_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> adsr_attack_attachment_;
+
+  juce::Slider adsr_decay_slider_;
+  juce::Label adsr_decay_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> adsr_decay_attachment_;
+
+  juce::Slider adsr_sustain_slider_;
+  juce::Label adsr_sustain_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> adsr_sustain_attachment_;
+
+  juce::Slider adsr_release_slider_;
+  juce::Label adsr_release_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> adsr_release_attachment_;
+
   SpectrumAnalyzerComponent spectrum_analyzer_;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessorEditor)
