@@ -30,14 +30,16 @@ private:
   // access the processor object that created it.
   AudioPluginAudioProcessor& processorRef;
 
-  juce::Label cent_offset_label_;
-  juce::Slider cent_offset_slider_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> cent_offset_attachment_;
+  //VCO 1 section
+  juce::Label vco1_label_;
 
   // Wave selector
   juce::ComboBox wave_type_combo_;
   juce::Label wave_type_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> wave_type_attachment_;
+
+  // VCF section
+  juce::Label vcf_label_;
 
   juce::Slider filter_cutoff_slider_;
   juce::Label filter_cutoff_label_;
@@ -51,26 +53,23 @@ private:
   juce::Label filter_drive_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filter_drive_attachment_;
 
-  juce::ToggleButton filter_enabled_button_;
-  juce::Label filter_enabled_label_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> filter_enabled_attachment_;
+  // ENV1 section
+  juce::Label env1_label_;
+  juce::Slider env1_attack_slider_;
+  juce::Label env1_attack_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> env1_attack_attachment_;
 
-  // ADSR controls
-  juce::Slider adsr_attack_slider_;
-  juce::Label adsr_attack_label_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> adsr_attack_attachment_;
+  juce::Slider env1_decay_slider_;
+  juce::Label env1_decay_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> env1_decay_attachment_;
 
-  juce::Slider adsr_decay_slider_;
-  juce::Label adsr_decay_label_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> adsr_decay_attachment_;
+  juce::Slider env1_sustain_slider_;
+  juce::Label env1_sustain_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> env1_sustain_attachment_;
 
-  juce::Slider adsr_sustain_slider_;
-  juce::Label adsr_sustain_label_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> adsr_sustain_attachment_;
-
-  juce::Slider adsr_release_slider_;
-  juce::Label adsr_release_label_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> adsr_release_attachment_;
+  juce::Slider env1_release_slider_;
+  juce::Label env1_release_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> env1_release_attachment_;
 
   SpectrumAnalyzerComponent spectrum_analyzer_;
 

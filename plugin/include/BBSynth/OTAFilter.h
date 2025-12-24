@@ -31,7 +31,6 @@ public:
   void Reset();
   void set_sample_rate(double rate);
 
-  bool bypass_;
   float cutoff_freq_;
   float resonance_;
   float drive_;
