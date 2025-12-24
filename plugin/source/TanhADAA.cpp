@@ -10,7 +10,9 @@ TanhADAA::TanhADAA() : x1_(0.0f) {}
 float TanhADAA::process(const float x0) {
   float y;
 
-  if (const auto dx = x0 - x1_; std::fabs(dx) < 1e-4f) {
+  const float tol = 1e-3f;
+
+  if (const auto dx = x0 - x1_; std::fabs(dx) < tol) {
     // When inputs are too close, use Taylor series
     // to avoid numerical issues
     const auto xbar = 0.5f * (x0 + x1_);
