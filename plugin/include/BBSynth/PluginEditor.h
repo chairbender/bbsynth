@@ -42,6 +42,10 @@ private:
   juce::Label filter_resonance_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filter_resonance_attachment_;
 
+  juce::ToggleButton filter_enabled_button_;
+  juce::Label filter_enabled_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> filter_enabled_attachment_;
+
   SpectrumAnalyzerComponent spectrum_analyzer_;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessorEditor)

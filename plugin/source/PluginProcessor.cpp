@@ -4,7 +4,11 @@
 #include "BBSynth/WaveGenerator.h"
 
 namespace audio_plugin {
-OTAFilter::OTAFilter() : s1{0}, s2{0}, s3{0}, s4{0} {
+
+OTAFilter::OTAFilter() : s1{0}, s2{0}, s3{0}, s4{0},
+  // todo what's really the proper way to do this?
+  tanh_in_{TanhADAA{},TanhADAA{},TanhADAA{},TanhADAA{}},
+  tanh_state_{TanhADAA{},TanhADAA{},TanhADAA{},TanhADAA{}} {
 }
 
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
@@ -156,47 +160,50 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 
     // 4 pass OTA filter, analog emulation
-    // todo refactor to separate class?
-    // todo vectorize
-    const auto freq = apvts_.getRawParameterValue("filterCutoffFreq")->load();
-    constexpr auto res_scale = 1.0f;
-    const auto resonance = res_scale * apvts_.getRawParameterValue(
-                                                 "filterResonance")
-                                             ->load();
-    const auto g = tanf(
-        juce::MathConstants<float>::pi * freq / static_cast<float>(synth.
-          getSampleRate()));
 
-    // todo 1st-degree ADAA - this will generate a LOT of aliasing due to
-    //  all the tanh calls.
-    for (auto j = 0; j < buffer.getNumChannels(); ++j) {
-      auto* input = buffer.getWritePointer(j);
-      auto filter = filter_[static_cast<size_t>(j)];
-      for (auto i = 0; i < buffer.getNumSamples(); ++i) {
-        const auto sample = input[i];
-        // resonance feedback from output
-        const auto feedback = resonance * filter.s4;
+    if (apvts_.getRawParameterValue("filterEnabled")->load() > 0) {
+      // todo refactor to separate class?
+      // todo vectorize
+      const auto freq = apvts_.getRawParameterValue("filterCutoffFreq")->load();
+      constexpr auto res_scale = 1.0f;
+      const auto resonance = res_scale * apvts_.getRawParameterValue(
+                                                   "filterResonance")
+                                               ->load();
+      const auto g = tanf(
+          juce::MathConstants<float>::pi * freq / static_cast<float>(synth.
+            getSampleRate()));
 
-        // input with feedback compensation
-        const auto u = sample - feedback;
+      // todo 1st-degree ADAA - this will generate a LOT of aliasing due to
+      //  all the tanh calls.
+      for (auto j = 0; j < buffer.getNumChannels(); ++j) {
+        auto* input = buffer.getWritePointer(j);
+        auto filter = filter_[static_cast<size_t>(j)];
+        for (auto i = 0; i < buffer.getNumSamples(); ++i) {
+          const auto sample = input[i];
+          // resonance feedback from output
+          const auto feedback = resonance * filter.s4;
 
-        // stage 1
-        const auto v1 = tanhf(u);
-        filter.s1 += g * (v1 - tanhf(filter.s1));
+          // input with feedback compensation
+          const auto u = sample - feedback;
 
-        // stage 2
-        const auto v2 = tanhf(filter.s1);
-        filter.s2 += g * (v2 - tanhf(filter.s2));
+          // stage 1
+          const auto v1 = filter.tanh_in_[0].process(u);
+          filter.s1 += g * (v1 - filter.tanh_state_[0].process(filter.s1));
 
-        // stage 3
-        const auto v3 = tanhf(filter.s2);
-        filter.s3 += g * (v3 - tanhf(filter.s3));
+          // stage 2
+          const auto v2 = filter.tanh_in_[1].process(filter.s1);
+          filter.s2 += g * (v2 - filter.tanh_state_[1].process(filter.s2));
 
-        // stage 4
-        const auto v4 = tanhf(filter.s3);
-        filter.s4 += g * (v4 - tanhf(filter.s4));
+          // stage 3
+          const auto v3 = filter.tanh_in_[2].process(filter.s2);
+          filter.s3 += g * (v3 - filter.tanh_state_[2].process(filter.s3));
 
-        input[i] = v4;
+          // stage 4
+          const auto v4 = filter.tanh_in_[3].process(filter.s3);
+          filter.s4 += g * (v4 - filter.tanh_state_[3].process(filter.s4));
+
+          input[i] = v4;
+        }
       }
     }
 
@@ -250,6 +257,8 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       "filterResonance", "Filter Resonance",
       juce::NormalisableRange(0.f, 4.f, 0.1f),
       1.f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
+    "filterEnabled", "Filter Enabled", true, ""));
 
   return {parameterList.begin(), parameterList.end()};
 }

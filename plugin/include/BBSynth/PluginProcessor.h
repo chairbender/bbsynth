@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "BBSynth/TanhADAA.h"
 
 namespace audio_plugin {
 
@@ -11,6 +12,8 @@ struct OTAFilter {
   // todo refactor to separate class?
   // integrator states
   float s1, s2, s3, s4;
+  std::array<TanhADAA, 4> tanh_in_;
+  std::array<TanhADAA, 4> tanh_state_;
 };
 
 class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::AudioProcessorValueTreeState::Listener {

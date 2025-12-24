@@ -62,6 +62,15 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   filter_resonance_label_.attachToComponent(&filter_resonance_slider_, false);
   addAndMakeVisible(filter_resonance_label_);
 
+  filter_enabled_button_.setButtonText("Filter Enabled");
+  filter_enabled_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+    processorRef.apvts_, "filterEnabled", filter_enabled_button_);
+  addAndMakeVisible(filter_enabled_button_);
+
+  filter_enabled_label_.setText("Filter Enabled", juce::dontSendNotification);
+  filter_enabled_label_.attachToComponent(&filter_enabled_button_, false);
+  addAndMakeVisible(filter_enabled_label_);
+
   addAndMakeVisible(spectrum_analyzer_);
 
 
@@ -79,7 +88,9 @@ void AudioPluginAudioProcessorEditor::resized() {
   cent_offset_slider_.setBounds(area.removeFromLeft(150).removeFromTop(100));
   filter_cutoff_slider_.setBounds(area.removeFromLeft(200).removeFromTop(100));
   filter_resonance_slider_.setBounds(area.removeFromLeft(250).removeFromTop(100));
+  filter_enabled_button_.setBounds(area.removeFromLeft(300).removeFromTop(100));
 
+  area = getLocalBounds().reduced(20);
   keyboardComponent.setBounds(0, area.getHeight() / 2, area.getWidth(), area.getHeight() / 2);
 
   spectrum_analyzer_.setBounds(0, area.getHeight() / 4, area.getWidth(), area.getHeight()/4);

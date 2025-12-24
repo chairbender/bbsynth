@@ -30,7 +30,7 @@ juce_add_plugin(
 )
 
 # Sets the source files of the plugin project.
-set(SOURCE_FILES source/SpectrumAnalyzerComponent.cpp source/WaveGenerator.cpp source/MinBlepGenerator.cpp source/Oscillator.cpp source/PluginEditor.cpp source/PluginProcessor.cpp)
+set(SOURCE_FILES source/TanhADAA.cpp source/SpectrumAnalyzerComponent.cpp source/WaveGenerator.cpp source/MinBlepGenerator.cpp source/Oscillator.cpp source/PluginEditor.cpp source/PluginProcessor.cpp)
 # Optional; includes header files in the project file tree in Visual Studio
 set(HEADER_FILES ${INCLUDE_DIR}/SpectrumAnalyzerComponent.h ${INCLUDE_DIR}/MinBlepGenerator.h ${INCLUDE_DIR}/WaveGenerator.h ${INCLUDE_DIR}/Oscillator.h ${INCLUDE_DIR}/PluginEditor.h ${INCLUDE_DIR}/PluginProcessor.h)
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
