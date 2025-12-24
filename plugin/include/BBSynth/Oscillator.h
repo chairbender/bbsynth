@@ -3,6 +3,7 @@
 #include "WaveGenerator.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 
 #include "OTAFilter.h"
 
@@ -52,5 +53,9 @@ struct OscillatorVoice : juce::SynthesiserVoice {
 private:
   WaveGenerator waveGenerator_;
   OTAFilter filter_;
+  juce::AudioBuffer<float> oversample_buffer_;
+  // note we only use this for the downsampling - internally
+  // we generate the oscillator already oversampled
+  juce::dsp::Oversampling<float> oversampler_;
 };
 }
