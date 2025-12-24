@@ -50,7 +50,6 @@ class WaveGenerator {
   double actualCurrentAngleDelta = 0;  // ACTUAL CURRENT DELTA (pitch)
 
   double volume = 1;
-  double pan = 0.5;             // [0..1]
   double gainLast[2] = {0, 0};  // for ramping ..
   double skew = 0;              // [-1, 1]
   double sampleRate = 0;
@@ -60,7 +59,6 @@ class WaveGenerator {
       history;  // a running averaged wave, for rendering purposes
   int historyLength = 500;
 
-  bool stereo = false;  // invert the right channel ...
   double phaseAngleTarget = 0;
   double phaseAngleActual =
       0;  // the target angle to get to (used for phase shifting)
@@ -233,15 +231,8 @@ public:
     else
       volume = juce::Decibels::decibelsToGain(dBMult);
   }
-  void setPan(const double proportionalPan) {
-    jassert(proportionalPan >= 0);
-    jassert(proportionalPan <= 1);
-    pan = proportionalPan;
-  }
-  void setStereo(const bool isStereo) { stereo = isStereo; }
   void setHardsync(const bool shouldHardSync) { hardSync = shouldHardSync; }
 
-  bool isStereo() const { return stereo; }
   bool isHardSync() const { return hardSync; }
 
   juce::Array<float> getHistory() { return history; }
@@ -249,7 +240,10 @@ public:
   void clear();
 
   // FAST RENDER (AP) :::::
-  void renderNextBlock(juce::AudioSampleBuffer& outputBuffer, int numSamples);
+  /**
+   * Fill the first channel of the buffer up to numSamples.
+   */
+  void RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, int numSamples);
   inline void buildWave(int numSamples);
 
   // SLOW RENDER (LFO) ::::::

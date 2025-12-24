@@ -4,14 +4,6 @@
 #include "BBSynth/WaveGenerator.h"
 
 namespace audio_plugin {
-OTAFilter::OTAFilter() : s1{0}, s2{0}, s3{0}, s4{0},
-                         // todo what's really the proper way to do this?
-                         tanh_in_{TanhADAA{}, TanhADAA{}, TanhADAA{},
-                                  TanhADAA{}},
-                         tanh_state_{TanhADAA{}, TanhADAA{}, TanhADAA{},
-                                     TanhADAA{}} {
-}
-
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
   : AudioProcessor(
         BusesProperties()
@@ -22,9 +14,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
         ),
-    apvts_(*this, nullptr, "ParameterTree", CreateParameterLayout()),
-    // todo is this even needed or does it defaulth/
-    filter_{OTAFilter{}, OTAFilter{}} {
+    apvts_(*this, nullptr, "ParameterTree", CreateParameterLayout()) {
   for (auto i = 0; i < 1; ++i) {
     synth.addVoice(new OscillatorVoice());
   }
@@ -152,83 +142,23 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
   if (auto editor =
       dynamic_cast<AudioPluginAudioProcessorEditor*>(getActiveEditor())) {
-    //juce::MidiBuffer incomingMidi;
     // todo do we need a separate buffer or can we append to existing?
     editor->keyboard_state_.processNextMidiBuffer(
         midiMessages, 0,
         buffer.getNumSamples(), true);
 
-    synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
-
-    // 4 pass OTA filter, analog emulation
-
-    if (apvts_.getRawParameterValue("filterEnabled")->load() > 0) {
-      // todo refactor to separate class?
-      // todo vectorize
-      const auto freq = apvts_.getRawParameterValue("filterCutoffFreq")->load();
-      constexpr auto res_scale = 2.0f;
-      const auto resonance = res_scale * apvts_.getRawParameterValue(
-                                                   "filterResonance")
-                                               ->load();
-      const auto g = tanf(
-          juce::MathConstants<float>::pi * freq / static_cast<float>(synth.
-            getSampleRate()));
-      const auto drive = apvts_.getRawParameterValue("filterDrive")->load();
-      const auto scale = 1.f / drive;
-      // leaky integrator for numerical stability
-      const auto leak = 0.99995f;
-
-      for (auto j = 0; j < buffer.getNumChannels(); ++j) {
-        auto* input = buffer.getWritePointer(j);
-        auto& filter = filter_[static_cast<size_t>(j)];
-
-        for (auto i = 0; i < buffer.getNumSamples(); ++i) {
-          const auto sample = input[i];
-
-          // resonance feedback from output
-          const auto feedback = resonance * filter.s4;
-
-          // input with feedback compensation
-          const auto u = sample - feedback;
-
-          // stage 1
-          const auto v1 = filter.tanh_in_[0].process(u * scale) * drive;
-          filter.s1 = leak * filter.s1 + g * (v1 - filter.tanh_state_[0].process(
-                                filter.s1 * scale) * drive);
-
-          // stage 2
-          const auto v2 = filter.tanh_in_[1].process(filter.s1 * scale) * drive;
-          filter.s2 = leak * filter.s2 + g * (v2 - filter.tanh_state_[1].process(
-                                filter.s2 * scale) * drive);
-
-          // stage 3
-          const auto v3 = filter.tanh_in_[2].process(filter.s2 * scale) * drive;
-          filter.s3 = leak * filter.s3 + g * (v3 - filter.tanh_state_[2].process(
-                                filter.s3 * scale) * drive);
-
-          // stage 4
-          const auto v4 = filter.tanh_in_[3].process(filter.s3 * scale) * drive;
-          filter.s4 = leak * filter.s4 + g * (v4 - filter.tanh_state_[3].process(
-                                filter.s4 * scale) * drive);
-
-          // DC block the output - this is NOT optional
-          const float out = filter.s4 - filter.dc_out_x1_ + 0.99f * filter.dc_out_y1_;
-          filter.dc_out_x1_ = filter.s4;
-          filter.dc_out_y1_ = out;
-
-          input[i] = out;
-        }
+    // Update all voices with current parameters
+    for (int i = 0; i < synth.getNumVoices(); ++i) {
+      if (auto* voice = dynamic_cast<OscillatorVoice*>(synth.getVoice(i))) {
+        voice->Configure(apvts_);
       }
     }
+
+    synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 
     editor->GetNextAudioBlock(buffer);
   }
 
-  // for (int channel = 0; channel < totalNumInputChannels; ++channel) {
-  //   // todo maybe use this approach instead: auto* channelData =
-  //   buffer.getWritePointer(channel);
-  //
-  // }
   midiMessages.clear();
 }
 

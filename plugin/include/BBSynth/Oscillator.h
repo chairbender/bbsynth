@@ -4,8 +4,9 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-namespace audio_plugin {
+#include "OTAFilter.h"
 
+namespace audio_plugin {
 struct OscillatorSound : juce::SynthesiserSound {
   OscillatorSound(juce::AudioProcessorValueTreeState& apvts);
 
@@ -21,6 +22,12 @@ struct OscillatorVoice : juce::SynthesiserVoice {
   OscillatorVoice();
 
   bool canPlaySound(juce::SynthesiserSound* sound) override;
+
+  /**
+   * Update parameters based on current state.
+   * Typically should be called at start of each block.
+   */
+  void Configure(const juce::AudioProcessorValueTreeState& apvts);
 
   void startNote(int midiNoteNumber,
                  float velocity,
@@ -43,7 +50,7 @@ struct OscillatorVoice : juce::SynthesiserVoice {
   WaveGenerator& getWaveGeneratorForTest() { return waveGenerator_; }
 
 private:
-  // todo better split up sound vs voice params
   WaveGenerator waveGenerator_;
+  OTAFilter filter_;
 };
 }
