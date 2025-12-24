@@ -54,11 +54,11 @@ void OscillatorVoice::startNote(const int midiNoteNumber,
 
 void OscillatorVoice::stopNote([[maybe_unused]] float velocity,
                             [[maybe_unused]] const bool allowTailOff) {
-  waveGenerator_.set_volume(-120);
   if (allowTailOff) {
     envelope_.noteOff();
   } else {
     envelope_.reset();
+    waveGenerator_.set_volume(-120);
     clearCurrentNote();
   }
 }
@@ -88,6 +88,7 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   downsampler_.process(oversample_buffer_, outputBuffer, numSamples);
 
   if (! envelope_.isActive()) {
+    waveGenerator_.set_volume(-120);
     clearCurrentNote();
   }
 }
