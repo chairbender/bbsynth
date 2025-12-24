@@ -14,21 +14,21 @@ constexpr int kNumSamples = 1024;
 inline void PrepareAndRender(WaveGenerator& gen,
                              juce::AudioSampleBuffer& raw_buf,
                              const WaveGenerator::WaveType type) {
-  gen.prepareToPlay(kSampleRate);
-  gen.setWaveType(type);
-  gen.setPitchHz(kFreq);
+  gen.PrepareToPlay(kSampleRate);
+  gen.set_wave_type(type);
+  gen.set_pitch_hz(kFreq);
   // for more predictable results, we disable the dc blocker so there isn't
   // any filtering going on
-  gen.setDcBlockerEnabled(false);
+  gen.set_dc_blocker_enabled(false);
   // build with BUILD_AA to populate BLEP offsets without consuming them
   // (so no AA filtering is going on)
-  gen.setMode(WaveGenerator::BUILD_AA);
+  gen.set_mode(WaveGenerator::BUILD_AA);
 
   raw_buf.clear();
   // Warm up gain ramp so second call uses constant gain
   gen.RenderNextBlock(raw_buf, kNumSamples);
   raw_buf.clear();
-  gen.getBlepGenerator()->currentActiveBlepOffsets.clear();
+  gen.blep_generator()->currentActiveBlepOffsets.clear();
   gen.RenderNextBlock(raw_buf, kNumSamples);
 }
 
@@ -50,7 +50,7 @@ TEST_P(WaveGeneratorSawTest, RendersAndReportsBleps) {
   PrepareAndRender(gen, raw_buf, type);
 
   // Validate BLEPs were detected at expected rate (one per period)
-  auto* blep_gen = gen.getBlepGenerator();
+  auto* blep_gen = gen.blep_generator();
   const auto& bleps = blep_gen->currentActiveBlepOffsets;
 
   ASSERT_EQ(bleps.size(), 10);
@@ -101,7 +101,7 @@ TEST(WaveGeneratorTriangleTest, RendersAndReportsTriangleBleps) {
   PrepareAndRender(gen, raw_buf, WaveGenerator::triangle);
 
   // Validate BLEPs: triangle has first-derivative discontinuities twice per period
-  auto* blep_gen = gen.getBlepGenerator();
+  auto* blep_gen = gen.blep_generator();
   const auto& bleps = blep_gen->currentActiveBlepOffsets;
 
   EXPECT_EQ(bleps.size(), 19);
@@ -157,7 +157,7 @@ TEST(WaveGeneratorSquareTest, RendersAndReportsSquareBleps) {
   PrepareAndRender(gen, raw_buf, WaveGenerator::square);
 
   // BLEPs: square has position discontinuities twice per period
-  auto* blep_gen = gen.getBlepGenerator();
+  auto* blep_gen = gen.blep_generator();
   const auto& bleps = blep_gen->currentActiveBlepOffsets;
 
   EXPECT_EQ(bleps.size(), 19);

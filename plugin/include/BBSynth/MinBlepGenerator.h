@@ -28,24 +28,24 @@ class MinBlepGenerator {
 
   // ANTIALIASING FILTER ::::
   // since we are downsampling .... we can filter for better AA
-  double coefficients[6];
+  double coefficients_[6];
   struct FilterState {
-    double x1, x2, y1, y2;
+    double x1_, x2_, y1_, y2_;
   };
-  int numChannels = 2;
-  juce::HeapBlock<FilterState> filterStates;
-  double ratio, lastRatio;
+  int num_channels_ = 2;
+  juce::HeapBlock<FilterState> filter_states_;
+  double ratio_, last_ratio_;
 
 public:
-  double overSamplingRatio;
-  int zeroCrossings;
+  double over_sampling_ratio_;
+  int zero_crossings_;
 
-  float lastValue;
-  float lastDelta;  // previous derivative ...
+  float last_value_;
+  float last_delta_;  // previous derivative ...
 
   // Tweaking the Blep F
-  double proportionalBlepFreq;
-  bool returnDerivative;  // set this to return the FIRST DERIVATIVE of the blep
+  double proportional_blep_freq_;
+  bool return_derivative_;  // set this to return the FIRST DERIVATIVE of the blep
                           // (for first der. discontinuities)
 
   struct BlepOffset {
@@ -77,15 +77,15 @@ public:
   MinBlepGenerator();
   ~MinBlepGenerator();
 
-  static juce::Array<float> getMinBlepArray();
-  static juce::Array<float> getMinBlepDerivArray();
+  static juce::Array<float> min_blep_array();
+  static juce::Array<float> min_blep_deriv_array();
 
-  void setToReturnDerivative(const bool derivative) { returnDerivative = derivative; }
+  void set_return_derivative(const bool derivative) { return_derivative_ = derivative; }
 
   // Utility ....
 
   // SINC Function
-  static inline double SINC(double x) {
+  static inline double Sinc(const double x) {
     if (x == 0.0)
       return 1.0;
     else {
@@ -95,7 +95,7 @@ public:
   }
 
   // Generate Blackman Window
-  static inline double blackmanHarris(double p) {
+  static inline double BlackmanHarris(const double p) {
     return
       + 0.35875
       - 0.48829 * std::cos(2 * juce::MathConstants<double>::pi * p)
@@ -106,9 +106,9 @@ public:
   /**
    * Applies the window to x
    */
-  static inline void ApplyBlackmanHarrisWindow(int n, double* x) {
+  static inline void ApplyBlackmanHarrisWindow(const int n, double* x) {
     for (int i = 0; i < n; i++) {
-      x[i] *= blackmanHarris(static_cast<double>(i) / (n - 1));
+      x[i] *= BlackmanHarris(static_cast<double>(i) / (n - 1));
     }
   }
 
@@ -181,10 +181,10 @@ public:
   }
 
   // Complex Absolute Value
-  static inline double cabs(const double x, const double y) { return sqrt((x * x) + (y * y)); }
+  static inline double Cabs(const double x, const double y) { return sqrt((x * x) + (y * y)); }
 
   // Complex Exponential
-  static inline void cexp(const double x,
+  static inline void Cexp(const double x,
                           const double y, double* zx, double* zy) {
     const double expx = exp(x);
     *zx = expx * cos(y);
@@ -288,7 +288,7 @@ public:
   }
 
   // FILTER ::::::
-  void createLowPass(const double frequencyRatio) {
+  void CreateLowPass(const double frequencyRatio) {
     const double proportionalRate =
         (frequencyRatio > 1.0) ? 0.5 / frequencyRatio : 0.5 * frequencyRatio;
 
@@ -297,10 +297,10 @@ public:
     const double nSquared = n * n;
     const double c1 = 1.0 / (1.0 + std::sqrt(2.0) * n + nSquared);
 
-    setFilterCoefficients(c1, c1 * 2.0, c1, 1.0, c1 * 2.0 * (1.0 - nSquared),
+    SetFilterCoefficients(c1, c1 * 2.0, c1, 1.0, c1 * 2.0 * (1.0 - nSquared),
                           c1 * (1.0 - std::sqrt(2.0) * n + nSquared));
   }
-  void setFilterCoefficients(double c1,
+  void SetFilterCoefficients(double c1,
                              double c2,
                              double c3,
                              double c4,
@@ -314,72 +314,72 @@ public:
     c5 *= a;
     c6 *= a;
 
-    coefficients[0] = c1;
-    coefficients[1] = c2;
-    coefficients[2] = c3;
-    coefficients[3] = c4;
-    coefficients[4] = c5;
-    coefficients[5] = c6;
+    coefficients_[0] = c1;
+    coefficients_[1] = c2;
+    coefficients_[2] = c3;
+    coefficients_[3] = c4;
+    coefficients_[4] = c5;
+    coefficients_[5] = c6;
   }
-  void resetFilters() { filterStates.clear(numChannels); }
-  void applyFilter(float* samples, int num, FilterState& fs) const {
+  void ResetFilters() { filter_states_.clear(num_channels_); }
+  void ApplyFilter(float* samples, int num, FilterState& fs) const {
     while (--num >= 0) {
       const double in = static_cast<double>(*samples);
 
-      double out = coefficients[0] * in + coefficients[1] * fs.x1 +
-                   coefficients[2] * fs.x2 - coefficients[4] * fs.y1 -
-                   coefficients[5] * fs.y2;
+      double out = coefficients_[0] * in + coefficients_[1] * fs.x1_ +
+                   coefficients_[2] * fs.x2_ - coefficients_[4] * fs.y1_ -
+                   coefficients_[5] * fs.y2_;
 
 #if JUCE_INTEL
       if (!(out < -1.0e-8 || out > 1.0e-8))
         out = 0;
 #endif
 
-      fs.x2 = fs.x1;
-      fs.x1 = in;
-      fs.y2 = fs.y1;
-      fs.y1 = out;
+      fs.x2_ = fs.x1_;
+      fs.x1_ = in;
+      fs.y2_ = fs.y1_;
+      fs.y1_ = out;
 
       *samples++ = static_cast<float>(out);
     }
   }
-  float filterSample(float sample, FilterState& fs) const {
+  float FilterSample(float sample, FilterState& fs) const {
     const double in = static_cast<double>(sample);
 
-    double out = coefficients[0] * in + coefficients[1] * fs.x1 +
-                 coefficients[2] * fs.x2 - coefficients[4] * fs.y1 -
-                 coefficients[5] * fs.y2;
+    double out = coefficients_[0] * in + coefficients_[1] * fs.x1_ +
+                 coefficients_[2] * fs.x2_ - coefficients_[4] * fs.y1_ -
+                 coefficients_[5] * fs.y2_;
 
 #if JUCE_INTEL
     if (!(out < -1.0e-8 || out > 1.0e-8))
       out = 0;
 #endif
 
-    fs.x2 = fs.x1;
-    fs.x1 = in;
-    fs.y2 = fs.y1;
-    fs.y1 = out;
+    fs.x2_ = fs.x1_;
+    fs.x1_ = in;
+    fs.y2_ = fs.y1_;
+    fs.y1_ = out;
 
     return static_cast<float>(out);
   }
 
-  void clear();
-  bool isClear() const;
+  void Clear();
+  bool IsClear() const;
 
   // CUSTOM ::::
-  void setLimitingFreq(float proportionOfSamplingRate);
+  void set_limiting_freq(float proportionOfSamplingRate);
 
-  void buildBlep();
-  void addBlep(BlepOffset newBlep);
-  void addBlepArray(const juce::Array<BlepOffset>& newBleps);
+  void BuildBlep() const;
+  void AddBlep(BlepOffset newBlep);
+  void AddBlepArray(const juce::Array<BlepOffset>& newBleps);
 
-  juce::Array<BlepOffset> getNextBleps();
+  juce::Array<BlepOffset> GetNextBleps();
 
-  void processBlock(float* buffer, int numSamples);
-  void rescale_bleps_to_buffer(const float* buffer,
+  void ProcessBlock(float* buffer, int numSamples);
+  void RescaleBlepsToBuffer(const float* buffer,
                                int numSamples,
                                float shiftBlepsBy = 0);
-  void process_currentBleps(float* buffer, int numSamples);
+  void ProcessCurrentBleps(float* buffer, int numSamples);
 };
 
 }  // namespace audio_plugin
