@@ -165,7 +165,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       // todo refactor to separate class?
       // todo vectorize
       const auto freq = apvts_.getRawParameterValue("filterCutoffFreq")->load();
-      constexpr auto res_scale = 1.0f;
+      constexpr auto res_scale = 4.0f;
       const auto resonance = res_scale * apvts_.getRawParameterValue(
                                                    "filterResonance")
                                                ->load();
@@ -252,10 +252,10 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       "centOffset", "Cent Offset", centOffsetRange, 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterCutoffFreq", "Filter Cutoff Frequency",
-      juce::NormalisableRange(20.f, 20000.f, 1.f), 1000.f));
+      juce::NormalisableRange(20.f, 8000.f, 1.f), 1000.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterResonance", "Filter Resonance",
-      juce::NormalisableRange(0.f, 4.f, 0.1f),
+      juce::NormalisableRange(0.f, 4.f, 0.01f),
       1.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
     "filterEnabled", "Filter Enabled", true, ""));
