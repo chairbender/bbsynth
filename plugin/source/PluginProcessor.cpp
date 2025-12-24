@@ -201,6 +201,12 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
 
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "centOffset", "Cent Offset", centOffsetRange, 0.f));
+  // Oscillator wave type selector
+  parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
+      "waveType",
+      "Wave Type",
+      juce::StringArray{"sine", "sawFall", "triangle", "square", "random"},
+      1));
   // ADSR envelope parameters
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "adsrAttack", "ADSR Attack (s)", juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.01f));
