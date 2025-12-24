@@ -197,10 +197,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout
 AudioPluginAudioProcessor::CreateParameterLayout() {
   std::vector<std::unique_ptr<juce::RangedAudioParameter>> parameterList;
 
-  juce::NormalisableRange<float> centOffsetRange{-200.f, 200.f, 1.f};
-
-  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "centOffset", "Cent Offset", centOffsetRange, 0.f));
   // Oscillator wave type selector
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "waveType",
@@ -226,8 +222,6 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterDrive", "Filter Drive", juce::NormalisableRange(0.f, 1.f, 0.01f),
       0.5f));
-  parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
-      "filterEnabled", "Filter Enabled", true, ""));
 
   return {parameterList.begin(), parameterList.end()};
 }

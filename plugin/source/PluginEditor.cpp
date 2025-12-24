@@ -31,16 +31,9 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   g.setColour(juce::Colours::white);
   g.setFont(15.0f);
 
-  cent_offset_slider_.setSliderStyle(juce::Slider::Rotary);
-  cent_offset_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
-  addAndMakeVisible(cent_offset_slider_);
-  cent_offset_attachment_ =
-    std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        processorRef.apvts_, "centOffset", cent_offset_slider_);
-
-  cent_offset_label_.setText("Cent Offset", juce::dontSendNotification);
-  cent_offset_label_.attachToComponent(&cent_offset_slider_, false);
-  addAndMakeVisible(cent_offset_label_);
+  // vco1 section
+  vco1_label_.setText("VCO 1", juce::dontSendNotification);
+  addAndMakeVisible(vco1_label_);
 
   // Wave type selector
   wave_type_combo_.clear(juce::dontSendNotification);
@@ -55,6 +48,10 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   wave_type_label_.setText("Waveform", juce::dontSendNotification);
   wave_type_label_.attachToComponent(&wave_type_combo_, false);
   addAndMakeVisible(wave_type_label_);
+
+  //vcf section
+  vcf_label_.setText("VCF", juce::dontSendNotification);
+  addAndMakeVisible(vcf_label_);
 
   filter_cutoff_slider_.setSliderStyle(juce::Slider::Rotary);
   filter_cutoff_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
@@ -86,51 +83,44 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   filter_drive_label_.attachToComponent(&filter_drive_slider_, false);
   addAndMakeVisible(filter_drive_label_);
 
-  filter_enabled_button_.setButtonText("Filter Enabled");
-  filter_enabled_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-    processorRef.apvts_, "filterEnabled", filter_enabled_button_);
-  addAndMakeVisible(filter_enabled_button_);
+  // env1 section
+  env1_label_.setText("ENV1", juce::dontSendNotification);
+  addAndMakeVisible(env1_label_);
+  env1_attack_slider_.setSliderStyle(juce::Slider::Rotary);
+  env1_attack_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(env1_attack_slider_);
+  env1_attack_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "adsrAttack", env1_attack_slider_);
+  env1_attack_label_.setText("Attack", juce::dontSendNotification);
+  env1_attack_label_.attachToComponent(&env1_attack_slider_, false);
+  addAndMakeVisible(env1_attack_label_);
 
-  filter_enabled_label_.setText("Filter Enabled", juce::dontSendNotification);
-  filter_enabled_label_.attachToComponent(&filter_enabled_button_, false);
-  addAndMakeVisible(filter_enabled_label_);
+  env1_decay_slider_.setSliderStyle(juce::Slider::Rotary);
+  env1_decay_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(env1_decay_slider_);
+  env1_decay_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "adsrDecay", env1_decay_slider_);
+  env1_decay_label_.setText("Decay", juce::dontSendNotification);
+  env1_decay_label_.attachToComponent(&env1_decay_slider_, false);
+  addAndMakeVisible(env1_decay_label_);
 
-  // ADSR controls
-  adsr_attack_slider_.setSliderStyle(juce::Slider::Rotary);
-  adsr_attack_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
-  addAndMakeVisible(adsr_attack_slider_);
-  adsr_attack_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-      processorRef.apvts_, "adsrAttack", adsr_attack_slider_);
-  adsr_attack_label_.setText("Attack", juce::dontSendNotification);
-  adsr_attack_label_.attachToComponent(&adsr_attack_slider_, false);
-  addAndMakeVisible(adsr_attack_label_);
+  env1_sustain_slider_.setSliderStyle(juce::Slider::Rotary);
+  env1_sustain_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(env1_sustain_slider_);
+  env1_sustain_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "adsrSustain", env1_sustain_slider_);
+  env1_sustain_label_.setText("Sustain", juce::dontSendNotification);
+  env1_sustain_label_.attachToComponent(&env1_sustain_slider_, false);
+  addAndMakeVisible(env1_sustain_label_);
 
-  adsr_decay_slider_.setSliderStyle(juce::Slider::Rotary);
-  adsr_decay_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
-  addAndMakeVisible(adsr_decay_slider_);
-  adsr_decay_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-      processorRef.apvts_, "adsrDecay", adsr_decay_slider_);
-  adsr_decay_label_.setText("Decay", juce::dontSendNotification);
-  adsr_decay_label_.attachToComponent(&adsr_decay_slider_, false);
-  addAndMakeVisible(adsr_decay_label_);
-
-  adsr_sustain_slider_.setSliderStyle(juce::Slider::Rotary);
-  adsr_sustain_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
-  addAndMakeVisible(adsr_sustain_slider_);
-  adsr_sustain_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-      processorRef.apvts_, "adsrSustain", adsr_sustain_slider_);
-  adsr_sustain_label_.setText("Sustain", juce::dontSendNotification);
-  adsr_sustain_label_.attachToComponent(&adsr_sustain_slider_, false);
-  addAndMakeVisible(adsr_sustain_label_);
-
-  adsr_release_slider_.setSliderStyle(juce::Slider::Rotary);
-  adsr_release_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
-  addAndMakeVisible(adsr_release_slider_);
-  adsr_release_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-      processorRef.apvts_, "adsrRelease", adsr_release_slider_);
-  adsr_release_label_.setText("Release", juce::dontSendNotification);
-  adsr_release_label_.attachToComponent(&adsr_release_slider_, false);
-  addAndMakeVisible(adsr_release_label_);
+  env1_release_slider_.setSliderStyle(juce::Slider::Rotary);
+  env1_release_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(env1_release_slider_);
+  env1_release_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "adsrRelease", env1_release_slider_);
+  env1_release_label_.setText("Release", juce::dontSendNotification);
+  env1_release_label_.attachToComponent(&env1_release_slider_, false);
+  addAndMakeVisible(env1_release_label_);
 
   addAndMakeVisible(spectrum_analyzer_);
 
@@ -144,27 +134,49 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   // This is generally where you'll want to lay out the positions of any
   // subcomponents in your editor..
-  auto area = getLocalBounds().reduced(20);
+  auto area = getLocalBounds();
 
-  // todo this is not the right way to use area - these are mutating ops, not immutable
-  cent_offset_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
-  filter_cutoff_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
-  filter_resonance_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
-  filter_enabled_button_.setBounds(area.removeFromLeft(100).removeFromTop(100));
-  filter_drive_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
+  // keyboard / spectrum section
+  keyboardComponent.setBounds(area.removeFromBottom(100));
+  spectrum_analyzer_.setBounds(area.removeFromBottom(100));
 
-  // Place ADSR controls
-  adsr_attack_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
-  adsr_decay_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
-  adsr_sustain_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
-  adsr_release_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
+  // top section
+  auto top_row = area.removeFromTop(200);
 
-  // Place wave selector
-  wave_type_combo_.setBounds(area.removeFromLeft(150).removeFromTop(40));
+  // vco 1 section
+  auto vco_1_section = top_row.removeFromLeft(200);
+  vco1_label_.setBounds(vco_1_section.removeFromTop(50));
+  auto wave_type_stack = vco_1_section.removeFromLeft(50);
+  wave_type_label_.setBounds(wave_type_stack.removeFromTop(50));
+  wave_type_combo_.setBounds(wave_type_stack.removeFromTop(50));
 
-  area = getLocalBounds().reduced(20);
-  keyboardComponent.setBounds(0, area.getHeight() / 2, area.getWidth(), area.getHeight() / 2);
+  // vcf section
+  auto vcf_section = top_row.removeFromLeft(200);
+  vcf_label_.setBounds(vcf_section.removeFromTop(50));
+  auto freq_stack = vcf_section.removeFromLeft(50);
+  filter_cutoff_label_.setBounds(freq_stack.removeFromTop(50));
+  filter_cutoff_slider_.setBounds(freq_stack.removeFromTop(50));
+  auto res_stack = freq_stack.removeFromLeft(50);
+  filter_resonance_label_.setBounds(res_stack.removeFromTop(50));
+  filter_resonance_slider_.setBounds(res_stack.removeFromTop(50));
+  auto drive_stack = res_stack.removeFromLeft(50);
+  filter_drive_label_.setBounds(drive_stack.removeFromTop(50));
+  filter_drive_slider_.setBounds(drive_stack.removeFromTop(50));
 
-  spectrum_analyzer_.setBounds(0, area.getHeight() / 4, area.getWidth(), area.getHeight()/4);
+  // env1 section
+  auto env1_section = top_row.removeFromLeft(200);
+  env1_label_.setBounds(env1_section.removeFromTop(50));
+  auto attack_stack = env1_section.removeFromLeft(50);
+  env1_attack_slider_.setBounds(attack_stack.removeFromTop(50));
+  env1_attack_label_.setBounds(attack_stack.removeFromTop(50));
+  auto decay_stack = env1_section.removeFromLeft(50);
+  env1_decay_slider_.setBounds(decay_stack.removeFromTop(50));
+  env1_decay_label_.setBounds(decay_stack.removeFromTop(50));
+  auto sustain_stack = env1_section.removeFromLeft(50);
+  env1_sustain_slider_.setBounds(sustain_stack.removeFromTop(50));
+  env1_sustain_label_.setBounds(sustain_stack.removeFromTop(50));
+  auto release_stack = env1_section.removeFromLeft(50);
+  env1_release_slider_.setBounds(release_stack.removeFromTop(50));
+  env1_release_label_.setBounds(release_stack.removeFromTop(50));
 }
 }  // namespace audio_plugin

@@ -3,7 +3,7 @@
 #include <juce_dsp/juce_dsp.h>
 
 namespace audio_plugin {
-OTAFilter::OTAFilter() : bypass_{false}, cutoff_freq_{0.f}, resonance_{0.f},
+OTAFilter::OTAFilter() : cutoff_freq_{0.f}, resonance_{0.f},
                          drive_{0.f}, sample_rate_{0}, s1_{0},
                          s2_{0}, s3_{0},
                          s4_{0},
@@ -11,21 +11,23 @@ OTAFilter::OTAFilter() : bypass_{false}, cutoff_freq_{0.f}, resonance_{0.f},
                          dc_out_y1_{0} {
 }
 
-inline void OTAFilter::FilterStage(const float in, float& out, TanhADAA& tanh_in, TanhADAA& tanh_state, const float g, const float scale) const {
+inline void OTAFilter::FilterStage(const float in, float& out,
+                                   TanhADAA& tanh_in, TanhADAA& tanh_state,
+                                   const float g, const float scale) const {
   constexpr auto kLeak = 0.99995f;
   const auto v = tanh_in.process(in * scale) * drive_;
   out = kLeak * out + g * (v - tanh_state.process(
-                        out * scale) * drive_);
+                               out * scale) * drive_);
 }
 
-void OTAFilter::Process(juce::AudioBuffer<float>& buffers, const int numSamples) {
+void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
+                        const int numSamples) {
   jassert(sample_rate_ > 0);
-
-  if (bypass_) return;
 
   // todo vectorize
   const auto g = tanf(
-      juce::MathConstants<float>::pi * cutoff_freq_ / static_cast<float>(sample_rate_));
+      juce::MathConstants<float>::pi * cutoff_freq_ / static_cast<float>(
+        sample_rate_));
   const auto scale = 1.f / drive_;
   // leaky integrator for numerical stability
   const auto buf = buffers.getWritePointer(0);
@@ -54,7 +56,6 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers, const int numSamples)
 }
 
 void OTAFilter::Configure(const juce::AudioProcessorValueTreeState& state) {
-  bypass_ = state.getRawParameterValue("filterEnabled")->load() <= 0;
   cutoff_freq_ = state.getRawParameterValue("filterCutoffFreq")->load();
   resonance_ = state.getRawParameterValue("filterResonance")->load();
   drive_ = state.getRawParameterValue("filterDrive")->load();
