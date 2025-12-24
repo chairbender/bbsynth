@@ -43,12 +43,9 @@ WaveGenerator::WaveGenerator() {
   slavePitchOffset = 1;
 
   volume = 1;
-  pan = 0.5;
   gainLast[0] = gainLast[1] = 0;
   skew = 0;
   lastSample = 0;
-
-  stereo = false;
 
   for (int i = 0; i < historyLength; i++)
     history.add(0);
@@ -88,8 +85,7 @@ void WaveGenerator::clear() {
 }
 
 // FAST RENDER (AP) :::::
-void WaveGenerator::renderNextBlock(juce::AudioSampleBuffer& outputBuffer,
-                                    int numSamples) {
+void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, const int numSamples) {
   jassert(sampleRate != 0.);
 
   if (slaveDeltaBase == 0.0)
@@ -157,33 +153,12 @@ void WaveGenerator::renderNextBlock(juce::AudioSampleBuffer& outputBuffer,
       history.remove(0);
   }
 
-  // PAN :::
-  // CALCULATE the pan factors of each input, for each output ....
-  // calculate the pan pots .... using -3 center position
-  double panGain[2];
-  double panL_dB =
-      -3 * pow((2.0 - 2.0 * pan), 3.0);  // 0 => 0dB, .5 => -3 dB, 1 => -24db
-  panGain[0] = juce::Decibels::decibelsToGain(panL_dB);
-  double panR_dB =
-      -3 * pow(2.0 * pan, 3.0);  // 0 => 0dB, .5 => -3 dB, 1 => -24db
-  panGain[1] = juce::Decibels::decibelsToGain(panR_dB);
-
-  // STEREO :::
-  double invert = 1;
-  if (stereo)
-    invert = -1;
-
   // COPY it to the outputbuffer ....
   outputBuffer.addFromWithRamp(0, 0, wave.getRawDataPointer(), numSamples,
                                static_cast<float>(gainLast[0]),
-                               static_cast<float>(volume * panGain[0]));
-  outputBuffer.addFromWithRamp(
-      1, 0, wave.getRawDataPointer(), numSamples,
-      static_cast<float>(invert * gainLast[1]),
-      static_cast<float>(invert * volume * panGain[1]));
+                               static_cast<float>(volume));
 
-  gainLast[0] = volume * panGain[0];
-  gainLast[1] = volume * panGain[1];
+  gainLast[0] = volume;
 
 #if JUCE_DEBUG
 
@@ -596,13 +571,10 @@ void WaveGenerator::loadScene(const juce::ValueTree& node) {
   masterPitchOffset = node.getProperty("masterPitchOffset", 1.0);
 
   volume = node.getProperty("volume", volume);
-  pan = node.getProperty("pan", pan);
   skew = node.getProperty("skew", skew);
 
   blepOvertoneDepth = node.getProperty("blepOvertoneDepth", 64.);
   phaseAngleTarget = node.getProperty("phaseAngleTarget", phaseAngleTarget);
-
-  stereo = node.getProperty("stereo", false);
 
   // ALWAYS HARD SYNC (for now)
   hardSync = true;  //(bool)node.getProperty("hardSync", false);
@@ -617,13 +589,11 @@ void WaveGenerator::saveScene(juce::ValueTree node) const {
   node.setProperty("masterPitchOffset", masterPitchOffset, nullptr);
 
   node.setProperty("volume", volume, nullptr);
-  node.setProperty("pan", pan, nullptr);
   node.setProperty("skew", skew, nullptr);
 
   node.setProperty("blepOvertoneDepth", blepOvertoneDepth, nullptr);
   node.setProperty("phaseAngleTarget", phaseAngleTarget, nullptr);
 
-  node.setProperty("stereo", stereo, nullptr);
   node.setProperty("hardSync", hardSync, nullptr);  // always true!
 
   // TONE :::
