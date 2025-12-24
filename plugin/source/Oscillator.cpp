@@ -2,12 +2,9 @@
 
 namespace audio_plugin {
 
-// todo: oversampling
-constexpr auto kOversample = 1;
+constexpr auto kOversample = 2;
 
-OscillatorSound::OscillatorSound([[maybe_unused]] juce::AudioProcessorValueTreeState& apvts) :
-  centOffset_{nullptr} {
-}
+OscillatorSound::OscillatorSound([[maybe_unused]] juce::AudioProcessorValueTreeState& apvts) {}
 
 bool OscillatorSound::appliesToNote([[maybe_unused]] int midiNoteIndex) {
   return true;
@@ -17,9 +14,8 @@ bool OscillatorSound::appliesToChannel([[maybe_unused]] int midiChannelIndex) {
   return true;
 }
 
-OscillatorVoice::OscillatorVoice() : oversampler_(1, 2,
-  juce::dsp::Oversampling<float>::filterHalfBandFIREquiripple) {
-  waveGenerator_.PrepareToPlay(getSampleRate()*(kOversample));
+OscillatorVoice::OscillatorVoice() {
+  waveGenerator_.PrepareToPlay(getSampleRate()*kOversample);
   //waveGenerator_.setHardsync(false);
   waveGenerator_.set_mode(WaveGenerator::ANTIALIAS);
   waveGenerator_.set_wave_type(WaveGenerator::sawFall);
@@ -32,6 +28,10 @@ bool OscillatorVoice::canPlaySound(juce::SynthesiserSound* sound) {
 
 void OscillatorVoice::Configure(const juce::AudioProcessorValueTreeState& apvts) {
   filter_.Configure(apvts);
+}
+
+void OscillatorVoice::SetBlockSize(const int blockSize) {
+  downsampler_.prepare(getSampleRate(), blockSize);
 }
 
 void OscillatorVoice::startNote(const int midiNoteNumber,
@@ -59,22 +59,12 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   const auto oversample_samples = numSamples*kOversample;
   oversample_buffer_.setSize(1, oversample_samples, false, true);
 
-  // todo probably shouldnt call each block
-  //oversampler_.initProcessing(static_cast<size_t>(oversample_samples));
-
   // note this will fill and process only the left channel since we want to work in mono
   // until the last moment
-  // todo: for oversampling, the blep approach needs to be reworked as it assumes a specific sample rate
+  // the wave generator and filter are already configured to generate at 2x oversampling.
   waveGenerator_.RenderNextBlock(oversample_buffer_, oversample_samples);
   filter_.Process(oversample_buffer_, oversample_samples);
 
-  // todo: downsample
-  //juce::dsp::AudioBlock<float> block(oversample_buffer_.getArrayOfWritePointers(), 1,
-    //static_cast<size_t>(oversample_samples));
-  //oversampler_.processSamplesDown(block);
-
-  outputBuffer.copyFrom(0, 0,
-    oversample_buffer_.getReadPointer(0), numSamples);
-
+  downsampler_.process(oversample_buffer_, outputBuffer, numSamples);
 }
 }  // namespace audio_plugin

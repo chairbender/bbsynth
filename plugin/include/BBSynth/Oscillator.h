@@ -5,6 +5,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
+#include "Downsampler.h"
 #include "OTAFilter.h"
 
 namespace audio_plugin {
@@ -13,10 +14,6 @@ struct OscillatorSound : juce::SynthesiserSound {
 
   bool appliesToNote([[maybe_unused]] int midiNoteNumber) override;
   bool appliesToChannel([[maybe_unused]] int midiChannelNumber) override;
-  std::atomic<float>* getCentOffset() const;
-
-private:
-  std::atomic<float>* centOffset_;
 };
 
 struct OscillatorVoice : juce::SynthesiserVoice {
@@ -29,6 +26,12 @@ struct OscillatorVoice : juce::SynthesiserVoice {
    * Typically should be called at start of each block.
    */
   void Configure(const juce::AudioProcessorValueTreeState& apvts);
+
+  /**
+   *
+   * @param blockSize Number of samples to expect per buffer (needed for oversampler)
+   */
+  void SetBlockSize(int blockSize);
 
   void startNote(int midiNoteNumber,
                  float velocity,
@@ -54,8 +57,6 @@ private:
   WaveGenerator waveGenerator_;
   OTAFilter filter_;
   juce::AudioBuffer<float> oversample_buffer_;
-  // note we only use this for the downsampling - internally
-  // we generate the oscillator already oversampled
-  juce::dsp::Oversampling<float> oversampler_;
+  Downsampler downsampler_;
 };
 }
