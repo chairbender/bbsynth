@@ -175,6 +175,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             getSampleRate()));
       const auto drive = apvts_.getRawParameterValue("filterDrive")->load();
       const auto scale = 1.f / drive;
+      // leaky integrator for numerical stability
+      const auto leak = 0.99995f;
 
       for (auto j = 0; j < buffer.getNumChannels(); ++j) {
         auto* input = buffer.getWritePointer(j);
@@ -182,6 +184,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
         for (auto i = 0; i < buffer.getNumSamples(); ++i) {
           const auto sample = input[i];
+
           // resonance feedback from output
           const auto feedback = resonance * filter.s4;
 
@@ -190,54 +193,43 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
           // stage 1
           const auto v1 = filter.tanh_in_[0].process(u * scale) * drive;
-          filter.s1 += g * (v1 - filter.tanh_state_[0].process(
+          filter.s1 = leak * filter.s1 + g * (v1 - filter.tanh_state_[0].process(
                                 filter.s1 * scale) * drive);
 
           // stage 2
           const auto v2 = filter.tanh_in_[1].process(filter.s1 * scale) * drive;
-          filter.s2 += g * (v2 - filter.tanh_state_[1].process(
+          filter.s2 = leak * filter.s2 + g * (v2 - filter.tanh_state_[1].process(
                                 filter.s2 * scale) * drive);
 
           // stage 3
           const auto v3 = filter.tanh_in_[2].process(filter.s2 * scale) * drive;
-          filter.s3 += g * (v3 - filter.tanh_state_[2].process(
+          filter.s3 = leak * filter.s3 + g * (v3 - filter.tanh_state_[2].process(
                                 filter.s3 * scale) * drive);
 
           // stage 4
           const auto v4 = filter.tanh_in_[3].process(filter.s3 * scale) * drive;
-          filter.s4 += g * (v4 - filter.tanh_state_[3].process(
+          filter.s4 = leak * filter.s4 + g * (v4 - filter.tanh_state_[3].process(
                                 filter.s4 * scale) * drive);
 
-          input[i] = v4;
+          // DC block the output - this is NOT optional
+          const float out = filter.s4 - filter.dc_out_x1_ + 0.99f * filter.dc_out_y1_;
+          filter.dc_out_x1_ = filter.s4;
+          filter.dc_out_y1_ = out;
+
+          input[i] = out;
         }
-
-
-
-        // todo inefficient way to do DC blocker
-        const float R = 0.995f; // pole close to 1.0
-
-        // Preserve last raw input of this block (before we overwrite samples)
-        const float lastInputRaw = input[buffer.getNumSamples() - 1];
-
-        // Use persistent states from previous block
-        float xPrev = static_cast<float>(filter.prevBufferLastSampleRaw);
-        float yPrev = static_cast<float>(filter.prevBufferLastSampleFiltered);
-
-        for (auto i = 0; i < buffer.getNumSamples(); ++i) {
-          // todo do we really need 2 DC blockers? we already have it in the oscillator - maybe just one here?
-          // DC blocker due to the DC caused by ADAA
-          const float x = input[i];
-          const float y = (x - xPrev) + R * yPrev;
-          input[i] = y;
-          xPrev = x;
-          yPrev = y;
-        }
-
-        // Update states for next block
-        filter.prevBufferLastSampleRaw = lastInputRaw;
-        filter.prevBufferLastSampleFiltered = yPrev;
       }
     }
+
+    // Or more accurately, calculate mean:
+    float sum = 0;
+    auto* data = buffer.getReadPointer(0);  // Check channel 0
+    for (int i = 0; i < buffer.getNumSamples(); ++i) {
+      sum += data[i];
+    }
+    float dcOffset = sum / static_cast<float>(buffer.getNumSamples());
+    DBG("DC Offset: " << dcOffset);
+
 
     editor->GetNextAudioBlock(buffer);
   }

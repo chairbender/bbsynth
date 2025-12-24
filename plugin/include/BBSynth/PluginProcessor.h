@@ -12,9 +12,9 @@ struct OTAFilter {
   // todo refactor to separate class?
   // integrator states
   float s1, s2, s3, s4;
+  float dc_out_x1_, dc_out_y1_;
   std::array<TanhADAA, 4> tanh_in_;
   std::array<TanhADAA, 4> tanh_state_;
-  float prevBufferLastSampleRaw, prevBufferLastSampleFiltered;
 };
 
 class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::AudioProcessorValueTreeState::Listener {
