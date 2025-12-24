@@ -221,16 +221,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       }
     }
 
-    // Or more accurately, calculate mean:
-    float sum = 0;
-    auto* data = buffer.getReadPointer(0);  // Check channel 0
-    for (int i = 0; i < buffer.getNumSamples(); ++i) {
-      sum += data[i];
-    }
-    float dcOffset = sum / static_cast<float>(buffer.getNumSamples());
-    DBG("DC Offset: " << dcOffset);
-
-
     editor->GetNextAudioBlock(buffer);
   }
 

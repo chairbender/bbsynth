@@ -7,15 +7,6 @@ namespace audio_plugin {
 
 TanhADAA::TanhADAA() : x1_(0.0f) {}
 
-static float logCosh(const float x) {
-  const float ax = std::fabs(x);
-  if (ax < 18.0f) {
-    return std::log(std::cosh(ax));
-  }
-  // For large |x|: log(cosh(x)) ≈ |x| - log(2)
-  return ax - 0.693147180559945f;
-}
-
 float TanhADAA::process(const float x0) {
   float y;
 
@@ -28,15 +19,15 @@ float TanhADAA::process(const float x0) {
     const auto sech2 = 1.0f - tanhVal * tanhVal;
 
     // First-order Taylor: good
-    //y = tanhVal + (dx / 2.0f) * sech2;
+    y = tanhVal + (dx / 2.0f) * sech2;
 
     // Or second-order for better accuracy:
-     const auto sech2_deriv = -2.0f * tanhVal * sech2;
-     y = tanhVal + (dx / 2.0f) * sech2 + (dx * dx / 24.0f) * sech2_deriv;
+     //const auto sech2_deriv = -2.0f * tanhVal * sech2;
+     //y = tanhVal + (dx / 2.0f) * sech2 + (dx * dx / 24.0f) * sech2_deriv;
   } else {
     // Use the antiderivative formula
     // AD[tanh(x)] = log(cosh(x))
-    y = (logCosh(x0) - logCosh(x1_)) / dx;
+    y = (std::log(std::cosh(std::fabs(x0))) - std::log(std::cosh(std::fabs(x1_)))) / dx;
   }
 
   x1_ = x0;
