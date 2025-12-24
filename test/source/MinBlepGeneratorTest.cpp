@@ -100,10 +100,10 @@ TEST(MinBlepGenerator, BuildBlep_MatchesExpectedTable) {
   audio_plugin::MinBlepGenerator gen;
 
   // Act: explicitly build the BLEP table
-  gen.buildBlep();
+  gen.BuildBlep();
 
   // assert table within expected values
-  const auto arr = audio_plugin::MinBlepGenerator::getMinBlepArray();
+  const auto arr = audio_plugin::MinBlepGenerator::min_blep_array();
   ASSERT_EQ(arr.size(), 512);
   for (unsigned long i = 0; i < 512; i++) {
     EXPECT_NEAR(arr[static_cast<int>(i)], kExpectedMinBlepTable[i], 1.0e-3f);
@@ -128,11 +128,11 @@ TEST(MinBlepGenerator, ProcessBlock_Applies0ThOrderBlep) {
   // Add directly to the active BLEPs for this block
   gen.currentActiveBlepOffsets.add(blep);
 
-  const auto blepTable = audio_plugin::MinBlepGenerator::getMinBlepArray();
+  const auto blepTable = audio_plugin::MinBlepGenerator::min_blep_array();
   const float expectedFirst = static_cast<float>(blep.pos_change_magnitude) *
                               blepTable.getUnchecked(0);
 
-  gen.processBlock(buffer, kNumSamples);
+  gen.ProcessBlock(buffer, kNumSamples);
 
   // all samples should stay 0 (unmodified) until the blep
   for (int i = 0; i < 31; ++i) {
@@ -185,11 +185,11 @@ TEST(MinBlepGenerator, ProcessBlock_Applies1StOrderBlep) {
   // Add directly to the active BLEPs for this block
   gen.currentActiveBlepOffsets.add(blep);
 
-  const auto blampTable = audio_plugin::MinBlepGenerator::getMinBlepDerivArray();
+  const auto blampTable = audio_plugin::MinBlepGenerator::min_blep_deriv_array();
   const float expectedFirst = static_cast<float>(blep.vel_change_magnitude) *
                               blampTable.getUnchecked(0);
 
-  gen.processBlock(buffer, kNumSamples);
+  gen.ProcessBlock(buffer, kNumSamples);
 
   // all samples should stay 0 (unmodified) until the blep
   for (int i = 0; i < 31; ++i) {
@@ -208,8 +208,8 @@ TEST(MinBlepGenerator, ProcessBlock_Applies1StOrderBlep) {
     float expected = 0.0f;
     if (sampleExactGate >= 0.0) {
       // Derivative table stepping is depth-limited to proportionalBlepFreq
-      const double derivExact = static_cast<double>(gen.proportionalBlepFreq) *
-                                static_cast<double>(gen.overSamplingRatio) *
+      const double derivExact = static_cast<double>(gen.proportional_blep_freq_) *
+                                static_cast<double>(gen.over_sampling_ratio_) *
                                 outputSamplesSinceBlep;
       double derivIdxD = 0.0;
       const double derivFrac = std::modf(derivExact, &derivIdxD);

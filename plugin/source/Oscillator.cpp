@@ -19,10 +19,10 @@ bool OscillatorSound::appliesToChannel([[maybe_unused]] int midiChannelIndex) {
 
 OscillatorVoice::OscillatorVoice() : oversampler_(1, 2,
   juce::dsp::Oversampling<float>::filterHalfBandFIREquiripple) {
-  waveGenerator_.prepareToPlay(getSampleRate()*(kOversample));
+  waveGenerator_.PrepareToPlay(getSampleRate()*(kOversample));
   //waveGenerator_.setHardsync(false);
-  waveGenerator_.setMode(WaveGenerator::ANTIALIAS);
-  waveGenerator_.setWaveType(WaveGenerator::sawFall);
+  waveGenerator_.set_mode(WaveGenerator::ANTIALIAS);
+  waveGenerator_.set_wave_type(WaveGenerator::sawFall);
   filter_.set_sample_rate(getSampleRate()*kOversample);
 }
 
@@ -38,14 +38,14 @@ void OscillatorVoice::startNote(const int midiNoteNumber,
                                 [[maybe_unused]] const float velocity,
                                 [[maybe_unused]] juce::SynthesiserSound* sound,
                                 [[maybe_unused]] int pitchWheelPos) {
-  waveGenerator_.setPitchSemitone(midiNoteNumber, getSampleRate());
-  waveGenerator_.setVolume(0);
+  waveGenerator_.set_pitch_semitone(midiNoteNumber, getSampleRate());
+  waveGenerator_.set_volume(0);
 
 }
 
 void OscillatorVoice::stopNote([[maybe_unused]] float velocity,
                             [[maybe_unused]] const bool allowTailOff) {
-  waveGenerator_.setVolume(-120);
+  waveGenerator_.set_volume(-120);
   clearCurrentNote();
 }
 
@@ -55,7 +55,7 @@ void OscillatorVoice::controllerMoved([[maybe_unused]] int controllerNumber,
 
 void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                       [[maybe_unused]] int startSample,
-                                      int numSamples) {
+                                      const int numSamples) {
   const auto oversample_samples = numSamples*kOversample;
   oversample_buffer_.setSize(1, oversample_samples, false, true);
 
