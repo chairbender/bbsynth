@@ -4,10 +4,10 @@
 namespace audio_plugin {
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
     AudioPluginAudioProcessor& p)
-    : AudioProcessorEditor{&p},
-      keyboardComponent{keyboard_state_,
-                        juce::MidiKeyboardComponent::horizontalKeyboard},
-      processorRef(p) {
+  : AudioProcessorEditor{&p},
+    keyboardComponent{keyboard_state_,
+                      juce::MidiKeyboardComponent::horizontalKeyboard},
+    processorRef(p) {
   juce::ignoreUnused(processorRef);
 
   // Make sure that before the constructor has finished, you've set the
@@ -20,7 +20,8 @@ void AudioPluginAudioProcessorEditor::GetNextAudioBlock(
   spectrum_analyzer_.getNextAudioBlock(buffer);
 }
 
-AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {}
+AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
+}
 
 void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   // (Our component is opaque, so we must completely fill the background with a
@@ -43,7 +44,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   wave_type_combo_.addItem("square", 4);
   wave_type_combo_.addItem("random", 5);
   addAndMakeVisible(wave_type_combo_);
-  wave_type_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+  wave_type_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
       processorRef.apvts_, "waveType", wave_type_combo_);
   wave_type_label_.setText("Waveform", juce::dontSendNotification);
   wave_type_label_.attachToComponent(&wave_type_combo_, false);
@@ -54,30 +56,37 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   addAndMakeVisible(vcf_label_);
 
   filter_cutoff_slider_.setSliderStyle(juce::Slider::Rotary);
-  filter_cutoff_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  filter_cutoff_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
+                                        20);
   addAndMakeVisible(filter_cutoff_slider_);
-  filter_cutoff_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-    processorRef.apvts_, "filterCutoffFreq", filter_cutoff_slider_);
+  filter_cutoff_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "filterCutoffFreq", filter_cutoff_slider_);
 
   filter_cutoff_label_.setText("Fiter Cutoff", juce::dontSendNotification);
   filter_cutoff_label_.attachToComponent(&filter_cutoff_slider_, false);
   addAndMakeVisible(filter_cutoff_label_);
 
   filter_resonance_slider_.setSliderStyle(juce::Slider::Rotary);
-  filter_resonance_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  filter_resonance_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false,
+                                           80, 20);
   addAndMakeVisible(filter_resonance_slider_);
-  filter_resonance_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-    processorRef.apvts_, "filterResonance", filter_resonance_slider_);
+  filter_resonance_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "filterResonance", filter_resonance_slider_);
 
-  filter_resonance_label_.setText("Fiter Resonance", juce::dontSendNotification);
+  filter_resonance_label_.
+      setText("Fiter Resonance", juce::dontSendNotification);
   filter_resonance_label_.attachToComponent(&filter_resonance_slider_, false);
   addAndMakeVisible(filter_resonance_label_);
 
   filter_drive_slider_.setSliderStyle(juce::Slider::Rotary);
-  filter_drive_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  filter_drive_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
+                                       20);
   addAndMakeVisible(filter_drive_slider_);
-  filter_drive_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-    processorRef.apvts_, "filterDrive", filter_drive_slider_);
+  filter_drive_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "filterDrive", filter_drive_slider_);
 
   filter_drive_label_.setText("Fiter Drive", juce::dontSendNotification);
   filter_drive_label_.attachToComponent(&filter_drive_slider_, false);
@@ -87,9 +96,11 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env1_label_.setText("ENV1", juce::dontSendNotification);
   addAndMakeVisible(env1_label_);
   env1_attack_slider_.setSliderStyle(juce::Slider::Rotary);
-  env1_attack_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  env1_attack_slider_.
+      setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
   addAndMakeVisible(env1_attack_slider_);
-  env1_attack_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+  env1_attack_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
       processorRef.apvts_, "adsrAttack", env1_attack_slider_);
   env1_attack_label_.setText("Attack", juce::dontSendNotification);
   env1_attack_label_.attachToComponent(&env1_attack_slider_, false);
@@ -98,25 +109,30 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env1_decay_slider_.setSliderStyle(juce::Slider::Rotary);
   env1_decay_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
   addAndMakeVisible(env1_decay_slider_);
-  env1_decay_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+  env1_decay_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
       processorRef.apvts_, "adsrDecay", env1_decay_slider_);
   env1_decay_label_.setText("Decay", juce::dontSendNotification);
   env1_decay_label_.attachToComponent(&env1_decay_slider_, false);
   addAndMakeVisible(env1_decay_label_);
 
   env1_sustain_slider_.setSliderStyle(juce::Slider::Rotary);
-  env1_sustain_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  env1_sustain_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
+                                       20);
   addAndMakeVisible(env1_sustain_slider_);
-  env1_sustain_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+  env1_sustain_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
       processorRef.apvts_, "adsrSustain", env1_sustain_slider_);
   env1_sustain_label_.setText("Sustain", juce::dontSendNotification);
   env1_sustain_label_.attachToComponent(&env1_sustain_slider_, false);
   addAndMakeVisible(env1_sustain_label_);
 
   env1_release_slider_.setSliderStyle(juce::Slider::Rotary);
-  env1_release_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  env1_release_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
+                                       20);
   addAndMakeVisible(env1_release_slider_);
-  env1_release_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+  env1_release_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
       processorRef.apvts_, "adsrRelease", env1_release_slider_);
   env1_release_label_.setText("Release", juce::dontSendNotification);
   env1_release_label_.attachToComponent(&env1_release_slider_, false);
@@ -124,59 +140,123 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 
   addAndMakeVisible(spectrum_analyzer_);
 
-
-
   addAndMakeVisible(keyboardComponent);
 }
 
 void AudioPluginAudioProcessorEditor::resized() {
-  // todo filter cutoff and freq params as juce params
-
-  // This is generally where you'll want to lay out the positions of any
-  // subcomponents in your editor..
+  // Layout
   auto area = getLocalBounds();
 
-  // keyboard / spectrum section
+  // Keep spectrum analyzer and keyboard at the bottom as-is
   keyboardComponent.setBounds(area.removeFromBottom(100));
   spectrum_analyzer_.setBounds(area.removeFromBottom(100));
 
-  // top section
-  auto top_row = area.removeFromTop(200);
+  // Use a Grid to place the three sections (VCO1, VCF, ENV1) in a single row
+  auto topRow = area; // remaining area after removing bottom components
 
-  // vco 1 section
-  auto vco_1_section = top_row.removeFromLeft(200);
-  vco1_label_.setBounds(vco_1_section.removeFromTop(50));
-  auto wave_type_stack = vco_1_section.removeFromLeft(50);
-  wave_type_label_.setBounds(wave_type_stack.removeFromTop(50));
-  wave_type_combo_.setBounds(wave_type_stack.removeFromTop(50));
+  juce::Grid grid;
+  // todod probably dont need both auto + template
+  grid.alignContent = juce::Grid::AlignContent::center;
+  grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+  grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+  grid.templateRows = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+  };
+  grid.templateColumns = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+  };
 
-  // vcf section
-  auto vcf_section = top_row.removeFromLeft(200);
-  vcf_label_.setBounds(vcf_section.removeFromTop(50));
-  auto freq_stack = vcf_section.removeFromLeft(50);
-  filter_cutoff_label_.setBounds(freq_stack.removeFromTop(50));
-  filter_cutoff_slider_.setBounds(freq_stack.removeFromTop(50));
-  auto res_stack = freq_stack.removeFromLeft(50);
-  filter_resonance_label_.setBounds(res_stack.removeFromTop(50));
-  filter_resonance_slider_.setBounds(res_stack.removeFromTop(50));
-  auto drive_stack = res_stack.removeFromLeft(50);
-  filter_drive_label_.setBounds(drive_stack.removeFromTop(50));
-  filter_drive_slider_.setBounds(drive_stack.removeFromTop(50));
+  grid.items = {
+      juce::GridItem(vco1_label_),
+      juce::GridItem(vcf_label_),
+      juce::GridItem(env1_label_),
+      juce::GridItem{},
+      juce::GridItem{},
+      juce::GridItem{}
+  };
 
-  // env1 section
-  auto env1_section = top_row.removeFromLeft(200);
-  env1_label_.setBounds(env1_section.removeFromTop(50));
-  auto attack_stack = env1_section.removeFromLeft(50);
-  env1_attack_slider_.setBounds(attack_stack.removeFromTop(50));
-  env1_attack_label_.setBounds(attack_stack.removeFromTop(50));
-  auto decay_stack = env1_section.removeFromLeft(50);
-  env1_decay_slider_.setBounds(decay_stack.removeFromTop(50));
-  env1_decay_label_.setBounds(decay_stack.removeFromTop(50));
-  auto sustain_stack = env1_section.removeFromLeft(50);
-  env1_sustain_slider_.setBounds(sustain_stack.removeFromTop(50));
-  env1_sustain_label_.setBounds(sustain_stack.removeFromTop(50));
-  auto release_stack = env1_section.removeFromLeft(50);
-  env1_release_slider_.setBounds(release_stack.removeFromTop(50));
-  env1_release_label_.setBounds(release_stack.removeFromTop(50));
+  grid.performLayout(topRow);
+
+  // VCO1 section
+  {
+    const auto section_bounds = grid.items[3].currentBounds;
+    juce::Grid section_grid;
+    section_grid.alignContent = juce::Grid::AlignContent::center;
+    section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+    section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+    section_grid.templateColumns = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+    };
+    section_grid.templateRows = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+    };
+    section_grid.items = {
+      juce::GridItem{wave_type_combo_},
+      juce::GridItem{wave_type_label_}
+    };
+
+    section_grid.performLayout(section_bounds.toNearestInt());
+  }
+
+  // VCF section
+  {
+    const auto section_bounds = grid.items[4].currentBounds;
+    juce::Grid section_grid;
+    section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+    section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+    section_grid.templateColumns = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+    };
+    section_grid.templateRows = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+    };
+    section_grid.items = {
+      juce::GridItem{filter_cutoff_slider_},
+      juce::GridItem{filter_resonance_slider_},
+      juce::GridItem{filter_drive_slider_},
+      juce::GridItem{filter_cutoff_label_},
+      juce::GridItem{filter_resonance_label_},
+      juce::GridItem{filter_drive_label_}
+    };
+
+    section_grid.performLayout(section_bounds.toNearestInt());
+  }
+
+  // ENV1 section
+  {
+    const auto section_bounds = grid.items[5].currentBounds;
+    juce::Grid section_grid;
+    section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+    section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+    section_grid.templateColumns = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+    };
+    section_grid.templateRows = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+    };
+    section_grid.items = {
+      juce::GridItem{env1_attack_slider_},
+      juce::GridItem{env1_decay_slider_},
+      juce::GridItem{env1_sustain_slider_},
+      juce::GridItem{env1_release_slider_},
+      juce::GridItem{env1_attack_label_},
+      juce::GridItem{env1_decay_label_},
+      juce::GridItem{env1_sustain_label_},
+      juce::GridItem{env1_release_label_}
+    };
+
+    section_grid.performLayout(section_bounds.toNearestInt());
+  }
 }
-}  // namespace audio_plugin
+} // namespace audio_plugin
