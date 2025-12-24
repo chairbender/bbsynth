@@ -14,16 +14,6 @@ namespace audio_plugin {
 
 constexpr double DELTA{.0000001};
 
-// DEBUG UI :::
-static double test = 1;
-bool clearWave = false;
-void WaveGenerator::setTest(const double newTest) {
-  test = newTest;
-}
-void WaveGenerator::setClear(const bool clear) {
-  clearWave = clear;
-}
-
 // WAVE GEN :::::
 WaveGenerator::WaveGenerator() {
   history_length_ = 500;
@@ -282,7 +272,7 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
 
           // actualCurrentAngleDelta below is added to compensate for higher
           // order nonlinearities 66 here was experimentally determined ...
-          blep.vel_change_magnitude = 66 * test * change_in_delta *
+          blep.vel_change_magnitude = 66 * change_in_delta *
                                       (1 / depthLimited) *
                                       actual_current_angle_delta_;
 
@@ -309,8 +299,6 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
         fmod(static_cast<double>(current_angle_),
              static_cast<double>(
                  2 * juce::MathConstants<double>::twoPi));  // ROLLOVER :::
-
-    jassert(fabs(current_angle_ - currentAngle) < DELTA);
 
     // APPLY SKEWING :::::
     current_angle_skewed_ = skew_angle(current_angle_);
@@ -444,7 +432,7 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
 
           // Assume nominal delta for all waves ... so ...
           blep.vel_change_magnitude =
-              sign * test * 121 * slope * (1 / depthLimited);
+              sign * 121 * slope * (1 / depthLimited);
 
           // ADD
           blep_generator_.AddBlep(blep);
@@ -522,7 +510,6 @@ void WaveGenerator::MoveAngleForward(int numSamples) {
 
   // DISREGARDING any PITCH SHIFTING (for now, it's just not done anywhere on
   // LFOs)
-  jassert(fabs(pitch_bend_target_ - pitchBendActual) < DELTA);
 
   // CALCULATE the PHASE CHANGE per sample ...
   if (fabs(phase_angle_target_ - phase_angle_actual_) > DELTA) {

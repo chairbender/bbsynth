@@ -81,9 +81,16 @@ void AudioPluginAudioProcessor::changeProgramName(int index,
 }
 
 void AudioPluginAudioProcessor::prepareToPlay(
-    double sampleRate,
-    [[maybe_unused]] int samplesPerBlock) {
+    const double sampleRate,
+    const int samplesPerBlock) {
   synth.setCurrentPlaybackSampleRate(sampleRate);
+  // Update all voices with current parameters
+  for (int i = 0; i < synth.getNumVoices(); ++i) {
+    if (auto* voice = dynamic_cast<OscillatorVoice*>(synth.getVoice(i))) {
+      voice->Configure(apvts_);
+      voice->SetBlockSize(samplesPerBlock);
+    }
+  }
 }
 
 void AudioPluginAudioProcessor::releaseResources() {
