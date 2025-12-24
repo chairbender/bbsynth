@@ -42,6 +42,20 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   cent_offset_label_.attachToComponent(&cent_offset_slider_, false);
   addAndMakeVisible(cent_offset_label_);
 
+  // Wave type selector
+  wave_type_combo_.clear(juce::dontSendNotification);
+  wave_type_combo_.addItem("sine", 1);
+  wave_type_combo_.addItem("sawFall", 2);
+  wave_type_combo_.addItem("triangle", 3);
+  wave_type_combo_.addItem("square", 4);
+  wave_type_combo_.addItem("random", 5);
+  addAndMakeVisible(wave_type_combo_);
+  wave_type_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+      processorRef.apvts_, "waveType", wave_type_combo_);
+  wave_type_label_.setText("Waveform", juce::dontSendNotification);
+  wave_type_label_.attachToComponent(&wave_type_combo_, false);
+  addAndMakeVisible(wave_type_label_);
+
   filter_cutoff_slider_.setSliderStyle(juce::Slider::Rotary);
   filter_cutoff_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
   addAndMakeVisible(filter_cutoff_slider_);
@@ -144,6 +158,9 @@ void AudioPluginAudioProcessorEditor::resized() {
   adsr_decay_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
   adsr_sustain_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
   adsr_release_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
+
+  // Place wave selector
+  wave_type_combo_.setBounds(area.removeFromLeft(150).removeFromTop(40));
 
   area = getLocalBounds().reduced(20);
   keyboardComponent.setBounds(0, area.getHeight() / 2, area.getWidth(), area.getHeight() / 2);

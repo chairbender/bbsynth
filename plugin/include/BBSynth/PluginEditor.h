@@ -34,6 +34,11 @@ private:
   juce::Slider cent_offset_slider_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> cent_offset_attachment_;
 
+  // Wave selector
+  juce::ComboBox wave_type_combo_;
+  juce::Label wave_type_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> wave_type_attachment_;
+
   juce::Slider filter_cutoff_slider_;
   juce::Label filter_cutoff_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filter_cutoff_attachment_;

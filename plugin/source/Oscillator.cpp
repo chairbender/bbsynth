@@ -1,10 +1,11 @@
 #include "BBSynth/Oscillator.h"
 
 namespace audio_plugin {
-
 constexpr auto kOversample = 2;
 
-OscillatorSound::OscillatorSound([[maybe_unused]] juce::AudioProcessorValueTreeState& apvts) {}
+OscillatorSound::OscillatorSound(
+    [[maybe_unused]] juce::AudioProcessorValueTreeState& apvts) {
+}
 
 bool OscillatorSound::appliesToNote([[maybe_unused]] int midiNoteIndex) {
   return true;
@@ -15,28 +16,50 @@ bool OscillatorSound::appliesToChannel([[maybe_unused]] int midiChannelIndex) {
 }
 
 OscillatorVoice::OscillatorVoice() {
-  waveGenerator_.PrepareToPlay(getSampleRate()*kOversample);
+  waveGenerator_.PrepareToPlay(getSampleRate() * kOversample);
   //waveGenerator_.setHardsync(false);
   waveGenerator_.set_mode(WaveGenerator::ANTIALIAS);
   waveGenerator_.set_wave_type(WaveGenerator::sawFall);
-  filter_.set_sample_rate(getSampleRate()*kOversample);
+  filter_.set_sample_rate(getSampleRate() * kOversample);
 }
 
 bool OscillatorVoice::canPlaySound(juce::SynthesiserSound* sound) {
   return dynamic_cast<OscillatorSound*>(sound) != nullptr;
 }
 
-void OscillatorVoice::Configure(const juce::AudioProcessorValueTreeState& apvts) {
+void OscillatorVoice::Configure(
+    const juce::AudioProcessorValueTreeState& apvts) {
   filter_.Configure(apvts);
 
   // Configure ADSR envelope from parameters
   envelope_.setSampleRate(getSampleRate() * kOversample);
-  juce::ADSR::Parameters params{};
-  if (auto* a = apvts.getRawParameterValue("adsrAttack")) params.attack = a->load();
-  if (auto* d = apvts.getRawParameterValue("adsrDecay")) params.decay = d->load();
-  if (auto* s = apvts.getRawParameterValue("adsrSustain")) params.sustain = s->load();
-  if (auto* r = apvts.getRawParameterValue("adsrRelease")) params.release = r->load();
+  const juce::ADSR::Parameters params(
+      apvts.getRawParameterValue("adsrAttack")->load(),
+      apvts.getRawParameterValue("adsrDecay")->load(),
+      apvts.getRawParameterValue("adsrSustain")->load(),
+      apvts.getRawParameterValue("adsrRelease")->load()
+      );
   envelope_.setParameters(params);
+
+  switch (static_cast<int>(apvts.getRawParameterValue("waveType")->load())) {
+    case 0:
+      waveGenerator_.set_wave_type(WaveGenerator::sine);
+      break;
+    case 1:
+      waveGenerator_.set_wave_type(WaveGenerator::sawFall);
+      break;
+    case 2:
+      waveGenerator_.set_wave_type(WaveGenerator::triangle);
+      break;
+    case 3:
+      waveGenerator_.set_wave_type(WaveGenerator::square);
+      break;
+    case 4:
+      waveGenerator_.set_wave_type(WaveGenerator::random);
+      break;
+    default:
+      break;
+  }
 }
 
 void OscillatorVoice::SetBlockSize(const int blockSize) {
@@ -53,7 +76,7 @@ void OscillatorVoice::startNote(const int midiNoteNumber,
 }
 
 void OscillatorVoice::stopNote([[maybe_unused]] float velocity,
-                            [[maybe_unused]] const bool allowTailOff) {
+                               [[maybe_unused]] const bool allowTailOff) {
   if (allowTailOff) {
     envelope_.noteOff();
   } else {
@@ -63,14 +86,17 @@ void OscillatorVoice::stopNote([[maybe_unused]] float velocity,
   }
 }
 
-void OscillatorVoice::pitchWheelMoved([[maybe_unused]] int newPitchWheelValue) {}
+void OscillatorVoice::pitchWheelMoved([[maybe_unused]] int newPitchWheelValue) {
+}
+
 void OscillatorVoice::controllerMoved([[maybe_unused]] int controllerNumber,
-                                    [[maybe_unused]] int newControllerValue) {}
+                                      [[maybe_unused]] int newControllerValue) {
+}
 
 void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                       [[maybe_unused]] int startSample,
                                       const int numSamples) {
-  const auto oversample_samples = numSamples*kOversample;
+  const auto oversample_samples = numSamples * kOversample;
   oversample_buffer_.setSize(1, oversample_samples, false, true);
 
   // note this will fill and process only the left channel since we want to work in mono
@@ -87,9 +113,9 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 
   downsampler_.process(oversample_buffer_, outputBuffer, numSamples);
 
-  if (! envelope_.isActive()) {
+  if (!envelope_.isActive()) {
     waveGenerator_.set_volume(-120);
     clearCurrentNote();
   }
 }
-}  // namespace audio_plugin
+} // namespace audio_plugin
