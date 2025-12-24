@@ -42,6 +42,10 @@ private:
   juce::Label filter_resonance_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filter_resonance_attachment_;
 
+  juce::Slider filter_drive_slider_;
+  juce::Label filter_drive_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filter_drive_attachment_;
+
   juce::ToggleButton filter_enabled_button_;
   juce::Label filter_enabled_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> filter_enabled_attachment_;

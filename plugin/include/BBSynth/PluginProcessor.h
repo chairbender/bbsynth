@@ -14,6 +14,7 @@ struct OTAFilter {
   float s1, s2, s3, s4;
   std::array<TanhADAA, 4> tanh_in_;
   std::array<TanhADAA, 4> tanh_state_;
+  float prevBufferLastSampleRaw, prevBufferLastSampleFiltered;
 };
 
 class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::AudioProcessorValueTreeState::Listener {
@@ -59,6 +60,7 @@ private:
   juce::Synthesiser synth;
 
   std::array<OTAFilter, 2> filter_;
+
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessor)
 };
