@@ -81,6 +81,43 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   filter_enabled_label_.attachToComponent(&filter_enabled_button_, false);
   addAndMakeVisible(filter_enabled_label_);
 
+  // ADSR controls
+  adsr_attack_slider_.setSliderStyle(juce::Slider::Rotary);
+  adsr_attack_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(adsr_attack_slider_);
+  adsr_attack_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "adsrAttack", adsr_attack_slider_);
+  adsr_attack_label_.setText("Attack", juce::dontSendNotification);
+  adsr_attack_label_.attachToComponent(&adsr_attack_slider_, false);
+  addAndMakeVisible(adsr_attack_label_);
+
+  adsr_decay_slider_.setSliderStyle(juce::Slider::Rotary);
+  adsr_decay_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(adsr_decay_slider_);
+  adsr_decay_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "adsrDecay", adsr_decay_slider_);
+  adsr_decay_label_.setText("Decay", juce::dontSendNotification);
+  adsr_decay_label_.attachToComponent(&adsr_decay_slider_, false);
+  addAndMakeVisible(adsr_decay_label_);
+
+  adsr_sustain_slider_.setSliderStyle(juce::Slider::Rotary);
+  adsr_sustain_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(adsr_sustain_slider_);
+  adsr_sustain_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "adsrSustain", adsr_sustain_slider_);
+  adsr_sustain_label_.setText("Sustain", juce::dontSendNotification);
+  adsr_sustain_label_.attachToComponent(&adsr_sustain_slider_, false);
+  addAndMakeVisible(adsr_sustain_label_);
+
+  adsr_release_slider_.setSliderStyle(juce::Slider::Rotary);
+  adsr_release_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(adsr_release_slider_);
+  adsr_release_attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "adsrRelease", adsr_release_slider_);
+  adsr_release_label_.setText("Release", juce::dontSendNotification);
+  adsr_release_label_.attachToComponent(&adsr_release_slider_, false);
+  addAndMakeVisible(adsr_release_label_);
+
   addAndMakeVisible(spectrum_analyzer_);
 
 
@@ -101,6 +138,12 @@ void AudioPluginAudioProcessorEditor::resized() {
   filter_resonance_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
   filter_enabled_button_.setBounds(area.removeFromLeft(100).removeFromTop(100));
   filter_drive_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
+
+  // Place ADSR controls
+  adsr_attack_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
+  adsr_decay_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
+  adsr_sustain_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
+  adsr_release_slider_.setBounds(area.removeFromLeft(100).removeFromTop(100));
 
   area = getLocalBounds().reduced(20);
   keyboardComponent.setBounds(0, area.getHeight() / 2, area.getWidth(), area.getHeight() / 2);

@@ -28,6 +28,15 @@ bool OscillatorVoice::canPlaySound(juce::SynthesiserSound* sound) {
 
 void OscillatorVoice::Configure(const juce::AudioProcessorValueTreeState& apvts) {
   filter_.Configure(apvts);
+
+  // Configure ADSR envelope from parameters
+  envelope_.setSampleRate(getSampleRate() * kOversample);
+  juce::ADSR::Parameters params{};
+  if (auto* a = apvts.getRawParameterValue("adsrAttack")) params.attack = a->load();
+  if (auto* d = apvts.getRawParameterValue("adsrDecay")) params.decay = d->load();
+  if (auto* s = apvts.getRawParameterValue("adsrSustain")) params.sustain = s->load();
+  if (auto* r = apvts.getRawParameterValue("adsrRelease")) params.release = r->load();
+  envelope_.setParameters(params);
 }
 
 void OscillatorVoice::SetBlockSize(const int blockSize) {
@@ -40,13 +49,18 @@ void OscillatorVoice::startNote(const int midiNoteNumber,
                                 [[maybe_unused]] int pitchWheelPos) {
   waveGenerator_.set_pitch_semitone(midiNoteNumber, getSampleRate());
   waveGenerator_.set_volume(0);
-
+  envelope_.noteOn();
 }
 
 void OscillatorVoice::stopNote([[maybe_unused]] float velocity,
                             [[maybe_unused]] const bool allowTailOff) {
   waveGenerator_.set_volume(-120);
-  clearCurrentNote();
+  if (allowTailOff) {
+    envelope_.noteOff();
+  } else {
+    envelope_.reset();
+    clearCurrentNote();
+  }
 }
 
 void OscillatorVoice::pitchWheelMoved([[maybe_unused]] int newPitchWheelValue) {}
@@ -65,6 +79,16 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   waveGenerator_.RenderNextBlock(oversample_buffer_, oversample_samples);
   filter_.Process(oversample_buffer_, oversample_samples);
 
+  // Apply ADSR envelope to the mono oversampled buffer (VCA)
+  auto* data = oversample_buffer_.getWritePointer(0);
+  for (int i = 0; i < oversample_samples; ++i) {
+    data[i] *= envelope_.getNextSample();
+  }
+
   downsampler_.process(oversample_buffer_, outputBuffer, numSamples);
+
+  if (! envelope_.isActive()) {
+    clearCurrentNote();
+  }
 }
 }  // namespace audio_plugin

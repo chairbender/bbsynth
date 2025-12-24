@@ -201,6 +201,15 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
 
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "centOffset", "Cent Offset", centOffsetRange, 0.f));
+  // ADSR envelope parameters
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "adsrAttack", "ADSR Attack (s)", juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.01f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "adsrDecay", "ADSR Decay (s)", juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.2f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "adsrSustain", "ADSR Sustain", juce::NormalisableRange(0.0f, 1.0f, 0.001f), 0.7f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "adsrRelease", "ADSR Release (s)", juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.3f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterCutoffFreq", "Filter Cutoff Frequency",
       juce::NormalisableRange(20.f, 8000.f, 1.f), 1000.f));
