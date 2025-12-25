@@ -77,13 +77,7 @@ void OscillatorVoice::startNote(const int midiNoteNumber,
 
 void OscillatorVoice::stopNote([[maybe_unused]] float velocity,
                                [[maybe_unused]] const bool allowTailOff) {
-  if (allowTailOff) {
-    envelope_.noteOff();
-  } else {
-    envelope_.reset();
-    waveGenerator_.set_volume(-120);
-    clearCurrentNote();
-  }
+  envelope_.noteOff();
 }
 
 void OscillatorVoice::pitchWheelMoved([[maybe_unused]] int newPitchWheelValue) {
