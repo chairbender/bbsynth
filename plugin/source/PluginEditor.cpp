@@ -51,6 +51,35 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   wave_type_label_.attachToComponent(&wave_type_combo_, false);
   addAndMakeVisible(wave_type_label_);
 
+  // vco2 section
+  vco2_label_.setText("VCO 2", juce::dontSendNotification);
+  addAndMakeVisible(vco2_label_);
+
+  // Wave type selector
+  wave2_type_combo_.clear(juce::dontSendNotification);
+  wave2_type_combo_.addItem("sine", 1);
+  wave2_type_combo_.addItem("sawFall", 2);
+  wave2_type_combo_.addItem("triangle", 3);
+  wave2_type_combo_.addItem("square", 4);
+  wave2_type_combo_.addItem("random", 5);
+  addAndMakeVisible(wave2_type_combo_);
+  wave2_type_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+      processorRef.apvts_, "wave2Type", wave2_type_combo_);
+  wave2_type_label_.setText("Waveform", juce::dontSendNotification);
+  wave2_type_label_.attachToComponent(&wave2_type_combo_, false);
+  addAndMakeVisible(wave2_type_label_);
+
+  // fine tune
+  fine_tune_slider_.setSliderStyle(juce::Slider::Rotary);
+  fine_tune_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  fine_tune_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "fineTune", fine_tune_slider_);
+  fine_tune_label_.setText("Fine Tune", juce::dontSendNotification);
+  fine_tune_label_.attachToComponent(&fine_tune_slider_, false);
+  addAndMakeVisible(fine_tune_slider_);
+
   //vcf section
   vcf_label_.setText("VCF", juce::dontSendNotification);
   addAndMakeVisible(vcf_label_);
@@ -166,13 +195,16 @@ void AudioPluginAudioProcessorEditor::resized() {
   grid.templateColumns = {
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1))
   };
 
   grid.items = {
       juce::GridItem(vco1_label_),
+      juce::GridItem(vco2_label_),
       juce::GridItem(vcf_label_),
       juce::GridItem(env1_label_),
+      juce::GridItem{},
       juce::GridItem{},
       juce::GridItem{},
       juce::GridItem{}
@@ -182,7 +214,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   // VCO1 section
   {
-    const auto section_bounds = grid.items[3].currentBounds;
+    const auto section_bounds = grid.items[4].currentBounds;
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
     section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
@@ -202,9 +234,34 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.performLayout(section_bounds.toNearestInt());
   }
 
+  // VCO2 section
+  {
+    const auto section_bounds = grid.items[5].currentBounds;
+    juce::Grid section_grid;
+    section_grid.alignContent = juce::Grid::AlignContent::center;
+    section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+    section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+    section_grid.templateColumns = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+    };
+    section_grid.templateRows = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+    };
+    section_grid.items = {
+      juce::GridItem{wave2_type_combo_},
+      juce::GridItem{fine_tune_slider_},
+      juce::GridItem{wave2_type_label_},
+      juce::GridItem{fine_tune_label_}
+    };
+
+    section_grid.performLayout(section_bounds.toNearestInt());
+  }
+
   // VCF section
   {
-    const auto section_bounds = grid.items[4].currentBounds;
+    const auto section_bounds = grid.items[6].currentBounds;
     juce::Grid section_grid;
     section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
     section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
@@ -231,7 +288,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   // ENV1 section
   {
-    const auto section_bounds = grid.items[5].currentBounds;
+    const auto section_bounds = grid.items[7].currentBounds;
     juce::Grid section_grid;
     section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
     section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));

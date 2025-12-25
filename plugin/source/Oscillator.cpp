@@ -17,9 +17,10 @@ bool OscillatorSound::appliesToChannel([[maybe_unused]] int midiChannelIndex) {
 
 OscillatorVoice::OscillatorVoice() {
   waveGenerator_.PrepareToPlay(getSampleRate() * kOversample);
+  wave2Generator_.PrepareToPlay(getSampleRate() * kOversample);
   //waveGenerator_.setHardsync(false);
   waveGenerator_.set_mode(WaveGenerator::ANTIALIAS);
-  waveGenerator_.set_wave_type(WaveGenerator::sawFall);
+  wave2Generator_.set_mode(WaveGenerator::ANTIALIAS);
   filter_.set_sample_rate(getSampleRate() * kOversample);
 }
 
@@ -60,6 +61,27 @@ void OscillatorVoice::Configure(
     default:
       break;
   }
+
+  switch (static_cast<int>(apvts.getRawParameterValue("wave2Type")->load())) {
+    case 0:
+      wave2Generator_.set_wave_type(WaveGenerator::sine);
+      break;
+    case 1:
+      wave2Generator_.set_wave_type(WaveGenerator::sawFall);
+      break;
+    case 2:
+      wave2Generator_.set_wave_type(WaveGenerator::triangle);
+      break;
+    case 3:
+      wave2Generator_.set_wave_type(WaveGenerator::square);
+      break;
+    case 4:
+      wave2Generator_.set_wave_type(WaveGenerator::random);
+      break;
+    default:
+      break;
+  }
+  wave2Generator_.set_pitch_offset_hz(static_cast<double>(apvts.getRawParameterValue("fineTune")->load()));
 }
 
 void OscillatorVoice::SetBlockSize(const int blockSize) {
@@ -72,6 +94,8 @@ void OscillatorVoice::startNote(const int midiNoteNumber,
                                 [[maybe_unused]] int pitchWheelPos) {
   waveGenerator_.set_pitch_semitone(midiNoteNumber, getSampleRate());
   waveGenerator_.set_volume(0);
+  wave2Generator_.set_pitch_semitone(midiNoteNumber, getSampleRate());
+  wave2Generator_.set_volume(0);
   envelope_.noteOn();
 }
 
@@ -97,6 +121,7 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   // until the last moment
   // the wave generator and filter are already configured to generate at 2x oversampling.
   waveGenerator_.RenderNextBlock(oversample_buffer_, oversample_samples);
+  wave2Generator_.RenderNextBlock(oversample_buffer_, oversample_samples);
   filter_.Process(oversample_buffer_, oversample_samples);
 
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
@@ -109,6 +134,7 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 
   if (!envelope_.isActive()) {
     waveGenerator_.set_volume(-120);
+    wave2Generator_.set_volume(-120);
     clearCurrentNote();
   }
 }

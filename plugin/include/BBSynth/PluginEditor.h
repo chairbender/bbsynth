@@ -38,6 +38,19 @@ private:
   juce::Label wave_type_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> wave_type_attachment_;
 
+  //VCO 2 section
+  juce::Label vco2_label_;
+
+  // Wave selector
+  juce::ComboBox wave2_type_combo_;
+  juce::Label wave2_type_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> wave2_type_attachment_;
+
+  //fine tune
+  juce::Slider fine_tune_slider_;
+  juce::Label fine_tune_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> fine_tune_attachment_;
+
   // VCF section
   juce::Label vcf_label_;
 
