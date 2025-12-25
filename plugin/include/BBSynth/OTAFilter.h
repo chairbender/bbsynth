@@ -18,7 +18,8 @@ public:
    * Perform in place filtering on the left channel only,
    * for numSamples samples.
    */
-  void Process(juce::AudioBuffer<float>& buffers, int numSamples);
+  void Process(juce::AudioBuffer<float>& buffers,
+               const juce::AudioBuffer<float>& env_buffer, int numSamples);
 
   /**
    * Update params based on current state
@@ -34,6 +35,7 @@ public:
   float cutoff_freq_;
   float resonance_;
   float drive_;
+  float env_mod_;
   int num_stages_;
 
 private:

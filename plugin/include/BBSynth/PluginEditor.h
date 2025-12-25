@@ -118,6 +118,14 @@ private:
   juce::Label filter_slope_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> filter_slope_attachment_;
 
+  juce::Slider filter_env_mod_slider_;
+  juce::Label filter_env_mod_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filter_env_mod_attachment_;
+
+  juce::ComboBox filter_env_source_combo_;
+  juce::Label filter_env_source_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> filter_env_source_attachment_;
+
   // ENV1 section
   juce::Label env1_label_;
   juce::Slider env1_attack_slider_;

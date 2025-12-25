@@ -415,6 +415,10 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       0.5f));
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "filterSlope", "Filter Slope", juce::StringArray{"-24 dB", "-18 dB", "-12 dB"}, 0));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "filterEnvMod", "Filter Env Mod", juce::NormalisableRange(-1.f, 1.f, 0.01f), 0.f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
+      "filterEnvSource", "Filter Env Source", juce::StringArray{"Env 1", "Env 2"}, 0));
 
   return {parameterList.begin(), parameterList.end()};
 }

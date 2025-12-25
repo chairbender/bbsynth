@@ -146,6 +146,13 @@ void OscillatorVoice::Configure(
       static_cast<double>(apvts.getRawParameterValue("pulseWidth")->load());
   waveGenerator_.set_pulse_width_mod(pulseWidth);
   wave2Generator_.set_pulse_width_mod(pulseWidth);
+  // filter
+  const int filterEnvSource = static_cast<int>(apvts.getRawParameterValue("filterEnvSource")->load());
+  if (filterEnvSource == 0) {
+    filter_env_buffer_ = &env1_buffer_;
+  } else {
+    filter_env_buffer_ = &env2_buffer_;
+  }
 }
 
 void OscillatorVoice::SetBlockSize(const int blockSize) {
@@ -201,7 +208,12 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   // configured to generate at 2x oversampling.
   waveGenerator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
   wave2Generator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
-  filter_.Process(oversample_buffer_, oversample_samples);
+  if (filter_env_buffer_ != nullptr) {
+    filter_.Process(oversample_buffer_, *filter_env_buffer_, oversample_samples);
+  } else {
+    // fallback if not configured
+    filter_.Process(oversample_buffer_, env1_buffer_, oversample_samples);
+  }
 
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
   auto* data = oversample_buffer_.getWritePointer(0);
