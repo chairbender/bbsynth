@@ -275,6 +275,7 @@ class WaveGenerator {
       volume_ = juce::Decibels::decibelsToGain(db_mult);
   }
   void set_hardsync(const bool shouldHardSync) { hard_sync_ = shouldHardSync; }
+  bool hardsync() const { return hard_sync_; }
 
   juce::Array<float> history() { return history_; }
 

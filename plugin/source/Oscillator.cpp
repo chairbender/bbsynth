@@ -104,10 +104,15 @@ void OscillatorVoice::Configure(
     default:
       break;
   }
-  wave2Generator_.set_pitch_offset_hz(
-      static_cast<double>(apvts.getRawParameterValue("fineTune")->load()));
-  wave2Generator_.set_hardsync(
-      apvts.getRawParameterValue("vco2Sync")->load() > 0.5f);
+  const auto hard_sync = apvts.getRawParameterValue("vco2Sync")->load() > 0.5f;
+  const float fine_tune = apvts.getRawParameterValue("fineTune")->load();
+  if (hard_sync) {
+    wave2Generator_.set_hardsync(
+        apvts.getRawParameterValue("vco2Sync")->load() > 0.5f);
+    wave2Generator_.set_pitch_offset_hz(static_cast<double>(fine_tune));
+  } else {
+    wave2Generator_.set_pitch_hz(waveGenerator_.current_pitch_hz() + static_cast<double>(fine_tune));
+  }
 
   const int pulseWidthSource =
       static_cast<int>(apvts.getRawParameterValue("pulseWidthSource")->load());
