@@ -51,6 +51,7 @@ struct OscillatorVoice : juce::SynthesiserVoice {
   WaveGenerator& getWaveGeneratorForTest() { return waveGenerator_; }
 
  private:
+  juce::AudioBuffer<float> env1_buffer_;
   WaveGenerator waveGenerator_;
   WaveGenerator wave2Generator_;
   OTAFilter filter_;

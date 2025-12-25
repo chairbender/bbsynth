@@ -55,6 +55,10 @@ private:
   juce::Slider vco_mod_lfo_freq_slider_;
   juce::Label vco_mod_lfo_freq_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vco_mod_freq_attachment_;
+  // env1 -> freq mod
+  juce::Slider vco_mod_env1_freq_slider_;
+  juce::Label vco_mod_env1_freq_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vco_mod_env1_freq_attachment_;
   // VCO picker - osc1, osc2, or both
   juce::ToggleButton vco_mod_osc1_button_;
   juce::ToggleButton vco_mod_osc2_button_;

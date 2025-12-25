@@ -34,7 +34,7 @@ void OscillatorVoice::Configure(
   filter_.Configure(apvts);
 
   // Configure ADSR envelope from parameters
-  envelope_.setSampleRate(getSampleRate() * kOversample);
+  envelope_.setSampleRate(getSampleRate());
   const juce::ADSR::Parameters params(
       apvts.getRawParameterValue("adsrAttack")->load(),
       apvts.getRawParameterValue("adsrDecay")->load(),
@@ -97,6 +97,9 @@ void OscillatorVoice::Configure(
 
 void OscillatorVoice::SetBlockSize(const int blockSize) {
   downsampler_.prepare(getSampleRate(), blockSize);
+  const auto oversample_samples = blockSize * kOversample;
+  oversample_buffer_.setSize(1, oversample_samples, false, true);
+  env1_buffer_.setSize(1, blockSize, false, true);
 }
 
 void OscillatorVoice::startNote(const int midiNoteNumber,
@@ -125,8 +128,16 @@ void OscillatorVoice::controllerMoved([[maybe_unused]] int controllerNumber,
 void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                       [[maybe_unused]] int startSample,
                                       const int numSamples) {
-  const auto oversample_samples = numSamples * kOversample;
-  oversample_buffer_.setSize(1, oversample_samples, false, true);
+
+  const auto oversample_samples = oversample_buffer_.getNumSamples();
+
+  // TODO: how does this interact with note on? Does this mean envelope always
+  //  starts at start of a block even if it "should" start mid-block?
+  // fill envelope buffer
+  auto* env1_data_write = env1_buffer_.getWritePointer(0);
+  for (int i = 0; i < numSamples; ++i) {
+    env1_data_write[i] = envelope_.getNextSample();
+  }
 
   // note this will fill and process only the left channel since we want to work
   // in mono until the last moment the wave generator and filter are already
@@ -138,7 +149,7 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
   auto* data = oversample_buffer_.getWritePointer(0);
   for (int i = 0; i < oversample_samples; ++i) {
-    data[i] *= envelope_.getNextSample();
+    data[i] *= env1_data_write[i / 2];
   }
 
   if (!envelope_.isActive()) {

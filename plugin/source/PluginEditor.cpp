@@ -95,6 +95,16 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
     juce::AudioProcessorValueTreeState::SliderAttachment>(
       processorRef.apvts_, "vcoModLfoFreq", vco_mod_lfo_freq_slider_);
 
+  // env1 -> freq mod
+  vco_mod_env1_freq_label_.setText("ENV1 Freq Mod", juce::dontSendNotification);
+  addAndMakeVisible(vco_mod_env1_freq_label_);
+  vco_mod_env1_freq_slider_.setSliderStyle(juce::Slider::Rotary);
+  vco_mod_env1_freq_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+  addAndMakeVisible(vco_mod_env1_freq_slider_);
+  vco_mod_env1_freq_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "vcoModEnv1Freq", vco_mod_env1_freq_slider_);
+
   // VCO pickers
   vco_mod_osc1_button_.setButtonText("VCO 1");
   vco_mod_osc1_button_.setClickingTogglesState(true);
@@ -339,6 +349,7 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.templateColumns = {
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1))
     };
     section_grid.templateRows = {
@@ -347,9 +358,11 @@ void AudioPluginAudioProcessorEditor::resized() {
     };
     section_grid.items = {
       juce::GridItem{vco_mod_lfo_freq_slider_},
+      juce::GridItem{vco_mod_env1_freq_slider_},
       juce::GridItem{vco_mod_osc1_button_},
       juce::GridItem{vco_mod_osc2_button_},
-      juce::GridItem{vco_mod_lfo_freq_label_}
+      juce::GridItem{vco_mod_lfo_freq_label_},
+      juce::GridItem{vco_mod_env1_freq_label_}
     };
 
     section_grid.performLayout(section_bounds.toNearestInt());
