@@ -276,8 +276,6 @@ class WaveGenerator {
   }
   void set_hardsync(const bool shouldHardSync) { hard_sync_ = shouldHardSync; }
 
-  bool is_hard_sync() const { return hard_sync_; }
-
   juce::Array<float> history() { return history_; }
 
   void clear();
