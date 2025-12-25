@@ -80,6 +80,10 @@ void AudioPluginAudioProcessor::changeProgramName(int index,
 void AudioPluginAudioProcessor::ConfigureLFO() {
   lfo_delay_time_s_ = static_cast<float>(
       apvts_.getRawParameterValue("lfoDelayTimeSeconds")->load());
+  const float lfo_attack =
+      static_cast<float>(apvts_.getRawParameterValue("lfoAttack")->load());
+  lfo_ramp_step_ = 1.f / (static_cast<float>(getSampleRate()) * lfo_attack);
+
   lfo_rate_ =
       static_cast<float>(apvts_.getRawParameterValue("lfoRate")->load());
   lfo_generator_.set_pitch_hz(static_cast<double>(lfo_rate_));
@@ -115,8 +119,6 @@ void AudioPluginAudioProcessor::prepareToPlay(const double sampleRate,
   lfo_generator_.set_volume(0);
   lfo_samples_until_start_ = -1;
   lfo_ramp_ = -1;
-  // 48k sam/sec * .001 sec = 300 sample 1 /
-  lfo_ramp_step_ = 1.f / (static_cast<float>(sampleRate) * .1f);
   lfo_generator_.PrepareToPlay(sampleRate);
   ConfigureLFO();
   // Update all voices with current parameters
@@ -197,6 +199,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     ConfigureLFO();
 
     // todo instead of clearing each block, just overwrite into it instead of adding to it
+    // TODO: do we actually need to do this?
     lfo_buffer_.clear(0, 0, lfo_buffer_.getNumSamples());
 
     // TODO: refactor the LFO logic so it doesn't clutter up this. Use state var
@@ -213,8 +216,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
           if (start_lfo_sample < buffer.getNumSamples()) {
             // start this buffer
             // todo: probably wasteful to render the lfo at such high resolution
-            // / audio rate...
-            lfo_buffer_.clear(0, 0, start_lfo_sample);
+            //  / audio rate...
+            lfo_generator_.MoveAngleForwardTo(0);
             lfo_generator_.RenderNextBlock(
                 lfo_buffer_, start_lfo_sample,
                 buffer.getNumSamples() - start_lfo_sample);
@@ -231,8 +234,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       start_lfo_sample = buffer.getNumSamples() + lfo_samples_until_start_;
       if (start_lfo_sample < buffer.getNumSamples()) {
         // start this buffer
-        lfo_buffer_.clear(0, 0, start_lfo_sample);
-
+        lfo_generator_.MoveAngleForwardTo(0);
         lfo_generator_.RenderNextBlock(
             lfo_buffer_, start_lfo_sample,
             buffer.getNumSamples() - start_lfo_sample);
@@ -332,6 +334,9 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "lfoDelayTimeSeconds", "LFO Delay Time",
       juce::NormalisableRange(0.00f, 3.f, .01f), 0.3f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "lfoAttack", "LFO Attack",
+      juce::NormalisableRange(0.001f, 1.0f, .001f), 0.01f));
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "lfoWaveType", "LFO Wave Type",
       juce::StringArray{"sine", "sawFall", "triangle", "square", "random"}, 0));
