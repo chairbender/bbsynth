@@ -238,6 +238,19 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   filter_drive_label_.attachToComponent(&filter_drive_slider_, false);
   addAndMakeVisible(filter_drive_label_);
 
+  // filter slope
+  filter_slope_combo_.clear(juce::dontSendNotification);
+  filter_slope_combo_.addItem("-24 dB", 1);
+  filter_slope_combo_.addItem("-18 dB", 2);
+  filter_slope_combo_.addItem("-12 dB", 3);
+  addAndMakeVisible(filter_slope_combo_);
+  filter_slope_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+      processorRef.apvts_, "filterSlope", filter_slope_combo_);
+  filter_slope_label_.setText("Slope", juce::dontSendNotification);
+  filter_slope_label_.attachToComponent(&filter_slope_combo_, false);
+  addAndMakeVisible(filter_slope_label_);
+
   // env1 section
   env1_label_.setText("ENV1", juce::dontSendNotification);
   addAndMakeVisible(env1_label_);
@@ -510,6 +523,7 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.templateColumns = {
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1))
     };
     section_grid.templateRows = {
@@ -520,9 +534,11 @@ void AudioPluginAudioProcessorEditor::resized() {
       juce::GridItem{filter_cutoff_slider_},
       juce::GridItem{filter_resonance_slider_},
       juce::GridItem{filter_drive_slider_},
+      juce::GridItem{filter_slope_combo_},
       juce::GridItem{filter_cutoff_label_},
       juce::GridItem{filter_resonance_label_},
-      juce::GridItem{filter_drive_label_}
+      juce::GridItem{filter_drive_label_},
+      juce::GridItem{filter_slope_label_}
     };
 
     section_grid.performLayout(section_bounds.toNearestInt());
