@@ -70,6 +70,10 @@ private:
   juce::Label pulse_width_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> pulse_width_attachment_;
 
+  juce::ComboBox pulse_width_source_combo_;
+  juce::Label pulse_width_source_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> pulse_width_source_attachment_;
+
   //VCO 1 section
   juce::Label vco1_label_;
 
