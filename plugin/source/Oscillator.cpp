@@ -209,10 +209,10 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   waveGenerator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
   wave2Generator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
   if (filter_env_buffer_ != nullptr) {
-    filter_.Process(oversample_buffer_, *filter_env_buffer_, oversample_samples);
+    filter_.Process(oversample_buffer_, *filter_env_buffer_, waveGenerator_.lfo_buffer(), oversample_samples);
   } else {
     // fallback if not configured
-    filter_.Process(oversample_buffer_, env1_buffer_, oversample_samples);
+    filter_.Process(oversample_buffer_, env1_buffer_, waveGenerator_.lfo_buffer(), oversample_samples);
   }
 
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
