@@ -30,6 +30,21 @@ private:
   // access the processor object that created it.
   AudioPluginAudioProcessor& processorRef;
 
+  // LFO section
+  juce::Label lfo_label_;
+  //rate
+  juce::Label rate_label_;
+  juce::Slider rate_slider_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> rate_attachment_;
+  // delay time
+  juce::Label delay_time_label_;
+  juce::Slider delay_time_slider_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> delay_time_attachment_;
+  // wave form
+  juce::ComboBox lfo_wave_form_combo_;
+  juce::Label lfo_wave_form_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> lfo_wave_form_attachment_;
+
   //VCO 1 section
   juce::Label vco1_label_;
 

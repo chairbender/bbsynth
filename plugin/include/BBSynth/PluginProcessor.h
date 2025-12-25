@@ -2,6 +2,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include "WaveGenerator.h"
+
 namespace audio_plugin {
 
 class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::AudioProcessorValueTreeState::Listener {
@@ -45,6 +47,7 @@ private:
   void parameterChanged(const juce::String& name, float newValue) override;
 
   juce::Synthesiser synth;
+  WaveGenerator lfo_generator_;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessor)
 };
