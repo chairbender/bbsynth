@@ -16,7 +16,9 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 #endif
               ),
       apvts_(*this, nullptr, "ParameterTree", CreateParameterLayout()),
-      lfo_generator_{lfo_buffer_} {
+      // TODO: we should have the option to not pass these buffers -
+      //   they're not needed for LFO
+      lfo_generator_{lfo_buffer_,lfo_buffer_} {
   for (auto i = 0; i < 1; ++i) {
     synth.addVoice(new OscillatorVoice(lfo_buffer_));
   }

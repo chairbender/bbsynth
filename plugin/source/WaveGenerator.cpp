@@ -15,8 +15,9 @@ namespace audio_plugin {
 constexpr double DELTA{.0000001};
 
 // WAVE GEN :::::
-WaveGenerator::WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer)
-    : lfo_buffer_(lfo_buffer) {
+WaveGenerator::WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
+  const juce::AudioBuffer<float>& env1_buffer)
+    : lfo_buffer_(lfo_buffer), env1_buffer_(env1_buffer) {
   history_length_ = 500;
   sample_rate_ = 0;
 
@@ -195,18 +196,25 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
 
   // BUILD ::::
   const auto lfo_data = lfo_buffer_.getReadPointer(0);
+  const auto env1_data = env1_buffer_.getReadPointer(0);
   for (int i = 0; i < numSamples; i++) {
     bool primary_blep_occurred = false;
 
     // CHANGE the PITCH BEND (linear ramping)
+    // TODO: manual pitch bend disabled currently
     // pitch_bend_actual_ += freqDelta;
-    // TODO: making VCO mod less glitchy and more sensible ranges + not getting
-    // more over time
+    // TODO: account better for oversampling - this hardcoded amount isn't good
+    double mod = 0;
     if (pitch_bend_lfo_mod_ != 0.) {
-      // TODO: account better for oversampling - this hardcoded amount isn't good
-      pitch_bend_actual_ =
-          1 + static_cast<double>(lfo_data[i / 2]) * pitch_bend_lfo_mod_;
+      mod = static_cast<double>(lfo_data[i / 2]) * pitch_bend_lfo_mod_;
     }
+    if (pitch_bend_env1_mod_ != 0.) {
+      mod += static_cast<double>(env1_data[i / 2]) * pitch_bend_env1_mod_;
+    }
+    if (mod != 0.) {
+      pitch_bend_actual_ = 1 + mod;
+    }
+
     if (fabs(pitch_bend_actual_ - 1) < .00001) pitch_bend_actual_ = 1;
 
     // FOR CALCULATIONS,
@@ -503,6 +511,10 @@ double WaveGenerator::GetValueAt(double angle) {
 
 void WaveGenerator::set_pitch_bend_lfo_mod(const float mod) {
   pitch_bend_lfo_mod_ = static_cast<double>(mod);
+}
+
+void WaveGenerator::set_pitch_bend_env1_mod(const float mod) {
+  pitch_bend_env1_mod_ = static_cast<double>(mod);
 }
 
 // SLOW RENDER (LFO) ::::::
