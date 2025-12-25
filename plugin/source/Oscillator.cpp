@@ -15,7 +15,8 @@ bool OscillatorSound::appliesToChannel([[maybe_unused]] int midiChannelIndex) {
   return true;
 }
 
-OscillatorVoice::OscillatorVoice() {
+OscillatorVoice::OscillatorVoice(juce::AudioBuffer<float>& lfo_buffer)
+    : lfo_buffer_(lfo_buffer) {
   waveGenerator_.PrepareToPlay(getSampleRate() * kOversample);
   wave2Generator_.PrepareToPlay(getSampleRate() * kOversample);
   //waveGenerator_.setHardsync(false);
@@ -121,8 +122,8 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   // note this will fill and process only the left channel since we want to work in mono
   // until the last moment
   // the wave generator and filter are already configured to generate at 2x oversampling.
-  waveGenerator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
-  wave2Generator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
+  waveGenerator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples, lfo_buffer_);
+  wave2Generator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples, lfo_buffer_);
   filter_.Process(oversample_buffer_, oversample_samples);
 
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
@@ -139,5 +140,10 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   }
 
   downsampler_.process(oversample_buffer_, outputBuffer, numSamples);
+}
+
+void OscillatorVoice::set_lfo_buffer(
+    const juce::AudioBuffer<float>& audio_buffer) {
+  lfo_buffer_ = audio_buffer;
 }
 } // namespace audio_plugin

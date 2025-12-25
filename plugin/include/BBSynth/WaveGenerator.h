@@ -42,6 +42,8 @@ class WaveGenerator {
   // PITCH BEND
   double pitch_bend_target_ = 0;
   double pitch_bend_actual_ = 0;
+  // amount of effect the LFO has on the pitch
+  double pitch_bend_lfo_mod_ = 0;
 
   // ACTUAL delta
   // - takes into account pitch bend and phase shift ...
@@ -250,8 +252,9 @@ public:
   /**
    * Fill the first channel of the buffer up to numSamples.
    */
-  void RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples);
-  inline void BuildWave(int numSamples);
+  // todo: passing LFO like this is stupid, let's find a better way
+  void RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples, const juce::AudioBuffer<float>& lfo);
+  inline void BuildWave(int numSamples, const juce::AudioBuffer<float>& lfo);
 
   // SLOW RENDER (LFO) ::::::
   void MoveAngleForward(int numSamples);

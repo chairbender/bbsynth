@@ -253,6 +253,7 @@ void MinBlepGenerator::ProcessBlock(float* buffer, int numSamples) {
   // MUST be done BEFORE we ADD the bleps
   last_value_ = buffer[numSamples - 1];
 
+  // todo: what is this even and do we even care?
   // Hmmm .... once in a while there is a nonlinearity at the edge ....
   // inwhich case, we probably shouldn't update the delta ...
   // jassert(lastDelta == 0);

@@ -45,6 +45,18 @@ private:
   juce::Label lfo_wave_form_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> lfo_wave_form_attachment_;
 
+  // VCO Modulator section
+  juce::Label vco_mod_label_;
+  // lfo -> freq mod
+  juce::Slider vco_mod_lfo_freq_slider_;
+  juce::Label vco_mod_lfo_freq_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vco_mod_freq_attachment_;
+  // VCO picker - osc1, osc2, or both
+  juce::ToggleButton vco_mod_osc1_button_;
+  juce::ToggleButton vco_mod_osc2_button_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> vco_mod_osc1_attachment_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> vco_mod_osc2_attachment_;
+
   //VCO 1 section
   juce::Label vco1_label_;
 

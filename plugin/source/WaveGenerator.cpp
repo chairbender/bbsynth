@@ -75,7 +75,7 @@ void WaveGenerator::clear() {
 }
 
 // FAST RENDER (AP) :::::
-void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, const int startSample, const int numSamples) {
+void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, const int startSample, const int numSamples, const juce::AudioBuffer<float>& lfo) {
   jassert(sample_rate_ != 0.);
 
   if (secondary_delta_base_ == 0.0)
@@ -86,7 +86,7 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, cons
       blep_generator_.IsClear())
     return;
 
-  BuildWave(numSamples);
+  BuildWave(numSamples, lfo);
 
   // ADD BAND-LIMITED (minBLEP) transitions :::
   if (mode_ == ANTIALIAS) {
@@ -168,7 +168,7 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, cons
 
 #endif
 }
-inline void WaveGenerator::BuildWave(const int numSamples) {
+inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuffer<float>& lfo) {
   if (secondary_delta_base_ == 0.0)
     return;
 
@@ -198,11 +198,15 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
   }
 
   // BUILD ::::
+  const auto lfo_data = lfo.getReadPointer(0);
   for (int i = 0; i < numSamples; i++) {
     bool primary_blep_occurred = false;
 
     // CHANGE the PITCH BEND (linear ramping)
     pitch_bend_actual_ += freqDelta;
+    if (pitch_bend_lfo_mod_ != 0.) {
+      pitch_bend_actual_ += static_cast<double>(lfo_data[i]) * pitch_bend_lfo_mod_;
+    }
     if (fabs(pitch_bend_actual_ - 1) < .00001)
       pitch_bend_actual_ = 1;
 

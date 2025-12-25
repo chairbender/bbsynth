@@ -17,8 +17,7 @@ struct OscillatorSound : juce::SynthesiserSound {
 };
 
 struct OscillatorVoice : juce::SynthesiserVoice {
-  OscillatorVoice();
-
+  OscillatorVoice(juce::AudioBuffer<float>& lfo_buffer);
   bool canPlaySound(juce::SynthesiserSound* sound) override;
 
   /**
@@ -52,8 +51,11 @@ struct OscillatorVoice : juce::SynthesiserVoice {
   // todo below comment needed?
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
   WaveGenerator& getWaveGeneratorForTest() { return waveGenerator_; }
+  void set_lfo_buffer(const juce::AudioBuffer<float>& audio_buffer);
 
 private:
+  // todo: should probably use smart pointers...
+  juce::AudioBuffer<float>& lfo_buffer_;
   WaveGenerator waveGenerator_;
   WaveGenerator wave2Generator_;
   OTAFilter filter_;
