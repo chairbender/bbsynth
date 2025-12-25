@@ -97,6 +97,10 @@ void OscillatorVoice::Configure(
   }
   wave2Generator_.set_pitch_offset_hz(
       static_cast<double>(apvts.getRawParameterValue("fineTune")->load()));
+
+  const double pulseWidth = static_cast<double>(apvts.getRawParameterValue("pulseWidth")->load());
+  waveGenerator_.set_pulse_width(pulseWidth);
+  wave2Generator_.set_pulse_width(pulseWidth);
 }
 
 void OscillatorVoice::SetBlockSize(const int blockSize) {

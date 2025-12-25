@@ -65,6 +65,11 @@ private:
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> vco_mod_osc1_attachment_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> vco_mod_osc2_attachment_;
 
+  // pulse width
+  juce::Slider pulse_width_slider_;
+  juce::Label pulse_width_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> pulse_width_attachment_;
+
   //VCO 1 section
   juce::Label vco1_label_;
 

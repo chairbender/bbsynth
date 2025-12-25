@@ -325,32 +325,53 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
 
       // ROLLED through 2*PI
       if (wave_type_ == square) {
-        // :: SQUARE rolls twice - at PI and 2*PI ::::
-        if (fmod(current_angle_skewed_, juce::MathConstants<double>::twoPi) <
-            actualCurrentAngleDeltaSkewed) {
-          double percAfterRoll =
-              fmod(current_angle_skewed_, juce::MathConstants<double>::twoPi) /
-              actualCurrentAngleDeltaSkewed;  // LINEAR interpolation
+        // :: SQUARE rolls twice - at pulse_width and 1 ::::
+        const double threshold1 = juce::MathConstants<double>::twoPi * pulse_width_;
+        constexpr double threshold2 = 2 * juce::MathConstants<double>::twoPi;
 
-          MinBlepGenerator::BlepOffset blep;
+        auto check_rollover = [&](const double threshold,
+                                  const double magnitude) {
+          // adjust for wrapping if needed, but current_angle_skewed_ and last_angle_skewed_
+          // should be in the same period usually unless freq is very high.
+          // Actually, current_angle_skewed_ is fmodded to [0, 2pi].
+          
+          bool crossed = false;
+          double percAfterRoll = 0;
+          
+          if (last_angle_skewed_ < threshold && current_angle_skewed_ >= threshold) {
+            crossed = true;
+            percAfterRoll = (current_angle_skewed_ - threshold) / actualCurrentAngleDeltaSkewed;
+          } else if (current_angle_skewed_ < last_angle_skewed_) {
+             // Wrapped around 2PI
+             if (threshold >= threshold2 - 1e-9) {
+               crossed = true;
+               percAfterRoll = current_angle_skewed_ / actualCurrentAngleDeltaSkewed;
+             } else if (last_angle_skewed_ < threshold || current_angle_skewed_ >= threshold) {
+               // This case is trickier if it wraps and crosses threshold1 in one sample.
+               // For now assume freq < sample_rate.
+               if (last_angle_skewed_ < threshold) {
+                  crossed = true;
+                  percAfterRoll = (current_angle_skewed_ + (threshold2 - last_angle_skewed_) - (threshold - last_angle_skewed_)) / actualCurrentAngleDeltaSkewed;
+                  // Simplify:
+                  percAfterRoll = (current_angle_skewed_ + threshold2 - threshold) / actualCurrentAngleDeltaSkewed;
+               } else if (current_angle_skewed_ >= threshold) {
+                  crossed = true;
+                  percAfterRoll = (current_angle_skewed_ - threshold) / actualCurrentAngleDeltaSkewed;
+               }
+             }
+          }
 
-          // CALCULATE subsample offset :::
-          blep.offset = percAfterRoll - static_cast<double>(i + 1);
+          if (crossed) {
+            MinBlepGenerator::BlepOffset blep;
+            blep.offset = percAfterRoll - static_cast<double>(i + 1);
+            blep.pos_change_magnitude = magnitude;
+            blep.vel_change_magnitude = 0;
+            blep_generator_.AddBlep(blep);
+          }
+        };
 
-          // MAGNITUDE of 1st order nonlinearity is 2 or -2 :::
-          if (fmod(current_angle_skewed_,
-                   2 * juce::MathConstants<double>::twoPi) <
-              actualCurrentAngleDeltaSkewed)
-            blep.pos_change_magnitude = -2;
-          else
-            blep.pos_change_magnitude = 2;
-
-          // NO CHANGE to slope - 0
-          blep.vel_change_magnitude = 0;
-
-          // ADD
-          blep_generator_.AddBlep(blep);
-        }
+        check_rollover(threshold1, -2);
+        check_rollover(threshold2, 2);
       } else if (wave_type_ == sawRise || wave_type_ == sawFall)  // SAW
       {
         // SAW ROLLs only at PI
@@ -502,7 +523,7 @@ double WaveGenerator::GetValueAt(double angle) {
   else if (wave_type_ == triangle)
     currentSample = GetTriangle(angle);
   else if (wave_type_ == square)
-    currentSample = GetSquare(angle);
+    currentSample = GetSquare(angle, pulse_width_);
   else if (wave_type_ == random)
     currentSample = GetRandom(angle);
 

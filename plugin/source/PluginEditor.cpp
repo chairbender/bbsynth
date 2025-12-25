@@ -120,6 +120,15 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
     juce::AudioProcessorValueTreeState::ButtonAttachment>(
       processorRef.apvts_, "vcoModOsc2", vco_mod_osc2_button_);
 
+  pulse_width_label_.setText("Pulse Width", juce::dontSendNotification);
+  addAndMakeVisible(pulse_width_label_);
+  pulse_width_slider_.setSliderStyle(juce::Slider::Rotary);
+  pulse_width_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+  addAndMakeVisible(pulse_width_slider_);
+  pulse_width_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "pulseWidth", pulse_width_slider_);
+
   // vco1 section
   vco1_label_.setText("VCO 1", juce::dontSendNotification);
   addAndMakeVisible(vco1_label_);
@@ -350,6 +359,7 @@ void AudioPluginAudioProcessorEditor::resized() {
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1))
     };
     section_grid.templateRows = {
@@ -361,8 +371,12 @@ void AudioPluginAudioProcessorEditor::resized() {
       juce::GridItem{vco_mod_env1_freq_slider_},
       juce::GridItem{vco_mod_osc1_button_},
       juce::GridItem{vco_mod_osc2_button_},
+      juce::GridItem{pulse_width_slider_},
       juce::GridItem{vco_mod_lfo_freq_label_},
-      juce::GridItem{vco_mod_env1_freq_label_}
+      juce::GridItem{vco_mod_env1_freq_label_},
+      juce::GridItem{},
+      juce::GridItem{},
+      juce::GridItem{pulse_width_label_}
     };
 
     section_grid.performLayout(section_bounds.toNearestInt());
