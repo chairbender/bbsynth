@@ -115,8 +115,8 @@ void AudioPluginAudioProcessor::prepareToPlay(const double sampleRate,
   lfo_generator_.set_volume(0);
   lfo_samples_until_start_ = -1;
   lfo_ramp_ = -1;
-  // .1 seconds (todo idk...)
-  lfo_ramp_step_ = 1.f / static_cast<float>(sampleRate * 100);
+  // 48k sam/sec * .001 sec = 300 sample 1 /
+  lfo_ramp_step_ = 1.f / (static_cast<float>(sampleRate) * .1f);
   lfo_generator_.PrepareToPlay(sampleRate);
   ConfigureLFO();
   // Update all voices with current parameters
@@ -379,7 +379,7 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       "filterResonance", "Filter Resonance",
       juce::NormalisableRange(0.f, 4.f, 0.01f), 1.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "filterDrive", "Filter Drive", juce::NormalisableRange(0.f, 8.f, 0.01f),
+      "filterDrive", "Filter Drive", juce::NormalisableRange(0.f, 100.f, 0.01f, .1f),
       0.5f));
 
   return {parameterList.begin(), parameterList.end()};
