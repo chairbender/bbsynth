@@ -173,7 +173,7 @@ public:
   }
 
   // PITCH MOD ::: shifts the primary angleDelta up/down in semitones ...
-  void set_pitch_offset(const double pitch_offset_in_semitones) {
+  void set_pitch_offset_semis(const double pitch_offset_in_semitones) {
     // TONE is ALWAYS higher than primary center (or has no effect)
     double secondary_tone_offset = tone_offset_in_semis();
 
@@ -184,6 +184,21 @@ public:
     double newToneOffset = pitch_offset_in_semitones + secondary_tone_offset;
     secondary_pitch_offset_ = (pow(2, newToneOffset / 12));
   }
+
+  void set_pitch_offset_hz(const double pitch_offset_in_hz) {
+    // todo: idk what this should do
+    // TONE is ALWAYS higher than primary center (or has no effect)
+    // double secondary_tone_offset = tone_offset_in_semis();
+
+    // todo: the scaling here is totally not right
+    primary_pitch_offset_ = 1 + pitch_offset_in_hz * .1;
+
+    // todo: idk what this should do
+    // // UPDATE the secondary freq
+    // double newToneOffset = pitch_offset_in_semitones + secondary_tone_offset;
+    // secondary_pitch_offset_ = (pow(2, newToneOffset / 12));
+  }
+
   double pitch_offset_in_semis() const {
     // return the Log pitch offset ....
     double pitchOffsetInSemis = 12 * log2(primary_pitch_offset_);

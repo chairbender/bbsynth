@@ -197,12 +197,27 @@ juce::AudioProcessorValueTreeState::ParameterLayout
 AudioPluginAudioProcessor::CreateParameterLayout() {
   std::vector<std::unique_ptr<juce::RangedAudioParameter>> parameterList;
 
+  // vco1
   // Oscillator wave type selector
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "waveType",
       "Wave Type",
       juce::StringArray{"sine", "sawFall", "triangle", "square", "random"},
       1));
+
+  // vco2
+  // wave type
+  parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
+    "wave2Type",
+    "Wave 2 Type",
+    juce::StringArray{"sine", "sawFall", "triangle", "square", "random"},
+    1));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+    "fineTune",
+    "Fine Tune",
+    juce::NormalisableRange(-1.f, 1.f, 0.01f),
+    0.f));
+
   // ADSR envelope parameters
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "adsrAttack", "ADSR Attack (s)", juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.01f));
