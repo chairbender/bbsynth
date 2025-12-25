@@ -12,7 +12,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
 
   // Make sure that before the constructor has finished, you've set the
   // editor's size to whatever you need it to be.
-  setSize(800, 600);
+  setSize(1600, 600);
 }
 
 void AudioPluginAudioProcessorEditor::GetNextAudioBlock(
@@ -71,6 +71,34 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       processorRef.apvts_, "lfoWaveType", lfo_wave_form_combo_);
   lfo_wave_form_label_.attachToComponent(&lfo_wave_form_combo_, false);
 
+  // VCO Modulator sectiong
+  vco_mod_label_.setText("VCO Modulator", juce::dontSendNotification);
+  addAndMakeVisible(vco_mod_label_);
+
+  // lfo -> freq mod
+  vco_mod_lfo_freq_label_.setText("LFO Freq Mod", juce::dontSendNotification);
+  addAndMakeVisible(vco_mod_lfo_freq_label_);
+  vco_mod_lfo_freq_slider_.setSliderStyle(juce::Slider::Rotary);
+  vco_mod_lfo_freq_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+  addAndMakeVisible(vco_mod_lfo_freq_slider_);
+  vco_mod_freq_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "vcoModFreq", vco_mod_lfo_freq_slider_);
+
+  // VCO pickers
+  vco_mod_osc1_button_.setButtonText("VCO 1");
+  vco_mod_osc1_button_.setClickingTogglesState(true);
+  addAndMakeVisible(vco_mod_osc1_button_);
+  vco_mod_osc1_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::ButtonAttachment>(
+      processorRef.apvts_, "vcoModOsc1", vco_mod_osc1_button_);
+
+  vco_mod_osc2_button_.setButtonText("VCO 2");
+  vco_mod_osc2_button_.setClickingTogglesState(true);
+  addAndMakeVisible(vco_mod_osc2_button_);
+  vco_mod_osc2_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::ButtonAttachment>(
+      processorRef.apvts_, "vcoModOsc2", vco_mod_osc2_button_);
 
   // vco1 section
   vco1_label_.setText("VCO 1", juce::dontSendNotification);
@@ -237,15 +265,18 @@ void AudioPluginAudioProcessorEditor::resized() {
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1))
   };
 
   grid.items = {
       juce::GridItem(lfo_label_),
+      juce::GridItem(vco_mod_label_),
       juce::GridItem(vco1_label_),
       juce::GridItem(vco2_label_),
       juce::GridItem(vcf_label_),
       juce::GridItem(env1_label_),
+      juce::GridItem{},
       juce::GridItem{},
       juce::GridItem{},
       juce::GridItem{},
@@ -280,6 +311,32 @@ void AudioPluginAudioProcessorEditor::resized() {
       juce::GridItem{rate_label_},
       juce::GridItem{delay_time_label_},
       juce::GridItem{lfo_wave_form_label_}
+    };
+
+    section_grid.performLayout(section_bounds.toNearestInt());
+  }
+
+  // VCO mod
+  {
+    const auto section_bounds = grid.items[item_idx++].currentBounds;
+    juce::Grid section_grid;
+    section_grid.alignContent = juce::Grid::AlignContent::center;
+    section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+    section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+    section_grid.templateColumns = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+    };
+    section_grid.templateRows = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+    };
+    section_grid.items = {
+      juce::GridItem{vco_mod_lfo_freq_slider_},
+      juce::GridItem{vco_mod_osc1_button_},
+      juce::GridItem{vco_mod_osc2_button_},
+      juce::GridItem{vco_mod_lfo_freq_label_}
     };
 
     section_grid.performLayout(section_bounds.toNearestInt());

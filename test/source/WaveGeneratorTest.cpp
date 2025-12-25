@@ -26,10 +26,10 @@ inline void PrepareAndRender(WaveGenerator& gen,
 
   raw_buf.clear();
   // Warm up gain ramp so second call uses constant gain
-  gen.RenderNextBlock(raw_buf, TODO, kNumSamples);
+  gen.RenderNextBlock(raw_buf, TODO, kNumSamples, TODO);
   raw_buf.clear();
   gen.blep_generator()->currentActiveBlepOffsets.clear();
-  gen.RenderNextBlock(raw_buf, TODO, kNumSamples);
+  gen.RenderNextBlock(raw_buf, TODO, kNumSamples, TODO);
 }
 
 struct SawCase {

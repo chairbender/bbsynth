@@ -16,7 +16,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         ),
     apvts_(*this, nullptr, "ParameterTree", CreateParameterLayout()) {
   for (auto i = 0; i < 1; ++i) {
-    synth.addVoice(new OscillatorVoice());
+    synth.addVoice(new OscillatorVoice(lfo_buffer_));
   }
   synth.addSound(new OscillatorSound(apvts_));
 }
@@ -126,6 +126,7 @@ void AudioPluginAudioProcessor::prepareToPlay(
     if (auto* voice = dynamic_cast<OscillatorVoice*>(synth.getVoice(i))) {
       voice->Configure(apvts_);
       voice->SetBlockSize(samplesPerBlock);
+      voice->set_lfo_buffer(lfo_buffer_);
     }
   }
 }
@@ -217,7 +218,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             // todo: probably wasteful to render the lfo at such high resolution / audio rate...
             lfo_buffer_.clear(0, 0, start_lfo_sample);
             lfo_generator_.set_pitch_hz(static_cast<double>(lfo_rate_));
-            lfo_generator_.RenderNextBlock(lfo_buffer_, start_lfo_sample, buffer.getNumSamples() - start_lfo_sample);
+            lfo_generator_.RenderNextBlock(lfo_buffer_, start_lfo_sample, buffer.getNumSamples() - start_lfo_sample, lfo_buffer_);
             lfo_samples_until_start_ = 0;
           }
           break;
@@ -232,7 +233,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       if (start_lfo_sample < buffer.getNumSamples()) {
         // start this buffer
         lfo_buffer_.clear(0, 0, start_lfo_sample);
-        lfo_generator_.RenderNextBlock(lfo_buffer_, start_lfo_sample, buffer.getNumSamples() - start_lfo_sample);
+        lfo_generator_.RenderNextBlock(lfo_buffer_, start_lfo_sample, buffer.getNumSamples() - start_lfo_sample, lfo_buffer_);
         lfo_samples_until_start_ = 0;
       }
     }
@@ -255,7 +256,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // todo: if the LFO is supposed to end this block (due to all voices stopping), technically it will keep oscillating
     //   but it will have no effect since all voices stopped, so this is fine.
     if (lfo_samples_until_start_ == 0 && start_lfo_sample < 0) {
-      lfo_generator_.RenderNextBlock(buffer, 0, buffer.getNumSamples());
+      lfo_generator_.RenderNextBlock(buffer, 0, buffer.getNumSamples(), lfo_buffer_);
       if (lfo_ramp_ < 1.f) {
         // if we are currently LFO ramping, continue it
         auto* lfo_buffer_data = lfo_buffer_.getWritePointer(0);
@@ -322,6 +323,23 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       "LFO Wave Type",
       juce::StringArray{"sine", "sawFall", "triangle", "square", "random"},
       0));
+
+  // VCO Mod
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+    "vcoModFreq",
+    "LFO Freq Mod",
+    juce::NormalisableRange(-1.f, 1.f, .01f),
+    0.f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
+    "vcoModOsc1",
+    "Freq Mod Osc 1",
+    true
+  ));
+  parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
+    "vcoModOsc2",
+    "Freq Mod Osc 2",
+    true
+  ));
 
   // vco1
   // Oscillator wave type selector
