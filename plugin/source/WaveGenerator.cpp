@@ -182,6 +182,9 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
   float* waveData = wave.getRawDataPointer();
 
   // LINEAR CHANGE for now .... over the numsamples (see above)
+  if (pitch_bend_lfo_mod_ != 0.) {
+    pitch_bend_target_ = 1 + static_cast<double>(lfo.getReadPointer(0)[0]) * pitch_bend_lfo_mod_ * 10;
+  }
   double freqDelta =
       (pitch_bend_target_ - pitch_bend_actual_) / static_cast<double>(numSamples);
   JUCE_SNAP_TO_ZERO(freqDelta);
@@ -198,15 +201,16 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
   }
 
   // BUILD ::::
-  const auto lfo_data = lfo.getReadPointer(0);
+  //const auto lfo_data = lfo.getReadPointer(0);
   for (int i = 0; i < numSamples; i++) {
     bool primary_blep_occurred = false;
 
     // CHANGE the PITCH BEND (linear ramping)
     pitch_bend_actual_ += freqDelta;
-    if (pitch_bend_lfo_mod_ != 0.) {
-      pitch_bend_actual_ += static_cast<double>(lfo_data[i]) * pitch_bend_lfo_mod_;
-    }
+    // todo: more up to date LFO
+    // if (pitch_bend_lfo_mod_ != 0.) {
+    //   pitch_bend_actual_ += static_cast<double>(lfo_data[i]) * pitch_bend_lfo_mod_;
+    // }
     if (fabs(pitch_bend_actual_ - 1) < .00001)
       pitch_bend_actual_ = 1;
 
@@ -498,6 +502,10 @@ double WaveGenerator::GetValueAt(double angle) {
     currentSample = GetRandom(angle);
 
   return currentSample;
+}
+
+void WaveGenerator::set_pitch_bend_lfo_mod(const float mod) {
+  pitch_bend_lfo_mod_ = static_cast<double>(mod);
 }
 
 // SLOW RENDER (LFO) ::::::

@@ -83,7 +83,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   addAndMakeVisible(vco_mod_lfo_freq_slider_);
   vco_mod_freq_attachment_ = std::make_unique<
     juce::AudioProcessorValueTreeState::SliderAttachment>(
-      processorRef.apvts_, "vcoModFreq", vco_mod_lfo_freq_slider_);
+      processorRef.apvts_, "vcoModLfoFreq", vco_mod_lfo_freq_slider_);
 
   // VCO pickers
   vco_mod_osc1_button_.setButtonText("VCO 1");
