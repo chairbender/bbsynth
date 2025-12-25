@@ -56,6 +56,7 @@ struct OscillatorVoice : juce::SynthesiserVoice {
   WaveGenerator waveGenerator_;
   WaveGenerator wave2Generator_;
   OTAFilter filter_;
+  const juce::AudioBuffer<float>* filter_env_buffer_ = nullptr;
   juce::AudioBuffer<float> oversample_buffer_;
   Downsampler downsampler_;
   juce::ADSR envelope_;

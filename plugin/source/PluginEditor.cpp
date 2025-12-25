@@ -251,6 +251,27 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   filter_slope_label_.attachToComponent(&filter_slope_combo_, false);
   addAndMakeVisible(filter_slope_label_);
 
+  filter_env_mod_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  filter_env_mod_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+  addAndMakeVisible(filter_env_mod_slider_);
+  filter_env_mod_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "filterEnvMod", filter_env_mod_slider_);
+  filter_env_mod_label_.setText("Env Mod", juce::dontSendNotification);
+  filter_env_mod_label_.attachToComponent(&filter_env_mod_slider_, false);
+  addAndMakeVisible(filter_env_mod_label_);
+
+  filter_env_source_combo_.clear(juce::dontSendNotification);
+  filter_env_source_combo_.addItem("Env 1", 1);
+  filter_env_source_combo_.addItem("Env 2", 2);
+  addAndMakeVisible(filter_env_source_combo_);
+  filter_env_source_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+      processorRef.apvts_, "filterEnvSource", filter_env_source_combo_);
+  filter_env_source_label_.setText("Env Source", juce::dontSendNotification);
+  filter_env_source_label_.attachToComponent(&filter_env_source_combo_, false);
+  addAndMakeVisible(filter_env_source_label_);
+
   // env1 section
   env1_label_.setText("ENV1", juce::dontSendNotification);
   addAndMakeVisible(env1_label_);
@@ -524,6 +545,8 @@ void AudioPluginAudioProcessorEditor::resized() {
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1))
     };
     section_grid.templateRows = {
@@ -535,10 +558,14 @@ void AudioPluginAudioProcessorEditor::resized() {
       juce::GridItem{filter_resonance_slider_},
       juce::GridItem{filter_drive_slider_},
       juce::GridItem{filter_slope_combo_},
+      juce::GridItem{filter_env_mod_slider_},
+      juce::GridItem{filter_env_source_combo_},
       juce::GridItem{filter_cutoff_label_},
       juce::GridItem{filter_resonance_label_},
       juce::GridItem{filter_drive_label_},
-      juce::GridItem{filter_slope_label_}
+      juce::GridItem{filter_slope_label_},
+      juce::GridItem{filter_env_mod_label_},
+      juce::GridItem{filter_env_source_label_}
     };
 
     section_grid.performLayout(section_bounds.toNearestInt());
