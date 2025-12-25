@@ -130,6 +130,12 @@ public:
   MinBlepGenerator* blep_generator() { return &blep_generator_; }
   void set_blep_size(float sample_rate_for_blep);
 
+  void set_pulse_width(double pulse_width) {
+    jassert(pulse_width >= 0 && pulse_width <= 1);
+    pulse_width_ = pulse_width;
+  }
+  double pulse_width() const { return pulse_width_; }
+
   double secondary_delta_base() const { return secondary_delta_base_; }
   double primary_delta_base() const { return primary_delta_base_; }
   double getAngleDeltaActual() const { return actual_current_angle_delta_; }
@@ -289,6 +295,8 @@ public:
   void set_pitch_bend_env1_mod(float mod);
 
   // Wave calculations ...
+  double pulse_width_ = 0.5;
+
   static inline double GetSine(double angle) {
     const double sample = sin(angle);
     return sample;
@@ -335,8 +343,8 @@ public:
     return sample;
   }
 
-  static inline double GetSquare(const double angle) {
-    if (angle >= juce::MathConstants<double>::twoPi)
+  static inline double GetSquare(const double angle, const double pulse_width = 0.5) {
+    if (angle >= juce::MathConstants<double>::twoPi * pulse_width)
       return -1;
     return 1;
   }

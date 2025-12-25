@@ -354,6 +354,9 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       "vcoModOsc1", "Freq Mod Osc 1", true));
   parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
       "vcoModOsc2", "Freq Mod Osc 2", true));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "pulseWidth", "Pulse Width", juce::NormalisableRange(0.f, 1.f, .01f),
+      0.5f));
 
   // vco1
   // Oscillator wave type selector
@@ -384,7 +387,7 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.3f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterCutoffFreq", "Filter Cutoff Frequency",
-      juce::NormalisableRange(20.f, 8000.f, 1.f), 1000.f));
+      juce::NormalisableRange(20.f, 8000.f, 1.f), 4000.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterResonance", "Filter Resonance",
       juce::NormalisableRange(0.f, 4.f, 0.01f), 1.f));
