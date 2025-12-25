@@ -120,12 +120,14 @@ void AudioPluginAudioProcessor::prepareToPlay(
   // .001 seconds (todo idk...)
   lfo_ramp_step_ = 1.f / static_cast<float>(sampleRate * 1000);
   lfo_generator_.PrepareToPlay(sampleRate);
+  lfo_generator_.set_pitch_hz(0);
   ConfigureLFO();
   // Update all voices with current parameters
   for (int i = 0; i < synth.getNumVoices(); ++i) {
     if (auto* voice = dynamic_cast<OscillatorVoice*>(synth.getVoice(i))) {
       voice->Configure(apvts_);
       voice->SetBlockSize(samplesPerBlock);
+      // todo: may be unneeded as its already ctor arg
       voice->set_lfo_buffer(lfo_buffer_);
     }
   }
@@ -233,8 +235,15 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       if (start_lfo_sample < buffer.getNumSamples()) {
         // start this buffer
         lfo_buffer_.clear(0, 0, start_lfo_sample);
+
+        lfo_generator_.set_pitch_hz(static_cast<double>(lfo_rate_));
         lfo_generator_.RenderNextBlock(lfo_buffer_, start_lfo_sample, buffer.getNumSamples() - start_lfo_sample, lfo_buffer_);
         lfo_samples_until_start_ = 0;
+        // sanity check of LFO data
+        const auto buf = lfo_buffer_.getReadPointer(0);
+        for (auto i = 0; i < lfo_buffer_.getNumSamples(); ++i) {
+          DBG("lfo " + juce::String(buf[i]));
+        }
       }
     }
 
@@ -256,7 +265,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // todo: if the LFO is supposed to end this block (due to all voices stopping), technically it will keep oscillating
     //   but it will have no effect since all voices stopped, so this is fine.
     if (lfo_samples_until_start_ == 0 && start_lfo_sample < 0) {
-      lfo_generator_.RenderNextBlock(buffer, 0, buffer.getNumSamples(), lfo_buffer_);
+      lfo_generator_.RenderNextBlock(lfo_buffer_, 0, buffer.getNumSamples(), lfo_buffer_);
       if (lfo_ramp_ < 1.f) {
         // if we are currently LFO ramping, continue it
         auto* lfo_buffer_data = lfo_buffer_.getWritePointer(0);
@@ -271,7 +280,29 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       }
     }
 
+    // sanity check of LFO data
+    // const auto buf = lfo_buffer_.getReadPointer(0);
+    // for (auto i = 0; i < lfo_buffer_.getNumSamples(); ++i) {
+    //   DBG("lfo " + juce::String(buf[i]));
+    // }
+
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+
+    // stop the LFO if no more voices
+    if (lfo_samples_until_start_ == 0 && start_lfo_sample < 0) {
+      bool all_voices_stopped = true;
+      for (int i = 0; i < synth.getNumVoices(); ++i) {
+        if (synth.getVoice(i)->isVoiceActive()) {
+          all_voices_stopped = false;
+          break;
+        }
+      }
+      if (all_voices_stopped) {
+        lfo_ramp_ = -1;
+        lfo_samples_until_start_ = -1;
+        lfo_generator_.set_pitch_hz(0);
+      }
+    }
 
     editor->GetNextAudioBlock(buffer);
   }
@@ -326,7 +357,7 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
 
   // VCO Mod
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-    "vcoModFreq",
+    "vcoModLfoFreq",
     "LFO Freq Mod",
     juce::NormalisableRange(-1.f, 1.f, .01f),
     0.f));

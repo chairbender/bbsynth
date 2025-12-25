@@ -279,6 +279,7 @@ public:
     return GetValueAt(skewedAngle);
   }
   double GetValueAt(double angle);
+  void set_pitch_bend_lfo_mod(float mod);
 
   // Wave calculations ...
   static inline double GetSine(double angle) {
