@@ -56,6 +56,16 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       juce::AudioProcessorValueTreeState::SliderAttachment>(
       processorRef.apvts_, "lfoDelayTimeSeconds", delay_time_slider_);
 
+  lfo_attack_label_.setText("Attack", juce::dontSendNotification);
+  addAndMakeVisible(lfo_attack_label_);
+
+  lfo_attack_slider_.setSliderStyle(juce::Slider::Rotary);
+  lfo_attack_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(lfo_attack_slider_);
+  lfo_attack_attachment_ = std::make_unique<
+      juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "lfoAttack", lfo_attack_slider_);
+
   lfo_wave_form_label_.setText("Waveform", juce::dontSendNotification);
   addAndMakeVisible(lfo_wave_form_label_);
 
@@ -298,6 +308,7 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.templateColumns = {
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1))
     };
     section_grid.templateRows = {
@@ -307,9 +318,11 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.items = {
       juce::GridItem{rate_slider_},
       juce::GridItem{delay_time_slider_},
+      juce::GridItem{lfo_attack_slider_},
       juce::GridItem{lfo_wave_form_combo_},
       juce::GridItem{rate_label_},
       juce::GridItem{delay_time_label_},
+      juce::GridItem{lfo_attack_label_},
       juce::GridItem{lfo_wave_form_label_}
     };
 

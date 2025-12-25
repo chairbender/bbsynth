@@ -40,6 +40,10 @@ private:
   juce::Label delay_time_label_;
   juce::Slider delay_time_slider_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> delay_time_attachment_;
+  // attack
+  juce::Label lfo_attack_label_;
+  juce::Slider lfo_attack_slider_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfo_attack_attachment_;
   // wave form
   juce::ComboBox lfo_wave_form_combo_;
   juce::Label lfo_wave_form_label_;
