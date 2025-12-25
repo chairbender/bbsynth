@@ -1,28 +1,29 @@
 #include "BBSynth/PluginProcessor.h"
-#include "BBSynth/PluginEditor.h"
+
 #include "BBSynth/Oscillator.h"
+#include "BBSynth/PluginEditor.h"
 #include "BBSynth/WaveGenerator.h"
 
 namespace audio_plugin {
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
-  : AudioProcessor(
-        BusesProperties()
+    : AudioProcessor(
+          BusesProperties()
 #if !JucePlugin_IsMidiEffect
 #if !JucePlugin_IsSynth
               .withInput("Input", juce::AudioChannelSet::stereo(), true)
 #endif
-        .withOutput("Output", juce::AudioChannelSet::stereo(), true)
+              .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
-        ),
-    apvts_(*this, nullptr, "ParameterTree", CreateParameterLayout()) {
+              ),
+      apvts_(*this, nullptr, "ParameterTree", CreateParameterLayout()),
+      lfo_generator_{lfo_buffer_} {
   for (auto i = 0; i < 1; ++i) {
     synth.addVoice(new OscillatorVoice(lfo_buffer_));
   }
   synth.addSound(new OscillatorSound(apvts_));
 }
 
-AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {
-}
+AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {}
 
 const juce::String AudioPluginAudioProcessor::getName() const {
   return JucePlugin_Name;
@@ -52,19 +53,15 @@ bool AudioPluginAudioProcessor::isMidiEffect() const {
 #endif
 }
 
-double AudioPluginAudioProcessor::getTailLengthSeconds() const {
-  return 0.0;
-}
+double AudioPluginAudioProcessor::getTailLengthSeconds() const { return 0.0; }
 
 int AudioPluginAudioProcessor::getNumPrograms() {
-  return 1; // NB: some hosts don't cope very well if you tell them there are 0
+  return 1;  // NB: some hosts don't cope very well if you tell them there are 0
   // programs, so this should be at least 1, even if you're not
   // really implementing programs.
 }
 
-int AudioPluginAudioProcessor::getCurrentProgram() {
-  return 0;
-}
+int AudioPluginAudioProcessor::getCurrentProgram() { return 0; }
 
 void AudioPluginAudioProcessor::setCurrentProgram(int index) {
   juce::ignoreUnused(index);
@@ -81,10 +78,14 @@ void AudioPluginAudioProcessor::changeProgramName(int index,
 }
 
 void AudioPluginAudioProcessor::ConfigureLFO() {
-  lfo_delay_time_s_ = static_cast<float>(apvts_.getRawParameterValue("lfoDelayTimeSeconds")->load());
-  lfo_rate_ = static_cast<float>(apvts_.getRawParameterValue("lfoRate")->load());
+  lfo_delay_time_s_ = static_cast<float>(
+      apvts_.getRawParameterValue("lfoDelayTimeSeconds")->load());
+  lfo_rate_ =
+      static_cast<float>(apvts_.getRawParameterValue("lfoRate")->load());
+  lfo_generator_.set_pitch_hz(static_cast<double>(lfo_rate_));
 
-  switch (static_cast<int>(apvts_.getRawParameterValue("lfoWaveType")->load())) {
+  switch (
+      static_cast<int>(apvts_.getRawParameterValue("lfoWaveType")->load())) {
     case 0:
       lfo_generator_.set_wave_type(WaveGenerator::sine);
       break;
@@ -103,13 +104,10 @@ void AudioPluginAudioProcessor::ConfigureLFO() {
     default:
       break;
   }
-
 }
 
-
-void AudioPluginAudioProcessor::prepareToPlay(
-    const double sampleRate,
-    const int samplesPerBlock) {
+void AudioPluginAudioProcessor::prepareToPlay(const double sampleRate,
+                                              const int samplesPerBlock) {
   synth.setCurrentPlaybackSampleRate(sampleRate);
   lfo_buffer_.setSize(1, samplesPerBlock, false, true);
   lfo_generator_.set_mode(WaveGenerator::NO_ANTIALIAS);
@@ -117,18 +115,15 @@ void AudioPluginAudioProcessor::prepareToPlay(
   lfo_generator_.set_volume(0);
   lfo_samples_until_start_ = -1;
   lfo_ramp_ = -1;
-  // .001 seconds (todo idk...)
-  lfo_ramp_step_ = 1.f / static_cast<float>(sampleRate * 1000);
+  // .1 seconds (todo idk...)
+  lfo_ramp_step_ = 1.f / static_cast<float>(sampleRate * 100);
   lfo_generator_.PrepareToPlay(sampleRate);
-  lfo_generator_.set_pitch_hz(0);
   ConfigureLFO();
   // Update all voices with current parameters
   for (int i = 0; i < synth.getNumVoices(); ++i) {
     if (auto* voice = dynamic_cast<OscillatorVoice*>(synth.getVoice(i))) {
       voice->Configure(apvts_);
       voice->SetBlockSize(samplesPerBlock);
-      // todo: may be unneeded as its already ctor arg
-      voice->set_lfo_buffer(lfo_buffer_);
     }
   }
 }
@@ -188,11 +183,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   // interleaved by keeping the same state.
 
   if (const auto editor =
-      dynamic_cast<AudioPluginAudioProcessorEditor*>(getActiveEditor())) {
-    // todo do we need a separate buffer or can we append to existing?
-    editor->keyboard_state_.processNextMidiBuffer(
-        midiMessages, 0,
-        buffer.getNumSamples(), true);
+          dynamic_cast<AudioPluginAudioProcessorEditor*>(getActiveEditor())) {
+    editor->keyboard_state_.processNextMidiBuffer(midiMessages, 0,
+                                                  buffer.getNumSamples(), true);
 
     // Update all voices with current parameters
     for (int i = 0; i < synth.getNumVoices(); ++i) {
@@ -203,24 +196,28 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // lfo params
     ConfigureLFO();
 
-    // TODO: refactor the LFO logic so it doesn't clutter up this. Use state var to track the LFO state.
-    // should LFO countdown start?
+    // todo instead of clearing each block, just overwrite into it instead of adding to it
+    lfo_buffer_.clear(0, 0, lfo_buffer_.getNumSamples());
+
+    // TODO: refactor the LFO logic so it doesn't clutter up this. Use state var
+    // to track the LFO state. should LFO countdown start?
     int start_lfo_sample = -1;
     if (lfo_samples_until_start_ < 0) {
-      for (const auto metadata : midiMessages)
-      {
-        if (const auto message = metadata.getMessage(); message.isNoteOn())
-        {
+      for (const auto metadata : midiMessages) {
+        if (const auto message = metadata.getMessage(); message.isNoteOn()) {
           const int start_countdown_sample = metadata.samplePosition;
           // start countdown
-          lfo_samples_until_start_ = static_cast<int>(lfo_delay_time_s_ * static_cast<float>(getSampleRate()));
+          lfo_samples_until_start_ = static_cast<int>(
+              lfo_delay_time_s_ * static_cast<float>(getSampleRate()));
           start_lfo_sample = start_countdown_sample + lfo_samples_until_start_;
           if (start_lfo_sample < buffer.getNumSamples()) {
             // start this buffer
-            // todo: probably wasteful to render the lfo at such high resolution / audio rate...
+            // todo: probably wasteful to render the lfo at such high resolution
+            // / audio rate...
             lfo_buffer_.clear(0, 0, start_lfo_sample);
-            lfo_generator_.set_pitch_hz(static_cast<double>(lfo_rate_));
-            lfo_generator_.RenderNextBlock(lfo_buffer_, start_lfo_sample, buffer.getNumSamples() - start_lfo_sample, lfo_buffer_);
+            lfo_generator_.RenderNextBlock(
+                lfo_buffer_, start_lfo_sample,
+                buffer.getNumSamples() - start_lfo_sample);
             lfo_samples_until_start_ = 0;
           }
           break;
@@ -236,14 +233,10 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         // start this buffer
         lfo_buffer_.clear(0, 0, start_lfo_sample);
 
-        lfo_generator_.set_pitch_hz(static_cast<double>(lfo_rate_));
-        lfo_generator_.RenderNextBlock(lfo_buffer_, start_lfo_sample, buffer.getNumSamples() - start_lfo_sample, lfo_buffer_);
+        lfo_generator_.RenderNextBlock(
+            lfo_buffer_, start_lfo_sample,
+            buffer.getNumSamples() - start_lfo_sample);
         lfo_samples_until_start_ = 0;
-        // sanity check of LFO data
-        const auto buf = lfo_buffer_.getReadPointer(0);
-        for (auto i = 0; i < lfo_buffer_.getNumSamples(); ++i) {
-          DBG("lfo " + juce::String(buf[i]));
-        }
       }
     }
 
@@ -262,10 +255,11 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 
     // lfo already playing this block? render it and ramp if needed
-    // todo: if the LFO is supposed to end this block (due to all voices stopping), technically it will keep oscillating
+    // todo: if the LFO is supposed to end this block (due to all voices
+    // stopping), technically it will keep oscillating
     //   but it will have no effect since all voices stopped, so this is fine.
     if (lfo_samples_until_start_ == 0 && start_lfo_sample < 0) {
-      lfo_generator_.RenderNextBlock(lfo_buffer_, 0, buffer.getNumSamples(), lfo_buffer_);
+      lfo_generator_.RenderNextBlock(lfo_buffer_, 0, buffer.getNumSamples());
       if (lfo_ramp_ < 1.f) {
         // if we are currently LFO ramping, continue it
         auto* lfo_buffer_data = lfo_buffer_.getWritePointer(0);
@@ -279,12 +273,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         }
       }
     }
-
-    // sanity check of LFO data
-    // const auto buf = lfo_buffer_.getReadPointer(0);
-    // for (auto i = 0; i < lfo_buffer_.getNumSamples(); ++i) {
-    //   DBG("lfo " + juce::String(buf[i]));
-    // }
 
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 
@@ -300,7 +288,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       if (all_voices_stopped) {
         lfo_ramp_ = -1;
         lfo_samples_until_start_ = -1;
-        lfo_generator_.set_pitch_hz(0);
       }
     }
 
@@ -311,7 +298,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 }
 
 bool AudioPluginAudioProcessor::hasEditor() const {
-  return true; // (change this to false if you choose to not supply an editor)
+  return true;  // (change this to false if you choose to not supply an editor)
 }
 
 juce::AudioProcessorEditor* AudioPluginAudioProcessor::createEditor() {
@@ -340,58 +327,37 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
 
   // LFO
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "lfoRate",
-      "LFO Rate",
-      juce::NormalisableRange(0.01f, 100.f, .01f),
+      "lfoRate", "LFO Rate", juce::NormalisableRange(0.01f, 2.f, .01f),
       0.2f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "lfoDelayTimeSeconds",
-      "LFO Delay Time",
-      juce::NormalisableRange(0.00f, 3.f, .01f),
-      0.3f));
+      "lfoDelayTimeSeconds", "LFO Delay Time",
+      juce::NormalisableRange(0.00f, 3.f, .01f), 0.3f));
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
-      "lfoWaveType",
-      "LFO Wave Type",
-      juce::StringArray{"sine", "sawFall", "triangle", "square", "random"},
-      0));
+      "lfoWaveType", "LFO Wave Type",
+      juce::StringArray{"sine", "sawFall", "triangle", "square", "random"}, 0));
 
   // VCO Mod
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-    "vcoModLfoFreq",
-    "LFO Freq Mod",
-    juce::NormalisableRange(-1.f, 1.f, .01f),
-    0.f));
+      "vcoModLfoFreq", "LFO Freq Mod", juce::NormalisableRange(-1.f, 1.f, .01f),
+      0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
-    "vcoModOsc1",
-    "Freq Mod Osc 1",
-    true
-  ));
+      "vcoModOsc1", "Freq Mod Osc 1", true));
   parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
-    "vcoModOsc2",
-    "Freq Mod Osc 2",
-    true
-  ));
+      "vcoModOsc2", "Freq Mod Osc 2", true));
 
   // vco1
   // Oscillator wave type selector
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
-      "waveType",
-      "Wave Type",
-      juce::StringArray{"sine", "sawFall", "triangle", "square", "random"},
-      1));
+      "waveType", "Wave Type",
+      juce::StringArray{"sine", "sawFall", "triangle", "square", "random"}, 1));
 
   // vco2
   // wave type
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
-      "wave2Type",
-      "Wave 2 Type",
-      juce::StringArray{"sine", "sawFall", "triangle", "square", "random"},
-      1));
+      "wave2Type", "Wave 2 Type",
+      juce::StringArray{"sine", "sawFall", "triangle", "square", "random"}, 1));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "fineTune",
-      "Fine Tune",
-      juce::NormalisableRange(-1.f, 1.f, 0.01f),
-      0.f));
+      "fineTune", "Fine Tune", juce::NormalisableRange(-1.f, 1.f, 0.01f), 0.f));
 
   // ADSR envelope parameters
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -411,8 +377,7 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       juce::NormalisableRange(20.f, 8000.f, 1.f), 1000.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterResonance", "Filter Resonance",
-      juce::NormalisableRange(0.f, 4.f, 0.01f),
-      1.f));
+      juce::NormalisableRange(0.f, 4.f, 0.01f), 1.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterDrive", "Filter Drive", juce::NormalisableRange(0.f, 8.f, 0.01f),
       0.5f));
@@ -421,12 +386,11 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
 }
 
 void AudioPluginAudioProcessor::parameterChanged(
-    const juce::String& parameterID,
-    float newValue) {
+    const juce::String& parameterID, float newValue) {
   // todo if needed
   juce::ignoreUnused(parameterID, newValue);
 }
-} // namespace audio_plugin
+}  // namespace audio_plugin
 
 // This creates new instances of the plugin.
 // This function definition must be in the global namespace.

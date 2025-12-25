@@ -47,6 +47,7 @@ private:
 
   void parameterChanged(const juce::String& name, float newValue) override;
 
+  // todo: passing this around is a stupid way to do it. Let's find a better way...
   juce::AudioBuffer<float> lfo_buffer_;
   juce::Synthesiser synth;
   WaveGenerator lfo_generator_;

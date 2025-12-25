@@ -65,6 +65,8 @@ class WaveGenerator {
 
   bool hard_sync_ = true;
 
+  const juce::AudioBuffer<float>& lfo_buffer_;
+
 public:
   enum WaveType {
 
@@ -89,7 +91,7 @@ public:
 
   WaveMode mode_;
 
-  WaveGenerator();
+  WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer);
 
   void PrepareToPlay(double new_sample_rate);
 
@@ -253,8 +255,9 @@ public:
    * Fill the first channel of the buffer up to numSamples.
    */
   // todo: passing LFO like this is stupid, let's find a better way
-  void RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples, const juce::AudioBuffer<float>& lfo);
-  inline void BuildWave(int numSamples, const juce::AudioBuffer<float>& lfo);
+  void RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample,
+                       int numSamples);
+  inline void BuildWave(int numSamples);
 
   // SLOW RENDER (LFO) ::::::
   void MoveAngleForward(int numSamples);

@@ -1,12 +1,11 @@
 #pragma once
 
-#include "WaveGenerator.h"
-
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
 #include "Downsampler.h"
 #include "OTAFilter.h"
+#include "WaveGenerator.h"
 
 namespace audio_plugin {
 struct OscillatorSound : juce::SynthesiserSound {
@@ -17,7 +16,7 @@ struct OscillatorSound : juce::SynthesiserSound {
 };
 
 struct OscillatorVoice : juce::SynthesiserVoice {
-  OscillatorVoice(juce::AudioBuffer<float>& lfo_buffer);
+  OscillatorVoice(const juce::AudioBuffer<float>& lfo_buffer);
   bool canPlaySound(juce::SynthesiserSound* sound) override;
 
   /**
@@ -28,12 +27,12 @@ struct OscillatorVoice : juce::SynthesiserVoice {
 
   /**
    *
-   * @param blockSize Number of samples to expect per buffer (needed for oversampler)
+   * @param blockSize Number of samples to expect per buffer (needed for
+   * oversampler)
    */
   void SetBlockSize(int blockSize);
 
-  void startNote(int midiNoteNumber,
-                 float velocity,
+  void startNote(int midiNoteNumber, float velocity,
                  [[maybe_unused]] juce::SynthesiserSound* sound,
                  [[maybe_unused]] int pitchWheelPos) override;
 
@@ -43,19 +42,15 @@ struct OscillatorVoice : juce::SynthesiserVoice {
   void controllerMoved([[maybe_unused]] int controllerNumber,
                        [[maybe_unused]] int newControllerValue) override;
 
-  void renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
-                       int startSample,
+  void renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample,
                        int numSamples) override;
 
   // Test-only accessor to inspect internal generator state
   // todo below comment needed?
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
   WaveGenerator& getWaveGeneratorForTest() { return waveGenerator_; }
-  void set_lfo_buffer(const juce::AudioBuffer<float>& audio_buffer);
 
-private:
-  // todo: should probably use smart pointers...
-  juce::AudioBuffer<float>& lfo_buffer_;
+ private:
   WaveGenerator waveGenerator_;
   WaveGenerator wave2Generator_;
   OTAFilter filter_;
@@ -63,4 +58,4 @@ private:
   Downsampler downsampler_;
   juce::ADSR envelope_;
 };
-}
+}  // namespace audio_plugin

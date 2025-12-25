@@ -15,7 +15,8 @@ namespace audio_plugin {
 constexpr double DELTA{.0000001};
 
 // WAVE GEN :::::
-WaveGenerator::WaveGenerator() {
+WaveGenerator::WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer)
+    : lfo_buffer_(lfo_buffer) {
   history_length_ = 500;
   sample_rate_ = 0;
 
@@ -37,8 +38,7 @@ WaveGenerator::WaveGenerator() {
   skew_ = 0;
   last_sample_ = 0;
 
-  for (int i = 0; i < history_length_; i++)
-    history_.add(0);
+  for (int i = 0; i < history_length_; i++) history_.add(0);
 
   phase_angle_target_ = phase_angle_actual_ = 0;  // expressed 0 - 2*PI
 
@@ -75,18 +75,18 @@ void WaveGenerator::clear() {
 }
 
 // FAST RENDER (AP) :::::
-void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, const int startSample, const int numSamples, const juce::AudioBuffer<float>& lfo) {
+void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer,
+                                    const int startSample, const int numSamples) {
   jassert(sample_rate_ != 0.);
 
-  if (secondary_delta_base_ == 0.0)
-    return;
+  if (secondary_delta_base_ == 0.0) return;
 
   // todo FIX !!!!
   if (volume_ == 0. && gain_last_[0] == 0. && gain_last_[1] == 0. &&
       blep_generator_.IsClear())
     return;
 
-  BuildWave(numSamples, lfo);
+  BuildWave(numSamples);
 
   // ADD BAND-LIMITED (minBLEP) transitions :::
   if (mode_ == ANTIALIAS) {
@@ -94,10 +94,10 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, cons
     // We can tweak the minBLEP to limit any harmonic above 4*(desired F)
 
     // TUNE the blep ....
-    double freq = current_pitch_hz();            // Current, playing, Freq
+    double freq = current_pitch_hz();               // Current, playing, Freq
     double relativeFreq = 2 * freq / sample_rate_;  // 2 for Nyquist ...
-    relativeFreq *= blep_overtone_depth_;  // ie - up to the 3nd harmonic (2*2*2 ->
-                                        // 8x fundamental)
+    relativeFreq *= blep_overtone_depth_;  // ie - up to the 3nd harmonic (2*2*2
+                                           // -> 8x fundamental)
 
     blep_generator_.set_limiting_freq(
         static_cast<float>(relativeFreq));  // up to the 2nd harmonic ..
@@ -131,7 +131,6 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, cons
       prev_buffer_last_sample_raw_ = static_cast<double>(lastInputRaw);
       prev_buffer_last_sample_filtered_ = static_cast<double>(yPrev);
     }
-
   }
 
   // BUILD ::::
@@ -139,13 +138,12 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, cons
     // just adding a sample every 20 or so to the history
     history_.add(wave.getUnchecked(i));
 
-    if (history_.size() > history_length_)
-      history_.remove(0);
+    if (history_.size() > history_length_) history_.remove(0);
   }
 
   // COPY it to the outputbuffer ....
-  outputBuffer.addFromWithRamp(0, startSample, wave.getRawDataPointer(), numSamples,
-                               static_cast<float>(gain_last_[0]),
+  outputBuffer.addFromWithRamp(0, startSample, wave.getRawDataPointer(),
+                               numSamples, static_cast<float>(gain_last_[0]),
                                static_cast<float>(volume_));
 
   gain_last_[0] = volume_;
@@ -168,25 +166,19 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, cons
 
 #endif
 }
-inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuffer<float>& lfo) {
-  if (secondary_delta_base_ == 0.0)
-    return;
+inline void WaveGenerator::BuildWave(const int numSamples) {
+  if (secondary_delta_base_ == 0.0) return;
 
-  if (numSamples == 0)
-    return;
+  if (numSamples == 0) return;
   jassert(numSamples > 0);
 
-  if (wave.size() != numSamples)
-    wave.resize(numSamples);
+  if (wave.size() != numSamples) wave.resize(numSamples);
 
   float* waveData = wave.getRawDataPointer();
 
   // LINEAR CHANGE for now .... over the numsamples (see above)
-  if (pitch_bend_lfo_mod_ != 0.) {
-    pitch_bend_target_ = 1 + static_cast<double>(lfo.getReadPointer(0)[0]) * pitch_bend_lfo_mod_ * 10;
-  }
-  double freqDelta =
-      (pitch_bend_target_ - pitch_bend_actual_) / static_cast<double>(numSamples);
+  double freqDelta = (pitch_bend_target_ - pitch_bend_actual_) /
+                     static_cast<double>(numSamples);
   JUCE_SNAP_TO_ZERO(freqDelta);
 
   // SKEWING :::::
@@ -197,22 +189,25 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
     // LINEAR RAMP from current phase to the target
     phaseShiftPerSample = (phase_angle_target_ - phase_angle_actual_) /
                           (2 * numSamples);  // 2 here is smoooothing ...
-    phase_angle_actual_ = phase_angle_actual_ + phaseShiftPerSample * numSamples;
+    phase_angle_actual_ =
+        phase_angle_actual_ + phaseShiftPerSample * numSamples;
   }
 
   // BUILD ::::
-  //const auto lfo_data = lfo.getReadPointer(0);
+  const auto lfo_data = lfo_buffer_.getReadPointer(0);
   for (int i = 0; i < numSamples; i++) {
     bool primary_blep_occurred = false;
 
     // CHANGE the PITCH BEND (linear ramping)
-    pitch_bend_actual_ += freqDelta;
-    // todo: more up to date LFO
-    // if (pitch_bend_lfo_mod_ != 0.) {
-    //   pitch_bend_actual_ += static_cast<double>(lfo_data[i]) * pitch_bend_lfo_mod_;
-    // }
-    if (fabs(pitch_bend_actual_ - 1) < .00001)
-      pitch_bend_actual_ = 1;
+    // pitch_bend_actual_ += freqDelta;
+    // TODO: making VCO mod less glitchy and more sensible ranges + not getting
+    // more over time
+    if (pitch_bend_lfo_mod_ != 0.) {
+      // TODO: account better for oversampling - this hardcoded amount isn't good
+      pitch_bend_actual_ =
+          1 + static_cast<double>(lfo_data[i / 2]) * pitch_bend_lfo_mod_;
+    }
+    if (fabs(pitch_bend_actual_ - 1) < .00001) pitch_bend_actual_ = 1;
 
     // FOR CALCULATIONS,
     // note the current, actual delta (base pitch modified by pitch bends and
@@ -221,7 +216,8 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
         secondary_delta_base_ * pitch_bend_actual_ + phaseShiftPerSample;
 
     // HARD SYNCING ::::::
-    if (hard_sync_ && (fabs(primary_delta_base_ - secondary_delta_base_) > DELTA)) {
+    if (hard_sync_ &&
+        (fabs(primary_delta_base_ - secondary_delta_base_) > DELTA)) {
       // primary OSC DOES use pitch bending and phase shifting ...
       const double actual_current_primary_delta =
           primary_delta_base_ * pitch_bend_actual_ + phaseShiftPerSample;
@@ -247,9 +243,9 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
           // rollover
           double delta = .0000001;  // MIN
 
-          double angleAtRoll =
-              fmod(current_angle_ + percBeforeRoll * actual_current_angle_delta_,
-                   2 * juce::MathConstants<double>::twoPi);
+          double angleAtRoll = fmod(
+              current_angle_ + percBeforeRoll * actual_current_angle_delta_,
+              2 * juce::MathConstants<double>::twoPi);
           double angleBeforeRoll =
               fmod(angleAtRoll - delta, 2 * juce::MathConstants<double>::twoPi);
 
@@ -276,7 +272,7 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
           double depthLimited =
               blep_generator_
                   .proportional_blep_freq_;  // jlimit<double>(.1, .5,
-                                          // myBlepGenerator.proportionalBlepFreq);
+                                             // myBlepGenerator.proportionalBlepFreq);
 
           // actualCurrentAngleDelta below is added to compensate for higher
           // order nonlinearities 66 here was experimentally determined ...
@@ -293,7 +289,7 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
         // ESTIMATE !!!!! ERROR - this should be better, but we can't unskew (x
         // = x/cos(x) is not solvable)
         current_angle_ = 2 * juce::MathConstants<double>::twoPi -
-                       percBeforeRoll * actual_current_angle_delta_;
+                         percBeforeRoll * actual_current_angle_delta_;
 
         //
         primary_blep_occurred = true;
@@ -317,7 +313,7 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
       double actualCurrentAngleDeltaSkewed =
           current_angle_skewed_ - last_angle_skewed_;
       if (actualCurrentAngleDeltaSkewed < 0)
-        actualCurrentAngleDeltaSkewed += 2*juce::MathConstants<double>::twoPi;
+        actualCurrentAngleDeltaSkewed += 2 * juce::MathConstants<double>::twoPi;
 
       // ROLLED through 2*PI
       if (wave_type_ == square) {
@@ -334,7 +330,8 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
           blep.offset = percAfterRoll - static_cast<double>(i + 1);
 
           // MAGNITUDE of 1st order nonlinearity is 2 or -2 :::
-          if (fmod(current_angle_skewed_, 2 * juce::MathConstants<double>::twoPi) <
+          if (fmod(current_angle_skewed_,
+                   2 * juce::MathConstants<double>::twoPi) <
               actualCurrentAngleDeltaSkewed)
             blep.pos_change_magnitude = -2;
           else
@@ -349,16 +346,17 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
       } else if (wave_type_ == sawRise || wave_type_ == sawFall)  // SAW
       {
         // SAW ROLLs only at PI
-        if (fmod(current_angle_skewed_, 2 * juce::MathConstants<double>::twoPi) >
+        if (fmod(current_angle_skewed_,
+                 2 * juce::MathConstants<double>::twoPi) >
                 actualCurrentAngleDeltaSkewed &&
             fmod(current_angle_skewed_, juce::MathConstants<double>::twoPi) <
                 actualCurrentAngleDeltaSkewed) {
           /*
-          percAfterRoll is the fractional position (WITHING a single sample - a subsample)
-          (in the current output sample)
-          of where the waveform’s discontinuity (the “roll”/wrap) happened,
-          measured as a fraction of one sample, but expressed as
-          “how much of the sample occurs after the roll.”
+          percAfterRoll is the fractional position (WITHING a single sample - a
+          subsample) (in the current output sample) of where the waveform’s
+          discontinuity (the “roll”/wrap) happened, measured as a fraction of
+          one sample, but expressed as “how much of the sample occurs after the
+          roll.”
           */
           double percAfterRoll =
               fmod(current_angle_skewed_, juce::MathConstants<double>::twoPi) /
@@ -368,7 +366,8 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
           /*
            * The offset is from the end of the output buffer.
            * It indicates where the "roll" / blep / discontinuity STARTS, at an
-           * exact subsample (sample = integer part, subsample = fractional part)
+           * exact subsample (sample = integer part, subsample = fractional
+           * part)
            */
           MinBlepGenerator::BlepOffset blep;
           blep.offset = percAfterRoll - static_cast<double>(i + 1);
@@ -389,9 +388,9 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
         if (fmod(current_angle_skewed_ + juce::MathConstants<double>::twoPi / 2,
                  2 * juce::MathConstants<double>::twoPi) <
                 actualCurrentAngleDeltaSkewed ||
-            fmod(
-                current_angle_skewed_ + 3 * juce::MathConstants<double>::twoPi / 2,
-                2 * juce::MathConstants<double>::twoPi) <
+            fmod(current_angle_skewed_ +
+                     3 * juce::MathConstants<double>::twoPi / 2,
+                 2 * juce::MathConstants<double>::twoPi) <
                 actualCurrentAngleDeltaSkewed) {
           double aboveNonlinearity = 0;
           double percAfterRoll = 0;
@@ -400,9 +399,10 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
                        3 * juce::MathConstants<double>::twoPi / 2,
                    2 * juce::MathConstants<double>::twoPi) <
               actualCurrentAngleDeltaSkewed) {
-            aboveNonlinearity = fmod(
-                current_angle_skewed_ + 3 * juce::MathConstants<double>::twoPi / 2,
-                2 * juce::MathConstants<double>::twoPi);
+            aboveNonlinearity =
+                fmod(current_angle_skewed_ +
+                         3 * juce::MathConstants<double>::twoPi / 2,
+                     2 * juce::MathConstants<double>::twoPi);
             percAfterRoll = aboveNonlinearity / actualCurrentAngleDeltaSkewed;
           } else  // 3*double_Pi/2
           {
@@ -427,8 +427,7 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
           jassert(slope < 1);
 
           double sign = 1;
-          if (averageValue > 0)
-            sign = -1;
+          if (averageValue > 0) sign = -1;
 
           blep.pos_change_magnitude = 0;
 
@@ -436,11 +435,10 @@ inline void WaveGenerator::BuildWave(const int numSamples, const juce::AudioBuff
           double depthLimited =
               blep_generator_
                   .proportional_blep_freq_;  // jlimit<double>(.1, .5,
-                                          // myBlepGenerator.proportionalBlepFreq);
+                                             // myBlepGenerator.proportionalBlepFreq);
 
           // Assume nominal delta for all waves ... so ...
-          blep.vel_change_magnitude =
-              sign * 121 * slope * (1 / depthLimited);
+          blep.vel_change_magnitude = sign * 121 * slope * (1 / depthLimited);
 
           // ADD
           blep_generator_.AddBlep(blep);
@@ -475,8 +473,7 @@ double WaveGenerator::skew_angle(const double angle) const {
   }
 
   skewedAngle = fmod(skewedAngle, 2 * juce::MathConstants<double>::twoPi);
-  if (skewedAngle < 0.0)
-    skewedAngle += 2 * juce::MathConstants<double>::twoPi;
+  if (skewedAngle < 0.0) skewedAngle += 2 * juce::MathConstants<double>::twoPi;
 
   jassert(skewedAngle >= 0 &&
           skewedAngle <= 2 * juce::MathConstants<double>::twoPi);
@@ -511,8 +508,7 @@ void WaveGenerator::set_pitch_bend_lfo_mod(const float mod) {
 // SLOW RENDER (LFO) ::::::
 void WaveGenerator::MoveAngleForward(int numSamples) {
   // Not moving ...
-  if (numSamples == 0 || (fabs(secondary_delta_base_) < DELTA))
-    return;
+  if (numSamples == 0 || (fabs(secondary_delta_base_) < DELTA)) return;
 
   double angle = current_angle_;
   const int historyPoints = numSamples / 20;
@@ -530,9 +526,9 @@ void WaveGenerator::MoveAngleForward(int numSamples) {
         static_cast<float>(phase_angle_target_ - phase_angle_actual_) /
         static_cast<float>(100 * numSamples);
     modAngleDelta += static_cast<double>(phaseShiftPerSample);
-    phase_angle_actual_ =
-        phase_angle_actual_ + static_cast<double>(phaseShiftPerSample *
-                                               static_cast<float>(numSamples));
+    phase_angle_actual_ = phase_angle_actual_ +
+                          static_cast<double>(phaseShiftPerSample *
+                                              static_cast<float>(numSamples));
   }
 
   // UPDATE the history
@@ -543,17 +539,15 @@ void WaveGenerator::MoveAngleForward(int numSamples) {
 
     history_.add(static_cast<float>(GetValueAt(angle)));
 
-    if (history_.size() > history_length_)
-      history_.remove(0);
+    if (history_.size() > history_length_) history_.remove(0);
   }
 
   current_angle_ = fmod(current_angle_ + numSamples * modAngleDelta,
-                      2 * juce::MathConstants<double>::twoPi);  // ROLL
+                        2 * juce::MathConstants<double>::twoPi);  // ROLL
 }
 void WaveGenerator::MoveAngleForwardTo(double newAngle) {
   double delta = newAngle - current_angle_;
-  if (delta < 0)
-    delta = delta + 2 * juce::MathConstants<double>::twoPi;
+  if (delta < 0) delta = delta + 2 * juce::MathConstants<double>::twoPi;
 
   double numSamples = delta / secondary_delta_base_;
 
@@ -573,7 +567,8 @@ void WaveGenerator::LoadScene(const juce::ValueTree& node) {
   skew_ = node.getProperty("skew", skew_);
 
   blep_overtone_depth_ = node.getProperty("blepOvertoneDepth", 64.);
-  phase_angle_target_ = node.getProperty("phaseAngleTarget", phase_angle_target_);
+  phase_angle_target_ =
+      node.getProperty("phaseAngleTarget", phase_angle_target_);
 
   // ALWAYS HARD SYNC (for now)
   hard_sync_ = true;  //(bool)node.getProperty("hardSync", false);
