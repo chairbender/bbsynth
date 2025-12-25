@@ -80,10 +80,47 @@ void AudioPluginAudioProcessor::changeProgramName(int index,
   juce::ignoreUnused(index, newName);
 }
 
+void AudioPluginAudioProcessor::ConfigureLFO() {
+  lfo_delay_time_s_ = static_cast<float>(apvts_.getRawParameterValue("lfoDelayTimeSeconds")->load());
+  lfo_rate_ = static_cast<float>(apvts_.getRawParameterValue("lfoRate")->load());
+
+  switch (static_cast<int>(apvts_.getRawParameterValue("lfoWaveType")->load())) {
+    case 0:
+      lfo_generator_.set_wave_type(WaveGenerator::sine);
+      break;
+    case 1:
+      lfo_generator_.set_wave_type(WaveGenerator::sawFall);
+      break;
+    case 2:
+      lfo_generator_.set_wave_type(WaveGenerator::triangle);
+      break;
+    case 3:
+      lfo_generator_.set_wave_type(WaveGenerator::square);
+      break;
+    case 4:
+      lfo_generator_.set_wave_type(WaveGenerator::random);
+      break;
+    default:
+      break;
+  }
+
+}
+
+
 void AudioPluginAudioProcessor::prepareToPlay(
     const double sampleRate,
     const int samplesPerBlock) {
   synth.setCurrentPlaybackSampleRate(sampleRate);
+  lfo_buffer_.setSize(1, samplesPerBlock, false, true);
+  lfo_generator_.set_mode(WaveGenerator::NO_ANTIALIAS);
+  lfo_generator_.set_dc_blocker_enabled(false);
+  lfo_generator_.set_volume(0);
+  lfo_samples_until_start_ = -1;
+  lfo_ramp_ = -1;
+  // .001 seconds (todo idk...)
+  lfo_ramp_step_ = 1.f / static_cast<float>(sampleRate * 1000);
+  lfo_generator_.PrepareToPlay(sampleRate);
+  ConfigureLFO();
   // Update all voices with current parameters
   for (int i = 0; i < synth.getNumVoices(); ++i) {
     if (auto* voice = dynamic_cast<OscillatorVoice*>(synth.getVoice(i))) {
@@ -128,8 +165,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   juce::ignoreUnused(midiMessages);
 
   juce::ScopedNoDenormals noDenormals;
-  auto totalNumInputChannels = getTotalNumInputChannels();
-  auto totalNumOutputChannels = getTotalNumOutputChannels();
+  const auto totalNumInputChannels = getTotalNumInputChannels();
+  const auto totalNumOutputChannels = getTotalNumOutputChannels();
 
   // In case we have more outputs than inputs, this code clears any output
   // channels that didn't contain input data, (because these aren't
@@ -147,7 +184,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   // Alternatively, you can process the samples with the channels
   // interleaved by keeping the same state.
 
-  if (auto editor =
+  if (const auto editor =
       dynamic_cast<AudioPluginAudioProcessorEditor*>(getActiveEditor())) {
     // todo do we need a separate buffer or can we append to existing?
     editor->keyboard_state_.processNextMidiBuffer(
@@ -158,6 +195,78 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     for (int i = 0; i < synth.getNumVoices(); ++i) {
       if (auto* voice = dynamic_cast<OscillatorVoice*>(synth.getVoice(i))) {
         voice->Configure(apvts_);
+      }
+    }
+    // lfo params
+    ConfigureLFO();
+
+    // TODO: refactor the LFO logic so it doesn't clutter up this. Use state var to track the LFO state.
+    // should LFO countdown start?
+    int start_lfo_sample = -1;
+    if (lfo_samples_until_start_ < 0) {
+      for (const auto metadata : midiMessages)
+      {
+        if (const auto message = metadata.getMessage(); message.isNoteOn())
+        {
+          const int start_countdown_sample = metadata.samplePosition;
+          // start countdown
+          lfo_samples_until_start_ = static_cast<int>(lfo_delay_time_s_ * static_cast<float>(getSampleRate()));
+          start_lfo_sample = start_countdown_sample + lfo_samples_until_start_;
+          if (start_lfo_sample < buffer.getNumSamples()) {
+            // start this buffer
+            // todo: probably wasteful to render the lfo at such high resolution / audio rate...
+            lfo_buffer_.clear(0, 0, start_lfo_sample);
+            lfo_generator_.set_pitch_hz(static_cast<double>(lfo_rate_));
+            lfo_generator_.RenderNextBlock(lfo_buffer_, start_lfo_sample, buffer.getNumSamples() - start_lfo_sample);
+            lfo_samples_until_start_ = 0;
+          }
+          break;
+        }
+      }
+    }
+
+    // count down the LFO
+    if (lfo_samples_until_start_ > 0) {
+      lfo_samples_until_start_ -= buffer.getNumSamples();
+      start_lfo_sample = buffer.getNumSamples() + lfo_samples_until_start_;
+      if (start_lfo_sample < buffer.getNumSamples()) {
+        // start this buffer
+        lfo_buffer_.clear(0, 0, start_lfo_sample);
+        lfo_generator_.RenderNextBlock(lfo_buffer_, start_lfo_sample, buffer.getNumSamples() - start_lfo_sample);
+        lfo_samples_until_start_ = 0;
+      }
+    }
+
+    // if we started this block, start ramping where we started
+    if (lfo_ramp_ < 0 && start_lfo_sample >= 0) {
+      lfo_ramp_ = 0;
+      auto* lfo_buffer_data = lfo_buffer_.getWritePointer(0);
+      for (auto i = start_lfo_sample; i < lfo_buffer_.getNumSamples(); ++i) {
+        lfo_buffer_data[i] *= lfo_ramp_;
+        lfo_ramp_ += lfo_ramp_step_;
+        if (lfo_ramp_ >= 1.f) {
+          lfo_ramp_ = 1.f;
+          break;
+        }
+      }
+    }
+
+    // lfo already playing this block? render it and ramp if needed
+    // todo: if the LFO is supposed to end this block (due to all voices stopping), technically it will keep oscillating
+    //   but it will have no effect since all voices stopped, so this is fine.
+    if (lfo_samples_until_start_ == 0 && start_lfo_sample < 0) {
+      lfo_generator_.RenderNextBlock(buffer, 0, buffer.getNumSamples());
+      if (lfo_ramp_ < 1.f) {
+        // if we are currently LFO ramping, continue it
+        auto* lfo_buffer_data = lfo_buffer_.getWritePointer(0);
+        for (auto i = 0; i < lfo_buffer_.getNumSamples(); ++i) {
+          lfo_buffer_data[i] *= lfo_ramp_;
+          lfo_ramp_ += lfo_ramp_step_;
+          if (lfo_ramp_ >= 1.f) {
+            lfo_ramp_ = 1.f;
+            break;
+          }
+        }
       }
     }
 
@@ -204,15 +313,15 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       juce::NormalisableRange(0.01f, 100.f, .01f),
       0.2f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-    "lfoDelayTime",
-    "LFO Delay Time",
-    juce::NormalisableRange(0.00f, 3.f, .01f),
-    0.3f));
+      "lfoDelayTimeSeconds",
+      "LFO Delay Time",
+      juce::NormalisableRange(0.00f, 3.f, .01f),
+      0.3f));
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
-    "lfoWaveType",
-    "LFO Wave Type",
-    juce::StringArray{"sine", "sawFall", "triangle", "square", "random"},
-    0));
+      "lfoWaveType",
+      "LFO Wave Type",
+      juce::StringArray{"sine", "sawFall", "triangle", "square", "random"},
+      0));
 
   // vco1
   // Oscillator wave type selector
