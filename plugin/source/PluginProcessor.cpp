@@ -357,6 +357,9 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "pulseWidth", "Pulse Width", juce::NormalisableRange(0.f, 1.f, .01f),
       0.5f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
+      "pulseWidthSource", "Pulse Width Source",
+      juce::StringArray{"E2-", "E2+", "E1-", "E1+", "LFO", "MAN"}, 5));
 
   // vco1
   // Oscillator wave type selector
