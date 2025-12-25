@@ -15,8 +15,8 @@ bool OscillatorSound::appliesToChannel([[maybe_unused]] int midiChannelIndex) {
 }
 
 OscillatorVoice::OscillatorVoice(const juce::AudioBuffer<float>& lfo_buffer)
-    : waveGenerator_{lfo_buffer},
-      wave2Generator_{lfo_buffer} {
+    : waveGenerator_{lfo_buffer, env1_buffer_},
+      wave2Generator_{lfo_buffer, env1_buffer_} {
   waveGenerator_.PrepareToPlay(getSampleRate() * kOversample);
   wave2Generator_.PrepareToPlay(getSampleRate() * kOversample);
   // waveGenerator_.setHardsync(false);
@@ -45,11 +45,15 @@ void OscillatorVoice::Configure(
   if (apvts.getRawParameterValue("vcoModOsc1")->load() > 0) {
     waveGenerator_.set_pitch_bend_lfo_mod(
         apvts.getRawParameterValue("vcoModLfoFreq")->load());
+    waveGenerator_.set_pitch_bend_env1_mod(
+        apvts.getRawParameterValue("vcoModEnv1Freq")->load());
   }
 
   if (apvts.getRawParameterValue("vcoModOsc2")->load() > 0) {
     wave2Generator_.set_pitch_bend_lfo_mod(
         apvts.getRawParameterValue("vcoModLfoFreq")->load());
+    wave2Generator_.set_pitch_bend_env1_mod(
+        apvts.getRawParameterValue("vcoModEnv1Freq")->load());
   }
 
   switch (static_cast<int>(apvts.getRawParameterValue("waveType")->load())) {

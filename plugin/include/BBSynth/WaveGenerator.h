@@ -44,6 +44,8 @@ class WaveGenerator {
   double pitch_bend_actual_ = 0;
   // amount of effect the LFO has on the pitch
   double pitch_bend_lfo_mod_ = 0;
+  // amount of effect the env1 has on the pitch
+  double pitch_bend_env1_mod_ = 0;
 
   // ACTUAL delta
   // - takes into account pitch bend and phase shift ...
@@ -66,6 +68,7 @@ class WaveGenerator {
   bool hard_sync_ = true;
 
   const juce::AudioBuffer<float>& lfo_buffer_;
+  const juce::AudioBuffer<float>& env1_buffer_;
 
 public:
   enum WaveType {
@@ -91,7 +94,7 @@ public:
 
   WaveMode mode_;
 
-  WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer);
+  WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer, const juce::AudioBuffer<float>& env1_buffer);
 
   void PrepareToPlay(double new_sample_rate);
 
@@ -283,6 +286,7 @@ public:
   }
   double GetValueAt(double angle);
   void set_pitch_bend_lfo_mod(float mod);
+  void set_pitch_bend_env1_mod(float mod);
 
   // Wave calculations ...
   static inline double GetSine(double angle) {
