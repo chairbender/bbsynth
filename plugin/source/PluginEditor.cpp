@@ -273,6 +273,51 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env1_release_label_.attachToComponent(&env1_release_slider_, false);
   addAndMakeVisible(env1_release_label_);
 
+  // env2 section
+  env2_label_.setText("ENV2", juce::dontSendNotification);
+  addAndMakeVisible(env2_label_);
+  env2_attack_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  env2_attack_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(env2_attack_slider_);
+  env2_attack_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "env2Attack", env2_attack_slider_);
+  env2_attack_label_.setText("Attack", juce::dontSendNotification);
+  env2_attack_label_.attachToComponent(&env2_attack_slider_, false);
+  addAndMakeVisible(env2_attack_label_);
+
+  env2_decay_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  env2_decay_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(env2_decay_slider_);
+  env2_decay_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "env2Decay", env2_decay_slider_);
+  env2_decay_label_.setText("Decay", juce::dontSendNotification);
+  env2_decay_label_.attachToComponent(&env2_decay_slider_, false);
+  addAndMakeVisible(env2_decay_label_);
+
+  env2_sustain_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  env2_sustain_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
+                                       20);
+  addAndMakeVisible(env2_sustain_slider_);
+  env2_sustain_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "env2Sustain", env2_sustain_slider_);
+  env2_sustain_label_.setText("Sustain", juce::dontSendNotification);
+  env2_sustain_label_.attachToComponent(&env2_sustain_slider_, false);
+  addAndMakeVisible(env2_sustain_label_);
+
+  env2_release_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  env2_release_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
+                                       20);
+  addAndMakeVisible(env2_release_slider_);
+  env2_release_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "env2Release", env2_release_slider_);
+  env2_release_label_.setText("Release", juce::dontSendNotification);
+  env2_release_label_.attachToComponent(&env2_release_slider_, false);
+  addAndMakeVisible(env2_release_label_);
+
   addAndMakeVisible(spectrum_analyzer_);
 
   addAndMakeVisible(keyboardComponent);
@@ -302,6 +347,7 @@ void AudioPluginAudioProcessorEditor::resized() {
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1))
   };
 
@@ -312,6 +358,8 @@ void AudioPluginAudioProcessorEditor::resized() {
       juce::GridItem(vco2_label_),
       juce::GridItem(vcf_label_),
       juce::GridItem(env1_label_),
+      juce::GridItem(env2_label_),
+      juce::GridItem{},
       juce::GridItem{},
       juce::GridItem{},
       juce::GridItem{},
@@ -491,6 +539,37 @@ void AudioPluginAudioProcessorEditor::resized() {
       juce::GridItem{env1_decay_label_},
       juce::GridItem{env1_sustain_label_},
       juce::GridItem{env1_release_label_}
+    };
+
+    section_grid.performLayout(section_bounds.toNearestInt());
+  }
+
+  // ENV2 section
+  {
+    const auto section_bounds = grid.items[item_idx++].currentBounds;
+    juce::Grid section_grid;
+    section_grid.alignContent = juce::Grid::AlignContent::center;
+    section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+    section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+    section_grid.templateColumns = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+    };
+    section_grid.templateRows = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+    };
+    section_grid.items = {
+      juce::GridItem{env2_attack_slider_},
+      juce::GridItem{env2_decay_slider_},
+      juce::GridItem{env2_sustain_slider_},
+      juce::GridItem{env2_release_slider_},
+      juce::GridItem{env2_attack_label_},
+      juce::GridItem{env2_decay_label_},
+      juce::GridItem{env2_sustain_label_},
+      juce::GridItem{env2_release_label_}
     };
 
     section_grid.performLayout(section_bounds.toNearestInt());

@@ -52,11 +52,13 @@ struct OscillatorVoice : juce::SynthesiserVoice {
 
  private:
   juce::AudioBuffer<float> env1_buffer_;
+  juce::AudioBuffer<float> env2_buffer_;
   WaveGenerator waveGenerator_;
   WaveGenerator wave2Generator_;
   OTAFilter filter_;
   juce::AudioBuffer<float> oversample_buffer_;
   Downsampler downsampler_;
   juce::ADSR envelope_;
+  juce::ADSR envelope2_;
 };
 }  // namespace audio_plugin

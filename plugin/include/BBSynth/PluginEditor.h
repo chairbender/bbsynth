@@ -128,6 +128,24 @@ private:
   juce::Label env1_release_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> env1_release_attachment_;
 
+  // ENV2 section
+  juce::Label env2_label_;
+  juce::Slider env2_attack_slider_;
+  juce::Label env2_attack_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> env2_attack_attachment_;
+
+  juce::Slider env2_decay_slider_;
+  juce::Label env2_decay_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> env2_decay_attachment_;
+
+  juce::Slider env2_sustain_slider_;
+  juce::Label env2_sustain_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> env2_sustain_attachment_;
+
+  juce::Slider env2_release_slider_;
+  juce::Label env2_release_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> env2_release_attachment_;
+
   SpectrumAnalyzerComponent spectrum_analyzer_;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessorEditor)

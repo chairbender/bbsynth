@@ -6,22 +6,38 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 */
 #pragma once
 
-#include <juce_data_structures/juce_data_structures.h>
+#include <BBSynth/MinBlepGenerator.h>
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
-#include <BBSynth/MinBlepGenerator.h>
+#include <juce_data_structures/juce_data_structures.h>
 
 namespace audio_plugin {
+
+enum PulseWidthModType {
+  env2Minus = 0,
+  env2Plus = 1,
+  env1Minus = 2,
+  env1Plus = 3,
+  lfo = 4,
+  manual = 5
+};
+
 class WaveGenerator {
   MinBlepGenerator blep_generator_;
 
   double blep_overtone_depth_ = 1;  // tweak the "resolution" of the blep ...
-                                 // (multiple of highest harmonics allowed)
+                                    // (multiple of highest harmonics allowed)
 
   // PRIMARY - HARD SYNC ::::
   double primary_delta_base_ = 0;    // for hard syncing
   double primary_pitch_offset_ = 1;  // relative offset ....
   double primary_angle_ = 0;
+
+  PulseWidthModType pulse_width_mod_type_ = manual;
+  // different effects depending on mod type, but range should be 0. to 1.f
+  double pulse_width_mod_ = 0.5;
+  // actual current pwm for cur sample
+  double pulse_width_actual_ = 0.5;
 
   // secondary - HARD SYNC ::::
   double secondary_delta_base_ = 0;
@@ -53,7 +69,7 @@ class WaveGenerator {
 
   double volume_ = 1;
   double gain_last_[2] = {0, 0};  // for ramping ..
-  double skew_ = 0;              // [-1, 1]
+  double skew_ = 0;               // [-1, 1]
   double sample_rate_ = 0;
 
   juce::Array<float> wave;  // hmmm ... faster to make this a pointer I bet ....
@@ -69,8 +85,9 @@ class WaveGenerator {
 
   const juce::AudioBuffer<float>& lfo_buffer_;
   const juce::AudioBuffer<float>& env1_buffer_;
+  const juce::AudioBuffer<float>& env2_buffer_;
 
-public:
+ public:
   enum WaveType {
 
     sine = 0,
@@ -94,11 +111,14 @@ public:
 
   WaveMode mode_;
 
-  WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer, const juce::AudioBuffer<float>& env1_buffer);
+  WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
+                const juce::AudioBuffer<float>& env1_buffer,
+                const juce::AudioBuffer<float>& env2_buffer);
 
   void PrepareToPlay(double new_sample_rate);
 
-  // Enable/disable the post-BLEP DC blocker (1st-order high-pass) used in ANTIALIAS mode
+  // Enable/disable the post-BLEP DC blocker (1st-order high-pass) used in
+  // ANTIALIAS mode
   void set_dc_blocker_enabled(bool enabled) { dc_blocker_enabled_ = enabled; }
   bool dc_blocker_enabled() const { return dc_blocker_enabled_; }
 
@@ -130,11 +150,14 @@ public:
   MinBlepGenerator* blep_generator() { return &blep_generator_; }
   void set_blep_size(float sample_rate_for_blep);
 
-  void set_pulse_width(double pulse_width) {
-    jassert(pulse_width >= 0 && pulse_width <= 1);
-    pulse_width_ = pulse_width;
+  void set_pulse_width_mod_type(const PulseWidthModType type) {
+    pulse_width_mod_type_ = type;
   }
-  double pulse_width() const { return pulse_width_; }
+
+  void set_pulse_width_mod(const double pulse_width) {
+    jassert(pulse_width >= 0 && pulse_width <= 1);
+    pulse_width_mod_ = pulse_width;
+  }
 
   double secondary_delta_base() const { return secondary_delta_base_; }
   double primary_delta_base() const { return primary_delta_base_; }
@@ -150,23 +173,23 @@ public:
     const double centerF =
         juce::MidiMessage::getMidiNoteInHertz(midi_note_value);  // ....
     const double cyclesPerSample = centerF / sample_rate;
-    const float angleDelta = static_cast<float>(cyclesPerSample * 2.0 *
-                                          juce::MathConstants<double>::twoPi);
+    const float angleDelta = static_cast<float>(
+        cyclesPerSample * 2.0 * juce::MathConstants<double>::twoPi);
 
     set_primary_delta(static_cast<double>(angleDelta));
   }
 
   void set_pitch_hz(double freq) {
     const double cyclesPerSample = freq / sample_rate_;
-    const float angleDelta = static_cast<float>(cyclesPerSample * 2.0 *
-                                          juce::MathConstants<double>::twoPi);
+    const float angleDelta = static_cast<float>(
+        cyclesPerSample * 2.0 * juce::MathConstants<double>::twoPi);
     set_primary_delta(static_cast<double>(angleDelta));
   }
 
   double current_pitch_hz() const {
     // float angleDelta = cyclesPerSample * 2.0 * double_Pi;
-    const double cyclesPerSample =
-        actual_current_angle_delta_ / (2.0 * juce::MathConstants<double>::twoPi);
+    const double cyclesPerSample = actual_current_angle_delta_ /
+                                   (2.0 * juce::MathConstants<double>::twoPi);
     const double freq = cyclesPerSample * sample_rate_;
 
     return freq;
@@ -294,9 +317,6 @@ public:
   void set_pitch_bend_lfo_mod(float mod);
   void set_pitch_bend_env1_mod(float mod);
 
-  // Wave calculations ...
-  double pulse_width_ = 0.5;
-
   static inline double GetSine(double angle) {
     const double sample = sin(angle);
     return sample;
@@ -343,9 +363,9 @@ public:
     return sample;
   }
 
-  static inline double GetSquare(const double angle, const double pulse_width = 0.5) {
-    if (angle >= juce::MathConstants<double>::twoPi * pulse_width)
-      return -1;
+  static inline double GetSquare(const double angle,
+                                 const double pulse_width = 0.5) {
+    if (angle >= juce::MathConstants<double>::twoPi * pulse_width) return -1;
     return 1;
   }
 
@@ -353,7 +373,8 @@ public:
     double r = static_cast<double>(juce::Random::getSystemRandom().nextFloat());
 
     r = 2 * (r - 0.5);  // scale to -1 .. 1
-    r = juce::jlimit(-10 * secondary_delta_base_, 10 * secondary_delta_base_, r);
+    r = juce::jlimit(-10 * secondary_delta_base_, 10 * secondary_delta_base_,
+                     r);
 
     last_sample_ += r;
 

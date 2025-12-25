@@ -18,7 +18,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
       apvts_(*this, nullptr, "ParameterTree", CreateParameterLayout()),
       // TODO: we should have the option to not pass these buffers -
       //   they're not needed for LFO
-      lfo_generator_{lfo_buffer_,lfo_buffer_} {
+      lfo_generator_{lfo_buffer_, lfo_buffer_, lfo_buffer_} {
   for (auto i = 0; i < 1; ++i) {
     synth.addVoice(new OscillatorVoice(lfo_buffer_));
   }
@@ -387,6 +387,20 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       juce::NormalisableRange(0.0f, 1.0f, 0.001f), 0.7f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "adsrRelease", "ADSR Release (s)",
+      juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.3f));
+
+  // ENV2 parameters
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "env2Attack", "ENV2 Attack (s)",
+      juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.01f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "env2Decay", "ENV2 Decay (s)",
+      juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.2f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "env2Sustain", "ENV2 Sustain",
+      juce::NormalisableRange(0.0f, 1.0f, 0.001f), 0.7f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "env2Release", "ENV2 Release (s)",
       juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.3f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterCutoffFreq", "Filter Cutoff Frequency",

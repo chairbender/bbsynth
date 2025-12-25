@@ -16,8 +16,11 @@ constexpr double DELTA{.0000001};
 
 // WAVE GEN :::::
 WaveGenerator::WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
-  const juce::AudioBuffer<float>& env1_buffer)
-    : lfo_buffer_(lfo_buffer), env1_buffer_(env1_buffer) {
+                             const juce::AudioBuffer<float>& env1_buffer,
+                             const juce::AudioBuffer<float>& env2_buffer)
+    : lfo_buffer_(lfo_buffer),
+      env1_buffer_(env1_buffer),
+      env2_buffer_(env2_buffer) {
   history_length_ = 500;
   sample_rate_ = 0;
 
@@ -77,7 +80,8 @@ void WaveGenerator::clear() {
 
 // FAST RENDER (AP) :::::
 void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer,
-                                    const int startSample, const int numSamples) {
+                                    const int startSample,
+                                    const int numSamples) {
   jassert(sample_rate_ != 0.);
 
   if (secondary_delta_base_ == 0.0) return;
@@ -197,6 +201,7 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
   // BUILD ::::
   const auto lfo_data = lfo_buffer_.getReadPointer(0);
   const auto env1_data = env1_buffer_.getReadPointer(0);
+  const auto env2_data = env2_buffer_.getReadPointer(0);
   for (int i = 0; i < numSamples; i++) {
     bool primary_blep_occurred = false;
 
@@ -325,40 +330,81 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
 
       // ROLLED through 2*PI
       if (wave_type_ == square) {
+        if (pulse_width_mod_ != 0.) {
+          switch (pulse_width_mod_type_) {
+            case env2Plus:
+              pulse_width_actual_ =
+                  static_cast<double>(env2_data[i / 2]) * pulse_width_mod_;
+              break;
+            case env2Minus:
+              pulse_width_actual_ =
+                  static_cast<double>(env2_data[i / 2]) * -pulse_width_mod_;
+              break;
+            case env1Plus:
+              pulse_width_actual_ =
+                  static_cast<double>(env1_data[i / 2]) * pulse_width_mod_;
+              break;
+            case env1Minus:
+              pulse_width_actual_ =
+                  static_cast<double>(env1_data[i / 2]) * -pulse_width_mod_;
+              break;
+            case lfo:
+              pulse_width_actual_ =
+                  (static_cast<double>(lfo_data[i / 2]) / 2 + 1) * pulse_width_mod_;
+              break;
+            case manual:
+              pulse_width_actual_ = pulse_width_mod_;
+              break;
+          }
+        } else {
+          pulse_width_actual_ = 0.5;
+        }
         // :: SQUARE rolls twice - at pulse_width and 1 ::::
-        const double threshold1 = juce::MathConstants<double>::twoPi * pulse_width_;
+        const double threshold1 =
+            juce::MathConstants<double>::twoPi * pulse_width_actual_;
         constexpr double threshold2 = 2 * juce::MathConstants<double>::twoPi;
 
         auto check_rollover = [&](const double threshold,
                                   const double magnitude) {
-          // adjust for wrapping if needed, but current_angle_skewed_ and last_angle_skewed_
-          // should be in the same period usually unless freq is very high.
-          // Actually, current_angle_skewed_ is fmodded to [0, 2pi].
-          
+          // adjust for wrapping if needed, but current_angle_skewed_ and
+          // last_angle_skewed_ should be in the same period usually unless freq
+          // is very high. Actually, current_angle_skewed_ is fmodded to [0,
+          // 2pi].
+
           bool crossed = false;
           double percAfterRoll = 0;
-          
-          if (last_angle_skewed_ < threshold && current_angle_skewed_ >= threshold) {
+
+          if (last_angle_skewed_ < threshold &&
+              current_angle_skewed_ >= threshold) {
             crossed = true;
-            percAfterRoll = (current_angle_skewed_ - threshold) / actualCurrentAngleDeltaSkewed;
+            percAfterRoll = (current_angle_skewed_ - threshold) /
+                            actualCurrentAngleDeltaSkewed;
           } else if (current_angle_skewed_ < last_angle_skewed_) {
-             // Wrapped around 2PI
-             if (threshold >= threshold2 - 1e-9) {
-               crossed = true;
-               percAfterRoll = current_angle_skewed_ / actualCurrentAngleDeltaSkewed;
-             } else if (last_angle_skewed_ < threshold || current_angle_skewed_ >= threshold) {
-               // This case is trickier if it wraps and crosses threshold1 in one sample.
-               // For now assume freq < sample_rate.
-               if (last_angle_skewed_ < threshold) {
-                  crossed = true;
-                  percAfterRoll = (current_angle_skewed_ + (threshold2 - last_angle_skewed_) - (threshold - last_angle_skewed_)) / actualCurrentAngleDeltaSkewed;
-                  // Simplify:
-                  percAfterRoll = (current_angle_skewed_ + threshold2 - threshold) / actualCurrentAngleDeltaSkewed;
-               } else if (current_angle_skewed_ >= threshold) {
-                  crossed = true;
-                  percAfterRoll = (current_angle_skewed_ - threshold) / actualCurrentAngleDeltaSkewed;
-               }
-             }
+            // Wrapped around 2PI
+            if (threshold >= threshold2 - 1e-9) {
+              crossed = true;
+              percAfterRoll =
+                  current_angle_skewed_ / actualCurrentAngleDeltaSkewed;
+            } else if (last_angle_skewed_ < threshold ||
+                       current_angle_skewed_ >= threshold) {
+              // This case is trickier if it wraps and crosses threshold1 in one
+              // sample. For now assume freq < sample_rate.
+              if (last_angle_skewed_ < threshold) {
+                crossed = true;
+                percAfterRoll =
+                    (current_angle_skewed_ + (threshold2 - last_angle_skewed_) -
+                     (threshold - last_angle_skewed_)) /
+                    actualCurrentAngleDeltaSkewed;
+                // Simplify:
+                percAfterRoll =
+                    (current_angle_skewed_ + threshold2 - threshold) /
+                    actualCurrentAngleDeltaSkewed;
+              } else if (current_angle_skewed_ >= threshold) {
+                crossed = true;
+                percAfterRoll = (current_angle_skewed_ - threshold) /
+                                actualCurrentAngleDeltaSkewed;
+              }
+            }
           }
 
           if (crossed) {
@@ -523,7 +569,7 @@ double WaveGenerator::GetValueAt(double angle) {
   else if (wave_type_ == triangle)
     currentSample = GetTriangle(angle);
   else if (wave_type_ == square)
-    currentSample = GetSquare(angle, pulse_width_);
+    currentSample = GetSquare(angle, pulse_width_actual_);
   else if (wave_type_ == random)
     currentSample = GetRandom(angle);
 
