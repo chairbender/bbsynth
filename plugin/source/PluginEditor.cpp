@@ -186,6 +186,17 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   fine_tune_label_.attachToComponent(&fine_tune_slider_, false);
   addAndMakeVisible(fine_tune_slider_);
 
+  // sync
+  vco2_sync_button_.setButtonText("Sync");
+  vco2_sync_button_.setClickingTogglesState(true);
+  addAndMakeVisible(vco2_sync_button_);
+  vco2_sync_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::ButtonAttachment>(
+      processorRef.apvts_, "vco2Sync", vco2_sync_button_);
+  vco2_sync_label_.setText("Sync", juce::dontSendNotification);
+  vco2_sync_label_.attachToComponent(&vco2_sync_button_, false);
+  addAndMakeVisible(vco2_sync_label_);
+
   //vcf section
   vcf_label_.setText("VCF", juce::dontSendNotification);
   addAndMakeVisible(vcf_label_);
@@ -471,6 +482,7 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
     section_grid.templateColumns = {
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1))
     };
     section_grid.templateRows = {
@@ -480,8 +492,10 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.items = {
       juce::GridItem{wave2_type_combo_},
       juce::GridItem{fine_tune_slider_},
+      juce::GridItem{vco2_sync_button_},
       juce::GridItem{wave2_type_label_},
-      juce::GridItem{fine_tune_label_}
+      juce::GridItem{fine_tune_label_},
+      juce::GridItem{vco2_sync_label_}
     };
 
     section_grid.performLayout(section_bounds.toNearestInt());

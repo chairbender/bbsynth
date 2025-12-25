@@ -106,6 +106,8 @@ void OscillatorVoice::Configure(
   }
   wave2Generator_.set_pitch_offset_hz(
       static_cast<double>(apvts.getRawParameterValue("fineTune")->load()));
+  wave2Generator_.set_hardsync(
+      apvts.getRawParameterValue("vco2Sync")->load() > 0.5f);
 
   const int pulseWidthSource =
       static_cast<int>(apvts.getRawParameterValue("pulseWidthSource")->load());
