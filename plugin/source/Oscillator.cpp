@@ -15,8 +15,8 @@ bool OscillatorSound::appliesToChannel([[maybe_unused]] int midiChannelIndex) {
 }
 
 OscillatorVoice::OscillatorVoice(const juce::AudioBuffer<float>& lfo_buffer)
-    : waveGenerator_{lfo_buffer, env1_buffer_},
-      wave2Generator_{lfo_buffer, env1_buffer_} {
+    : waveGenerator_{lfo_buffer, env1_buffer_, env2_buffer_},
+      wave2Generator_{lfo_buffer, env1_buffer_, env2_buffer_} {
   waveGenerator_.PrepareToPlay(getSampleRate() * kOversample);
   wave2Generator_.PrepareToPlay(getSampleRate() * kOversample);
   // waveGenerator_.setHardsync(false);
@@ -41,6 +41,15 @@ void OscillatorVoice::Configure(
       apvts.getRawParameterValue("adsrSustain")->load(),
       apvts.getRawParameterValue("adsrRelease")->load());
   envelope_.setParameters(params);
+
+  // Configure ADSR envelope 2 from parameters
+  envelope2_.setSampleRate(getSampleRate());
+  const juce::ADSR::Parameters params2(
+      apvts.getRawParameterValue("env2Attack")->load(),
+      apvts.getRawParameterValue("env2Decay")->load(),
+      apvts.getRawParameterValue("env2Sustain")->load(),
+      apvts.getRawParameterValue("env2Release")->load());
+  envelope2_.setParameters(params2);
 
   if (apvts.getRawParameterValue("vcoModOsc1")->load() > 0) {
     waveGenerator_.set_pitch_bend_lfo_mod(
@@ -98,12 +107,38 @@ void OscillatorVoice::Configure(
   wave2Generator_.set_pitch_offset_hz(
       static_cast<double>(apvts.getRawParameterValue("fineTune")->load()));
 
-  const int pulseWidthSource = static_cast<int>(apvts.getRawParameterValue("pulseWidthSource")->load());
-  if (pulseWidthSource == 5) { // MAN mode
-    const double pulseWidth = static_cast<double>(apvts.getRawParameterValue("pulseWidth")->load());
-    waveGenerator_.set_pulse_width(pulseWidth);
-    wave2Generator_.set_pulse_width(pulseWidth);
+  const int pulseWidthSource =
+      static_cast<int>(apvts.getRawParameterValue("pulseWidthSource")->load());
+  switch (pulseWidthSource) {
+    case 0:
+      waveGenerator_.set_pulse_width_mod_type(env2Minus);
+      wave2Generator_.set_pulse_width_mod_type(env2Minus);
+      break;
+    case 1:
+      waveGenerator_.set_pulse_width_mod_type(env2Plus);
+      wave2Generator_.set_pulse_width_mod_type(env2Plus);
+      break;
+    case 2:
+      waveGenerator_.set_pulse_width_mod_type(env1Minus);
+      wave2Generator_.set_pulse_width_mod_type(env1Minus);
+      break;
+    case 3:
+      waveGenerator_.set_pulse_width_mod_type(env1Plus);
+      wave2Generator_.set_pulse_width_mod_type(env1Plus);
+      break;
+    case 4:
+      waveGenerator_.set_pulse_width_mod_type(lfo);
+      wave2Generator_.set_pulse_width_mod_type(lfo);
+      break;
+    case 5:
+      waveGenerator_.set_pulse_width_mod_type(manual);
+      wave2Generator_.set_pulse_width_mod_type(manual);
+      break;
   }
+  const double pulseWidth =
+      static_cast<double>(apvts.getRawParameterValue("pulseWidth")->load());
+  waveGenerator_.set_pulse_width_mod(pulseWidth);
+  wave2Generator_.set_pulse_width_mod(pulseWidth);
 }
 
 void OscillatorVoice::SetBlockSize(const int blockSize) {
@@ -111,6 +146,7 @@ void OscillatorVoice::SetBlockSize(const int blockSize) {
   const auto oversample_samples = blockSize * kOversample;
   oversample_buffer_.setSize(1, oversample_samples, false, true);
   env1_buffer_.setSize(1, blockSize, false, true);
+  env2_buffer_.setSize(1, blockSize, false, true);
 }
 
 void OscillatorVoice::startNote(const int midiNoteNumber,
@@ -122,11 +158,13 @@ void OscillatorVoice::startNote(const int midiNoteNumber,
   wave2Generator_.set_pitch_semitone(midiNoteNumber, getSampleRate());
   wave2Generator_.set_volume(0);
   envelope_.noteOn();
+  envelope2_.noteOn();
 }
 
 void OscillatorVoice::stopNote([[maybe_unused]] float velocity,
                                [[maybe_unused]] const bool allowTailOff) {
   envelope_.noteOff();
+  envelope2_.noteOff();
 }
 
 void OscillatorVoice::pitchWheelMoved([[maybe_unused]] int newPitchWheelValue) {
@@ -139,15 +177,16 @@ void OscillatorVoice::controllerMoved([[maybe_unused]] int controllerNumber,
 void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                       [[maybe_unused]] int startSample,
                                       const int numSamples) {
-
   const auto oversample_samples = oversample_buffer_.getNumSamples();
 
   // TODO: how does this interact with note on? Does this mean envelope always
   //  starts at start of a block even if it "should" start mid-block?
-  // fill envelope buffer
+  // fill envelope buffers
   auto* env1_data_write = env1_buffer_.getWritePointer(0);
+  auto* env2_data_write = env2_buffer_.getWritePointer(0);
   for (int i = 0; i < numSamples; ++i) {
     env1_data_write[i] = envelope_.getNextSample();
+    env2_data_write[i] = envelope2_.getNextSample();
   }
 
   // note this will fill and process only the left channel since we want to work

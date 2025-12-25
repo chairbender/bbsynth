@@ -26,10 +26,10 @@ inline void PrepareAndRender(WaveGenerator& gen,
 
   raw_buf.clear();
   // Warm up gain ramp so second call uses constant gain
-  gen.RenderNextBlock(raw_buf, TODO, kNumSamples);
+  gen.RenderNextBlock(raw_buf, 0, kNumSamples);
   raw_buf.clear();
   gen.blep_generator()->currentActiveBlepOffsets.clear();
-  gen.RenderNextBlock(raw_buf, TODO, kNumSamples);
+  gen.RenderNextBlock(raw_buf, 0, kNumSamples);
 }
 
 struct SawCase {
@@ -45,7 +45,8 @@ class WaveGeneratorSawTest : public ::testing::TestWithParam<SawCase> {
 TEST_P(WaveGeneratorSawTest, RendersAndReportsBleps) {
   const auto [type, expected_pos_change, ramp_up, reset_level] = GetParam();
 
-  WaveGenerator gen;
+  juce::AudioBuffer<float> dummy;
+  WaveGenerator gen(dummy, dummy, dummy);
   juce::AudioSampleBuffer raw_buf(2, kNumSamples);
   PrepareAndRender(gen, raw_buf, type);
 
@@ -96,7 +97,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 
 TEST(WaveGeneratorTriangleTest, RendersAndReportsTriangleBleps) {
-  WaveGenerator gen;
+  juce::AudioBuffer<float> dummy;
+  WaveGenerator gen(dummy, dummy, dummy);
   juce::AudioSampleBuffer raw_buf(2, kNumSamples);
   PrepareAndRender(gen, raw_buf, WaveGenerator::triangle);
 
@@ -152,7 +154,8 @@ TEST(WaveGeneratorTriangleTest, RendersAndReportsTriangleBleps) {
 }
 
 TEST(WaveGeneratorSquareTest, RendersAndReportsSquareBleps) {
-  WaveGenerator gen;
+  juce::AudioBuffer<float> dummy;
+  WaveGenerator gen(dummy, dummy, dummy);
   juce::AudioSampleBuffer raw_buf(2, kNumSamples);
   PrepareAndRender(gen, raw_buf, WaveGenerator::square);
 
