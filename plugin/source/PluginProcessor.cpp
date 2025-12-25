@@ -365,7 +365,7 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       juce::NormalisableRange(0.f, 4.f, 0.01f),
       1.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "filterDrive", "Filter Drive", juce::NormalisableRange(0.f, 1.f, 0.01f),
+      "filterDrive", "Filter Drive", juce::NormalisableRange(0.f, 8.f, 0.01f),
       0.5f));
 
   return {parameterList.begin(), parameterList.end()};
