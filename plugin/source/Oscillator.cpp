@@ -4,8 +4,7 @@ namespace audio_plugin {
 constexpr auto kOversample = 2;
 
 OscillatorSound::OscillatorSound(
-    [[maybe_unused]] juce::AudioProcessorValueTreeState& apvts) {
-}
+    [[maybe_unused]] juce::AudioProcessorValueTreeState& apvts) {}
 
 bool OscillatorSound::appliesToNote([[maybe_unused]] int midiNoteIndex) {
   return true;
@@ -15,11 +14,12 @@ bool OscillatorSound::appliesToChannel([[maybe_unused]] int midiChannelIndex) {
   return true;
 }
 
-OscillatorVoice::OscillatorVoice(juce::AudioBuffer<float>& lfo_buffer)
-    : lfo_buffer_(lfo_buffer) {
+OscillatorVoice::OscillatorVoice(const juce::AudioBuffer<float>& lfo_buffer)
+    : waveGenerator_{lfo_buffer},
+      wave2Generator_{lfo_buffer} {
   waveGenerator_.PrepareToPlay(getSampleRate() * kOversample);
   wave2Generator_.PrepareToPlay(getSampleRate() * kOversample);
-  //waveGenerator_.setHardsync(false);
+  // waveGenerator_.setHardsync(false);
   waveGenerator_.set_mode(WaveGenerator::ANTIALIAS);
   wave2Generator_.set_mode(WaveGenerator::ANTIALIAS);
   filter_.set_sample_rate(getSampleRate() * kOversample);
@@ -39,18 +39,17 @@ void OscillatorVoice::Configure(
       apvts.getRawParameterValue("adsrAttack")->load(),
       apvts.getRawParameterValue("adsrDecay")->load(),
       apvts.getRawParameterValue("adsrSustain")->load(),
-      apvts.getRawParameterValue("adsrRelease")->load()
-      );
+      apvts.getRawParameterValue("adsrRelease")->load());
   envelope_.setParameters(params);
 
   if (apvts.getRawParameterValue("vcoModOsc1")->load() > 0) {
     waveGenerator_.set_pitch_bend_lfo_mod(
-      apvts.getRawParameterValue("vcoModLfoFreq")->load());
+        apvts.getRawParameterValue("vcoModLfoFreq")->load());
   }
 
   if (apvts.getRawParameterValue("vcoModOsc2")->load() > 0) {
     wave2Generator_.set_pitch_bend_lfo_mod(
-      apvts.getRawParameterValue("vcoModLfoFreq")->load());
+        apvts.getRawParameterValue("vcoModLfoFreq")->load());
   }
 
   switch (static_cast<int>(apvts.getRawParameterValue("waveType")->load())) {
@@ -92,7 +91,8 @@ void OscillatorVoice::Configure(
     default:
       break;
   }
-  wave2Generator_.set_pitch_offset_hz(static_cast<double>(apvts.getRawParameterValue("fineTune")->load()));
+  wave2Generator_.set_pitch_offset_hz(
+      static_cast<double>(apvts.getRawParameterValue("fineTune")->load()));
 }
 
 void OscillatorVoice::SetBlockSize(const int blockSize) {
@@ -128,11 +128,11 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   const auto oversample_samples = numSamples * kOversample;
   oversample_buffer_.setSize(1, oversample_samples, false, true);
 
-  // note this will fill and process only the left channel since we want to work in mono
-  // until the last moment
-  // the wave generator and filter are already configured to generate at 2x oversampling.
-  waveGenerator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples, lfo_buffer_);
-  wave2Generator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples, lfo_buffer_);
+  // note this will fill and process only the left channel since we want to work
+  // in mono until the last moment the wave generator and filter are already
+  // configured to generate at 2x oversampling.
+  waveGenerator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
+  wave2Generator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
   filter_.Process(oversample_buffer_, oversample_samples);
 
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
@@ -149,9 +149,4 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 
   downsampler_.process(oversample_buffer_, outputBuffer, numSamples);
 }
-
-void OscillatorVoice::set_lfo_buffer(
-    const juce::AudioBuffer<float>& audio_buffer) {
-  lfo_buffer_ = audio_buffer;
-}
-} // namespace audio_plugin
+}  // namespace audio_plugin
