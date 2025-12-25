@@ -32,6 +32,46 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   g.setColour(juce::Colours::white);
   g.setFont(15.0f);
 
+  // LFO section
+  lfo_label_.setText("LFO", juce::dontSendNotification);
+  addAndMakeVisible(lfo_label_);
+
+  rate_label_.setText("Rate", juce::dontSendNotification);
+  addAndMakeVisible(rate_label_);
+
+  rate_slider_.setSliderStyle(juce::Slider::Rotary);
+  rate_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(rate_slider_);
+  rate_attachment_ = std::make_unique<
+      juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "lfoRate", rate_slider_);
+
+  delay_time_label_.setText("Delay Time", juce::dontSendNotification);
+  addAndMakeVisible(delay_time_label_);
+
+  delay_time_slider_.setSliderStyle(juce::Slider::Rotary);
+  delay_time_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(delay_time_slider_);
+  delay_time_attachment_ = std::make_unique<
+      juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "lfoDelayTime", delay_time_slider_);
+
+  lfo_wave_form_label_.setText("Waveform", juce::dontSendNotification);
+  addAndMakeVisible(lfo_wave_form_label_);
+
+  lfo_wave_form_combo_.clear(juce::dontSendNotification);
+  lfo_wave_form_combo_.addItem("sine", 1);
+  lfo_wave_form_combo_.addItem("sawFall", 2);
+  lfo_wave_form_combo_.addItem("triangle", 3);
+  lfo_wave_form_combo_.addItem("square", 4);
+  lfo_wave_form_combo_.addItem("random", 5);
+  addAndMakeVisible(lfo_wave_form_combo_);
+  lfo_wave_form_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+      processorRef.apvts_, "lfoWaveType", lfo_wave_form_combo_);
+  lfo_wave_form_label_.attachToComponent(&lfo_wave_form_combo_, false);
+
+
   // vco1 section
   vco1_label_.setText("VCO 1", juce::dontSendNotification);
   addAndMakeVisible(vco1_label_);
@@ -196,14 +236,17 @@ void AudioPluginAudioProcessorEditor::resized() {
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1))
   };
 
   grid.items = {
+      juce::GridItem(lfo_label_),
       juce::GridItem(vco1_label_),
       juce::GridItem(vco2_label_),
       juce::GridItem(vcf_label_),
       juce::GridItem(env1_label_),
+      juce::GridItem{},
       juce::GridItem{},
       juce::GridItem{},
       juce::GridItem{},
@@ -212,9 +255,39 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   grid.performLayout(topRow);
 
+  auto item_idx = grid.items.size() / 2;
+
+  // LFO section
+  {
+    const auto section_bounds = grid.items[item_idx++].currentBounds;
+    juce::Grid section_grid;
+    section_grid.alignContent = juce::Grid::AlignContent::center;
+    section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+    section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
+    section_grid.templateColumns = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+    };
+    section_grid.templateRows = {
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1))
+    };
+    section_grid.items = {
+      juce::GridItem{rate_slider_},
+      juce::GridItem{delay_time_slider_},
+      juce::GridItem{lfo_wave_form_combo_},
+      juce::GridItem{rate_label_},
+      juce::GridItem{delay_time_label_},
+      juce::GridItem{lfo_wave_form_label_}
+    };
+
+    section_grid.performLayout(section_bounds.toNearestInt());
+  }
+
   // VCO1 section
   {
-    const auto section_bounds = grid.items[4].currentBounds;
+    const auto section_bounds = grid.items[item_idx++].currentBounds;
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
     section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
@@ -236,7 +309,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   // VCO2 section
   {
-    const auto section_bounds = grid.items[5].currentBounds;
+    const auto section_bounds = grid.items[item_idx++].currentBounds;
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
     section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
@@ -261,7 +334,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   // VCF section
   {
-    const auto section_bounds = grid.items[6].currentBounds;
+    const auto section_bounds = grid.items[item_idx++].currentBounds;
     juce::Grid section_grid;
     section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
     section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
@@ -288,7 +361,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   // ENV1 section
   {
-    const auto section_bounds = grid.items[7].currentBounds;
+    const auto section_bounds = grid.items[item_idx++].currentBounds;
     juce::Grid section_grid;
     section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
     section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));

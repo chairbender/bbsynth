@@ -197,6 +197,23 @@ juce::AudioProcessorValueTreeState::ParameterLayout
 AudioPluginAudioProcessor::CreateParameterLayout() {
   std::vector<std::unique_ptr<juce::RangedAudioParameter>> parameterList;
 
+  // LFO
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "lfoRate",
+      "LFO Rate",
+      juce::NormalisableRange(0.01f, 100.f, .01f),
+      0.2f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+    "lfoDelayTime",
+    "LFO Delay Time",
+    juce::NormalisableRange(0.00f, 3.f, .01f),
+    0.3f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
+    "lfoWaveType",
+    "LFO Wave Type",
+    juce::StringArray{"sine", "sawFall", "triangle", "square", "random"},
+    0));
+
   // vco1
   // Oscillator wave type selector
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
@@ -208,25 +225,29 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   // vco2
   // wave type
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
-    "wave2Type",
-    "Wave 2 Type",
-    juce::StringArray{"sine", "sawFall", "triangle", "square", "random"},
-    1));
+      "wave2Type",
+      "Wave 2 Type",
+      juce::StringArray{"sine", "sawFall", "triangle", "square", "random"},
+      1));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-    "fineTune",
-    "Fine Tune",
-    juce::NormalisableRange(-1.f, 1.f, 0.01f),
-    0.f));
+      "fineTune",
+      "Fine Tune",
+      juce::NormalisableRange(-1.f, 1.f, 0.01f),
+      0.f));
 
   // ADSR envelope parameters
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "adsrAttack", "ADSR Attack (s)", juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.01f));
+      "adsrAttack", "ADSR Attack (s)",
+      juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.01f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "adsrDecay", "ADSR Decay (s)", juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.2f));
+      "adsrDecay", "ADSR Decay (s)",
+      juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.2f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "adsrSustain", "ADSR Sustain", juce::NormalisableRange(0.0f, 1.0f, 0.001f), 0.7f));
+      "adsrSustain", "ADSR Sustain",
+      juce::NormalisableRange(0.0f, 1.0f, 0.001f), 0.7f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "adsrRelease", "ADSR Release (s)", juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.3f));
+      "adsrRelease", "ADSR Release (s)",
+      juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.3f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterCutoffFreq", "Filter Cutoff Frequency",
       juce::NormalisableRange(20.f, 8000.f, 1.f), 1000.f));
