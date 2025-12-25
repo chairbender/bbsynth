@@ -229,6 +229,7 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
         secondary_delta_base_ * pitch_bend_actual_ + phaseShiftPerSample;
 
     // HARD SYNCING ::::::
+    // TODO: seemingly the pitch offset is being ignored completely unless hard sync is true...
     if (hard_sync_ &&
         (fabs(primary_delta_base_ - secondary_delta_base_) > DELTA)) {
       // primary OSC DOES use pitch bending and phase shifting ...

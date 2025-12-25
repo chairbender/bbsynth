@@ -373,7 +373,7 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       "wave2Type", "Wave 2 Type",
       juce::StringArray{"sine", "sawFall", "triangle", "square", "random"}, 1));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "fineTune", "Fine Tune", juce::NormalisableRange(-1.f, 1.f, 0.01f), 0.f));
+      "fineTune", "Fine Tune", juce::NormalisableRange(-10.f, 10.f, 0.01f), 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
       "vco2Sync", "Sync (VCO1->VCO2)", false));
 
