@@ -4,7 +4,7 @@
 
 namespace audio_plugin {
 OTAFilter::OTAFilter() : cutoff_freq_{0.f}, resonance_{0.f},
-                         drive_{0.f}, sample_rate_{0}, s1_{0},
+                         drive_{0.f}, num_stages_{4}, sample_rate_{0}, s1_{0},
                          s2_{0}, s3_{0},
                          s4_{0},
                          dc_out_x1_{0},
@@ -36,7 +36,15 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
     const auto sample = buf[i];
 
     // resonance feedback from output
-    const auto feedback = resonance_ * s4_;
+    float last_stage_output = 0;
+    switch (num_stages_) {
+      case 1: last_stage_output = s1_; break;
+      case 2: last_stage_output = s2_; break;
+      case 3: last_stage_output = s3_; break;
+      case 4: last_stage_output = s4_; break;
+      default: last_stage_output = s4_; break;
+    }
+    const auto feedback = resonance_ * last_stage_output;
 
     // input with feedback compensation
     const auto u = sample - feedback;
@@ -44,13 +52,13 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
     // todo: different scale for each stage
 
     FilterStage(u, s1_, tanh_in_[0], tanh_state_[0], g, scale);
-    FilterStage(s1_, s2_, tanh_in_[1], tanh_state_[1], g, scale);
-    FilterStage(s2_, s3_, tanh_in_[2], tanh_state_[2], g, scale);
-    FilterStage(s3_, s4_, tanh_in_[3], tanh_state_[3], g, scale);
+    if (num_stages_ >= 2) FilterStage(s1_, s2_, tanh_in_[1], tanh_state_[1], g, scale);
+    if (num_stages_ >= 3) FilterStage(s2_, s3_, tanh_in_[2], tanh_state_[2], g, scale);
+    if (num_stages_ >= 4) FilterStage(s3_, s4_, tanh_in_[3], tanh_state_[3], g, scale);
 
     // DC block the output
-    buf[i] = s4_ - dc_out_x1_ + 0.99f * dc_out_y1_;
-    dc_out_x1_ = s4_;
+    buf[i] = last_stage_output - dc_out_x1_ + 0.99f * dc_out_y1_;
+    dc_out_x1_ = last_stage_output;
     dc_out_y1_ = buf[i];
   }
 }
@@ -59,6 +67,13 @@ void OTAFilter::Configure(const juce::AudioProcessorValueTreeState& state) {
   cutoff_freq_ = state.getRawParameterValue("filterCutoffFreq")->load();
   resonance_ = state.getRawParameterValue("filterResonance")->load();
   drive_ = state.getRawParameterValue("filterDrive")->load();
+  const int slope_choice = static_cast<int>(state.getRawParameterValue("filterSlope")->load());
+  switch (slope_choice) {
+    case 0: num_stages_ = 4; break;
+    case 1: num_stages_ = 3; break;
+    case 2: num_stages_ = 2; break;
+    default: num_stages_ = 4; break;
+  }
 }
 
 void OTAFilter::Reset() {

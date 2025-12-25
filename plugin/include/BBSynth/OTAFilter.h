@@ -34,6 +34,7 @@ public:
   float cutoff_freq_;
   float resonance_;
   float drive_;
+  int num_stages_;
 
 private:
   void FilterStage(float in, float& out, TanhADAA& tanh_in, TanhADAA& tanh_state, float g, float scale) const;
