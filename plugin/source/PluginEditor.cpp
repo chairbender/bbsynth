@@ -261,6 +261,16 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   filter_env_mod_label_.attachToComponent(&filter_env_mod_slider_, false);
   addAndMakeVisible(filter_env_mod_label_);
 
+  filter_lfo_mod_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  filter_lfo_mod_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+  addAndMakeVisible(filter_lfo_mod_slider_);
+  filter_lfo_mod_attachment_ = std::make_unique<
+    juce::AudioProcessorValueTreeState::SliderAttachment>(
+      processorRef.apvts_, "filterLfoMod", filter_lfo_mod_slider_);
+  filter_lfo_mod_label_.setText("LFO Mod", juce::dontSendNotification);
+  filter_lfo_mod_label_.attachToComponent(&filter_lfo_mod_slider_, false);
+  addAndMakeVisible(filter_lfo_mod_label_);
+
   filter_env_source_combo_.clear(juce::dontSendNotification);
   filter_env_source_combo_.addItem("Env 1", 1);
   filter_env_source_combo_.addItem("Env 2", 2);
@@ -547,6 +557,7 @@ void AudioPluginAudioProcessorEditor::resized() {
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+      juce::Grid::TrackInfo(juce::Grid::Fr(1)),
       juce::Grid::TrackInfo(juce::Grid::Fr(1))
     };
     section_grid.templateRows = {
@@ -559,12 +570,14 @@ void AudioPluginAudioProcessorEditor::resized() {
       juce::GridItem{filter_drive_slider_},
       juce::GridItem{filter_slope_combo_},
       juce::GridItem{filter_env_mod_slider_},
+      juce::GridItem{filter_lfo_mod_slider_},
       juce::GridItem{filter_env_source_combo_},
       juce::GridItem{filter_cutoff_label_},
       juce::GridItem{filter_resonance_label_},
       juce::GridItem{filter_drive_label_},
       juce::GridItem{filter_slope_label_},
       juce::GridItem{filter_env_mod_label_},
+      juce::GridItem{filter_lfo_mod_label_},
       juce::GridItem{filter_env_source_label_}
     };
 

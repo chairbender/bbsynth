@@ -19,7 +19,8 @@ public:
    * for numSamples samples.
    */
   void Process(juce::AudioBuffer<float>& buffers,
-               const juce::AudioBuffer<float>& env_buffer, int numSamples);
+               const juce::AudioBuffer<float>& env_buffer,
+               const juce::AudioBuffer<float>& lfo_buffer, int numSamples);
 
   /**
    * Update params based on current state
@@ -36,6 +37,7 @@ public:
   float resonance_;
   float drive_;
   float env_mod_;
+  float lfo_mod_;
   int num_stages_;
 
 private:
