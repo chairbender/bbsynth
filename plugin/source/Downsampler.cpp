@@ -12,6 +12,7 @@ void Downsampler::prepare(const double base_sample_rate, const int max_block_siz
   filter_.prepare({base_sample_rate * 2.0, static_cast<juce::uint32>(max_block_size) * 2, 1});
 }
 
+// todo: pretty bad design - try to use same approach as Oversampling2TimesPolyphaseIIR instead
 void Downsampler::process(const juce::AudioBuffer<float>& input,
                           juce::AudioBuffer<float>& output,
                           const int numOutputSamples) {

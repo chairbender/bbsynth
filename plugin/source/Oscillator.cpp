@@ -96,6 +96,7 @@ void OscillatorVoice::startNote(const int midiNoteNumber,
   waveGenerator_.set_volume(0);
   wave2Generator_.set_pitch_semitone(midiNoteNumber, getSampleRate());
   wave2Generator_.set_volume(0);
+  voice_end_sample_ = -1;
   envelope_.noteOn();
 }
 
@@ -120,22 +121,23 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   // note this will fill and process only the left channel since we want to work in mono
   // until the last moment
   // the wave generator and filter are already configured to generate at 2x oversampling.
-  waveGenerator_.RenderNextBlock(oversample_buffer_, oversample_samples);
-  wave2Generator_.RenderNextBlock(oversample_buffer_, oversample_samples);
+  waveGenerator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
+  wave2Generator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
   filter_.Process(oversample_buffer_, oversample_samples);
 
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
   auto* data = oversample_buffer_.getWritePointer(0);
   for (int i = 0; i < oversample_samples; ++i) {
+    const auto envelope_value = envelope_.getNextSample();
     data[i] *= envelope_.getNextSample();
+    if (voice_end_sample_ < 0 && envelope_value <= 0.0001f) {
+      voice_end_sample_ = i;
+      waveGenerator_.set_volume(-120);
+      wave2Generator_.set_volume(-120);
+      clearCurrentNote();
+    }
   }
 
   downsampler_.process(oversample_buffer_, outputBuffer, numSamples);
-
-  if (!envelope_.isActive()) {
-    waveGenerator_.set_volume(-120);
-    wave2Generator_.set_volume(-120);
-    clearCurrentNote();
-  }
 }
 } // namespace audio_plugin

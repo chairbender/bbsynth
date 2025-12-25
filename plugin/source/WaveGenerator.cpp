@@ -75,7 +75,7 @@ void WaveGenerator::clear() {
 }
 
 // FAST RENDER (AP) :::::
-void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, const int numSamples) {
+void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, const int startSample, const int numSamples) {
   jassert(sample_rate_ != 0.);
 
   if (secondary_delta_base_ == 0.0)
@@ -144,7 +144,7 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, cons
   }
 
   // COPY it to the outputbuffer ....
-  outputBuffer.addFromWithRamp(0, 0, wave.getRawDataPointer(), numSamples,
+  outputBuffer.addFromWithRamp(0, startSample, wave.getRawDataPointer(), numSamples,
                                static_cast<float>(gain_last_[0]),
                                static_cast<float>(volume_));
 

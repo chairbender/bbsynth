@@ -250,7 +250,7 @@ public:
   /**
    * Fill the first channel of the buffer up to numSamples.
    */
-  void RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, int numSamples);
+  void RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples);
   inline void BuildWave(int numSamples);
 
   // SLOW RENDER (LFO) ::::::

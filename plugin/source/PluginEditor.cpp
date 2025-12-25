@@ -54,7 +54,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   addAndMakeVisible(delay_time_slider_);
   delay_time_attachment_ = std::make_unique<
       juce::AudioProcessorValueTreeState::SliderAttachment>(
-      processorRef.apvts_, "lfoDelayTime", delay_time_slider_);
+      processorRef.apvts_, "lfoDelayTimeSeconds", delay_time_slider_);
 
   lfo_wave_form_label_.setText("Waveform", juce::dontSendNotification);
   addAndMakeVisible(lfo_wave_form_label_);

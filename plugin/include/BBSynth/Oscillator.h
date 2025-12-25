@@ -60,5 +60,8 @@ private:
   juce::AudioBuffer<float> oversample_buffer_;
   Downsampler downsampler_;
   juce::ADSR envelope_;
+  // what sample in the current buffer did the voice end?
+  // -1 if currently playing.
+  int voice_end_sample_;
 };
 }
