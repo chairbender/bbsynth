@@ -529,7 +529,7 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.performLayout(section_bounds.toNearestInt());
 
     auto radio_area = section_bounds.toNearestInt();
-    const auto button_height = radio_area.getHeight() / 5;
+    const auto button_height = radio_area.getHeight() / 10;
 
     for (auto& btn : wave_type_buttons_) {
       btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
