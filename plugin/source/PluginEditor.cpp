@@ -11,7 +11,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
       processorRef(p) {
   juce::ignoreUnused(processorRef);
 
-  // Wave type selector
+  // Wave type selectors
   const juce::StringArray waveTypeOptions = {"SIN", "SAW", "TRI", "SQR", "RND"};
   for (int i = 0; i < waveTypeOptions.size(); ++i) {
     auto btn = std::make_unique<juce::ToggleButton>(waveTypeOptions[i]);
@@ -30,6 +30,42 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
       });
   wave_type_attachment_->sendInitialUpdate();
 
+  const juce::StringArray lfoWaveTypeOptions = {"SIN", "SAW", "TRI", "SQR", "RND"};
+  for (int i = 0; i < lfoWaveTypeOptions.size(); ++i) {
+    auto btn = std::make_unique<juce::ToggleButton>(lfoWaveTypeOptions[i]);
+    btn->setRadioGroupId(1002);
+    btn->setClickingTogglesState(false);
+    btn->onClick = [this, i] {
+      auto* param = processorRef.apvts_.getParameter("lfoWaveType");
+      param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(i)));
+    };
+    lfo_wave_type_buttons_.emplace_back(std::move(btn));
+  }
+  lfo_wave_type_attachment_ = std::make_unique<juce::ParameterAttachment>(
+      *processorRef.apvts_.getParameter("lfoWaveType"), [this](const float f) {
+        const size_t index = static_cast<size_t>(f);
+        lfo_wave_type_buttons_[index]->setToggleState(true, juce::dontSendNotification);
+      });
+  lfo_wave_type_attachment_->sendInitialUpdate();
+
+  const juce::StringArray wave2TypeOptions = {"SIN", "SAW", "TRI", "SQR", "RND"};
+  for (int i = 0; i < wave2TypeOptions.size(); ++i) {
+    auto btn = std::make_unique<juce::ToggleButton>(wave2TypeOptions[i]);
+    btn->setRadioGroupId(1003);
+    btn->setClickingTogglesState(false);
+    btn->onClick = [this, i] {
+      auto* param = processorRef.apvts_.getParameter("wave2Type");
+      param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(i)));
+    };
+    wave2_type_buttons_.emplace_back(std::move(btn));
+  }
+  wave2_type_attachment_ = std::make_unique<juce::ParameterAttachment>(
+      *processorRef.apvts_.getParameter("wave2Type"), [this](const float f) {
+        const size_t index = static_cast<size_t>(f);
+        wave2_type_buttons_[index]->setToggleState(true, juce::dontSendNotification);
+      });
+  wave2_type_attachment_->sendInitialUpdate();
+
   // Make sure that before the constructor has finished, you've set the
   // editor's size to whatever you need it to be.
   setSize(1600, 600);
@@ -41,8 +77,9 @@ void AudioPluginAudioProcessorEditor::GetNextAudioBlock(
 }
 
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
-  // TODO: really needed?
   processorRef.apvts_.removeParameterListener("waveType", this);
+  processorRef.apvts_.removeParameterListener("lfoWaveType", this);
+  processorRef.apvts_.removeParameterListener("wave2Type", this);
 }
 
 void AudioPluginAudioProcessorEditor::parameterChanged(
@@ -96,17 +133,11 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   lfo_wave_form_label_.setText("Waveform", juce::dontSendNotification);
   addAndMakeVisible(lfo_wave_form_label_);
 
-  lfo_wave_form_combo_.clear(juce::dontSendNotification);
-  lfo_wave_form_combo_.addItem("sine", 1);
-  lfo_wave_form_combo_.addItem("sawFall", 2);
-  lfo_wave_form_combo_.addItem("triangle", 3);
-  lfo_wave_form_combo_.addItem("square", 4);
-  lfo_wave_form_combo_.addItem("random", 5);
-  addAndMakeVisible(lfo_wave_form_combo_);
-  lfo_wave_form_attachment_ =
-      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-          processorRef.apvts_, "lfoWaveType", lfo_wave_form_combo_);
-  lfo_wave_form_label_.attachToComponent(&lfo_wave_form_combo_, false);
+  for (auto& btn : lfo_wave_type_buttons_) {
+    addAndMakeVisible(*btn);
+  }
+
+  processorRef.apvts_.addParameterListener("lfoWaveType", this);
 
   // VCO Modulator sectiong
   vco_mod_label_.setText("VCO Modulator", juce::dontSendNotification);
@@ -190,18 +221,13 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   addAndMakeVisible(vco2_label_);
 
   // Wave type selector
-  wave2_type_combo_.clear(juce::dontSendNotification);
-  wave2_type_combo_.addItem("sine", 1);
-  wave2_type_combo_.addItem("sawFall", 2);
-  wave2_type_combo_.addItem("triangle", 3);
-  wave2_type_combo_.addItem("square", 4);
-  wave2_type_combo_.addItem("random", 5);
-  addAndMakeVisible(wave2_type_combo_);
-  wave2_type_attachment_ =
-      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-          processorRef.apvts_, "wave2Type", wave2_type_combo_);
+  for (auto& btn : wave2_type_buttons_) {
+    addAndMakeVisible(*btn);
+  }
+
+  processorRef.apvts_.addParameterListener("wave2Type", this);
+
   wave2_type_label_.setText("Waveform", juce::dontSendNotification);
-  wave2_type_label_.attachToComponent(&wave2_type_combo_, false);
   addAndMakeVisible(wave2_type_label_);
 
   // fine tune
@@ -425,13 +451,13 @@ void AudioPluginAudioProcessorEditor::resized() {
   grid.alignContent = juce::Grid::AlignContent::center;
   grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                        juce::Grid::TrackInfo(juce::Grid::Fr(5))};
-  grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+  grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(2))};
 
   grid.items = {juce::GridItem(lfo_label_),
                 juce::GridItem(vco_mod_label_),
@@ -462,19 +488,27 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                    juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(3))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.items = {juce::GridItem{rate_slider_},
                           juce::GridItem{delay_time_slider_},
                           juce::GridItem{lfo_attack_slider_},
-                          juce::GridItem{lfo_wave_form_combo_},
+                          juce::GridItem{},
                           juce::GridItem{rate_label_},
                           juce::GridItem{delay_time_label_},
                           juce::GridItem{lfo_attack_label_},
                           juce::GridItem{lfo_wave_form_label_}};
 
     section_grid.performLayout(section_bounds.toNearestInt());
+
+    auto radio_area = section_grid.items[3].currentBounds.toNearestInt();
+    radio_area.removeFromRight(radio_area.getWidth() / 2);
+    const auto button_height = radio_area.getHeight() / 5;
+
+    for (auto& btn : lfo_wave_type_buttons_) {
+      btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
+    }
   }
 
   // VCO mod
@@ -529,7 +563,9 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.performLayout(section_bounds.toNearestInt());
 
     auto radio_area = section_bounds.toNearestInt();
-    const auto button_height = radio_area.getHeight() / 10;
+    radio_area.removeFromBottom(radio_area.getHeight() / 5); // remove label area roughly
+    radio_area.removeFromRight(radio_area.getWidth() / 2);
+    const auto button_height = radio_area.getHeight() / 5;
 
     for (auto& btn : wave_type_buttons_) {
       btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
@@ -543,17 +579,25 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.alignContent = juce::Grid::AlignContent::center;
     section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
     section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
-    section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+    section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(2)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.items = {
-        juce::GridItem{wave2_type_combo_}, juce::GridItem{fine_tune_slider_},
+        juce::GridItem{}, juce::GridItem{fine_tune_slider_},
         juce::GridItem{vco2_sync_button_}, juce::GridItem{wave2_type_label_},
         juce::GridItem{fine_tune_label_},  juce::GridItem{vco2_sync_label_}};
 
     section_grid.performLayout(section_bounds.toNearestInt());
+
+    auto radio_area = section_grid.items[0].currentBounds.toNearestInt();
+    radio_area.removeFromRight(radio_area.getWidth() / 2);
+    const auto button_height = radio_area.getHeight() / 5;
+
+    for (auto& btn : wave2_type_buttons_) {
+      btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
+    }
   }
 
   // VCF section

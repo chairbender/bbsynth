@@ -47,9 +47,9 @@ private:
   juce::Slider lfo_attack_slider_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfo_attack_attachment_;
   // wave form
-  juce::ComboBox lfo_wave_form_combo_;
+  std::vector<std::unique_ptr<juce::ToggleButton>> lfo_wave_type_buttons_;
   juce::Label lfo_wave_form_label_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> lfo_wave_form_attachment_;
+  std::unique_ptr<juce::ParameterAttachment> lfo_wave_type_attachment_;
 
   // VCO Modulator section
   juce::Label vco_mod_label_;
@@ -88,9 +88,9 @@ private:
   juce::Label vco2_label_;
 
   // Wave selector
-  juce::ComboBox wave2_type_combo_;
+  std::vector<std::unique_ptr<juce::ToggleButton>> wave2_type_buttons_;
   juce::Label wave2_type_label_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> wave2_type_attachment_;
+  std::unique_ptr<juce::ParameterAttachment> wave2_type_attachment_;
 
   //fine tune
   juce::Slider fine_tune_slider_;
