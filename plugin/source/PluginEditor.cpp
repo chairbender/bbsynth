@@ -66,6 +66,60 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
       });
   wave2_type_attachment_->sendInitialUpdate();
 
+  const juce::StringArray pwSourceOptions = {"E2-", "E2+", "E1-", "E1+", "LFO", "MAN"};
+  for (int i = 0; i < pwSourceOptions.size(); ++i) {
+    auto btn = std::make_unique<juce::ToggleButton>(pwSourceOptions[i]);
+    btn->setRadioGroupId(1004);
+    btn->setClickingTogglesState(false);
+    btn->onClick = [this, i] {
+      auto* param = processorRef.apvts_.getParameter("pulseWidthSource");
+      param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(i)));
+    };
+    pulse_width_source_buttons_.emplace_back(std::move(btn));
+  }
+  pulse_width_source_attachment_ = std::make_unique<juce::ParameterAttachment>(
+      *processorRef.apvts_.getParameter("pulseWidthSource"), [this](const float f) {
+        const size_t index = static_cast<size_t>(f);
+        pulse_width_source_buttons_[index]->setToggleState(true, juce::dontSendNotification);
+      });
+  pulse_width_source_attachment_->sendInitialUpdate();
+
+  const juce::StringArray filterSlopeOptions = {"-24", "-18", "-12"};
+  for (int i = 0; i < filterSlopeOptions.size(); ++i) {
+    auto btn = std::make_unique<juce::ToggleButton>(filterSlopeOptions[i]);
+    btn->setRadioGroupId(1005);
+    btn->setClickingTogglesState(false);
+    btn->onClick = [this, i] {
+      auto* param = processorRef.apvts_.getParameter("filterSlope");
+      param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(i)));
+    };
+    filter_slope_buttons_.emplace_back(std::move(btn));
+  }
+  filter_slope_attachment_ = std::make_unique<juce::ParameterAttachment>(
+      *processorRef.apvts_.getParameter("filterSlope"), [this](const float f) {
+        const size_t index = static_cast<size_t>(f);
+        filter_slope_buttons_[index]->setToggleState(true, juce::dontSendNotification);
+      });
+  filter_slope_attachment_->sendInitialUpdate();
+
+  const juce::StringArray filterEnvSourceOptions = {"E1", "E2"};
+  for (int i = 0; i < filterEnvSourceOptions.size(); ++i) {
+    auto btn = std::make_unique<juce::ToggleButton>(filterEnvSourceOptions[i]);
+    btn->setRadioGroupId(1006);
+    btn->setClickingTogglesState(false);
+    btn->onClick = [this, i] {
+      auto* param = processorRef.apvts_.getParameter("filterEnvSource");
+      param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(i)));
+    };
+    filter_env_source_buttons_.emplace_back(std::move(btn));
+  }
+  filter_env_source_attachment_ = std::make_unique<juce::ParameterAttachment>(
+      *processorRef.apvts_.getParameter("filterEnvSource"), [this](const float f) {
+        const size_t index = static_cast<size_t>(f);
+        filter_env_source_buttons_[index]->setToggleState(true, juce::dontSendNotification);
+      });
+  filter_env_source_attachment_->sendInitialUpdate();
+
   // Make sure that before the constructor has finished, you've set the
   // editor's size to whatever you need it to be.
   setSize(1600, 600);
@@ -80,6 +134,9 @@ AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
   processorRef.apvts_.removeParameterListener("waveType", this);
   processorRef.apvts_.removeParameterListener("lfoWaveType", this);
   processorRef.apvts_.removeParameterListener("wave2Type", this);
+  processorRef.apvts_.removeParameterListener("pulseWidthSource", this);
+  processorRef.apvts_.removeParameterListener("filterSlope", this);
+  processorRef.apvts_.removeParameterListener("filterEnvSource", this);
 }
 
 void AudioPluginAudioProcessorEditor::parameterChanged(
@@ -192,13 +249,10 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 
   pulse_width_source_label_.setText("PW Source", juce::dontSendNotification);
   addAndMakeVisible(pulse_width_source_label_);
-  pulse_width_source_combo_.clear(juce::dontSendNotification);
-  pulse_width_source_combo_.addItemList(
-      {"E2-", "E2+", "E1-", "E1+", "LFO", "MAN"}, 1);
-  addAndMakeVisible(pulse_width_source_combo_);
-  pulse_width_source_attachment_ =
-      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-          processorRef.apvts_, "pulseWidthSource", pulse_width_source_combo_);
+  for (auto& btn : pulse_width_source_buttons_) {
+    addAndMakeVisible(*btn);
+  }
+  processorRef.apvts_.addParameterListener("pulseWidthSource", this);
 
   // vco1 section
   vco1_label_.setText("VCO 1", juce::dontSendNotification);
@@ -293,16 +347,11 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   addAndMakeVisible(filter_drive_label_);
 
   // filter slope
-  filter_slope_combo_.clear(juce::dontSendNotification);
-  filter_slope_combo_.addItem("-24 dB", 1);
-  filter_slope_combo_.addItem("-18 dB", 2);
-  filter_slope_combo_.addItem("-12 dB", 3);
-  addAndMakeVisible(filter_slope_combo_);
-  filter_slope_attachment_ =
-      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-          processorRef.apvts_, "filterSlope", filter_slope_combo_);
+  for (auto& btn : filter_slope_buttons_) {
+    addAndMakeVisible(*btn);
+  }
+  processorRef.apvts_.addParameterListener("filterSlope", this);
   filter_slope_label_.setText("Slope", juce::dontSendNotification);
-  filter_slope_label_.attachToComponent(&filter_slope_combo_, false);
   addAndMakeVisible(filter_slope_label_);
 
   filter_env_mod_slider_.setSliderStyle(juce::Slider::LinearVertical);
@@ -327,15 +376,11 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   filter_lfo_mod_label_.attachToComponent(&filter_lfo_mod_slider_, false);
   addAndMakeVisible(filter_lfo_mod_label_);
 
-  filter_env_source_combo_.clear(juce::dontSendNotification);
-  filter_env_source_combo_.addItem("Env 1", 1);
-  filter_env_source_combo_.addItem("Env 2", 2);
-  addAndMakeVisible(filter_env_source_combo_);
-  filter_env_source_attachment_ =
-      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-          processorRef.apvts_, "filterEnvSource", filter_env_source_combo_);
+  for (auto& btn : filter_env_source_buttons_) {
+    addAndMakeVisible(*btn);
+  }
+  processorRef.apvts_.addParameterListener("filterEnvSource", this);
   filter_env_source_label_.setText("Env Source", juce::dontSendNotification);
-  filter_env_source_label_.attachToComponent(&filter_env_source_combo_, false);
   addAndMakeVisible(filter_env_source_label_);
 
   // env1 section
@@ -456,8 +501,8 @@ void AudioPluginAudioProcessorEditor::resized() {
                           juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(2)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(2))};
+                          juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(1))};
 
   grid.items = {juce::GridItem(lfo_label_),
                 juce::GridItem(vco_mod_label_),
@@ -530,7 +575,7 @@ void AudioPluginAudioProcessorEditor::resized() {
                           juce::GridItem{vco_mod_env1_freq_slider_},
                           juce::GridItem{},
                           juce::GridItem{pulse_width_slider_},
-                          juce::GridItem{pulse_width_source_combo_},
+                          juce::GridItem{},
                           juce::GridItem{vco_mod_lfo_freq_label_},
                           juce::GridItem{vco_mod_env1_freq_label_},
                           juce::GridItem{},
@@ -544,6 +589,14 @@ void AudioPluginAudioProcessorEditor::resized() {
     vco_mod_osc1_button_.setBounds(
         button_area.removeFromTop(button_area.getHeight() / 2).toNearestInt());
     vco_mod_osc2_button_.setBounds(button_area.toNearestInt());
+
+    auto radio_area = section_grid.items[4].currentBounds.toNearestInt();
+    radio_area.removeFromRight(radio_area.getWidth() / 2);
+    const auto button_height = radio_area.getHeight() / static_cast<int>(pulse_width_source_buttons_.size());
+
+    for (auto& btn : pulse_width_source_buttons_) {
+      btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
+    }
   }
 
   // VCO1 section
@@ -618,10 +671,10 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.items = {juce::GridItem{filter_cutoff_slider_},
                           juce::GridItem{filter_resonance_slider_},
                           juce::GridItem{filter_drive_slider_},
-                          juce::GridItem{filter_slope_combo_},
+                          juce::GridItem{},
                           juce::GridItem{filter_env_mod_slider_},
                           juce::GridItem{filter_lfo_mod_slider_},
-                          juce::GridItem{filter_env_source_combo_},
+                          juce::GridItem{},
                           juce::GridItem{filter_cutoff_label_},
                           juce::GridItem{filter_resonance_label_},
                           juce::GridItem{filter_drive_label_},
@@ -631,6 +684,28 @@ void AudioPluginAudioProcessorEditor::resized() {
                           juce::GridItem{filter_env_source_label_}};
 
     section_grid.performLayout(section_bounds.toNearestInt());
+
+    // filter slope layout
+    {
+      auto radio_area = section_grid.items[3].currentBounds.toNearestInt();
+      radio_area.removeFromRight(radio_area.getWidth() / 2);
+      const auto button_height = radio_area.getHeight() / static_cast<int>(filter_slope_buttons_.size());
+
+      for (auto& btn : filter_slope_buttons_) {
+        btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
+      }
+    }
+
+    // filter env source layout
+    {
+      auto radio_area = section_grid.items[6].currentBounds.toNearestInt();
+      radio_area.removeFromRight(radio_area.getWidth() / 2);
+      const auto button_height = radio_area.getHeight() / static_cast<int>(filter_env_source_buttons_.size());
+
+      for (auto& btn : filter_env_source_buttons_) {
+        btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
+      }
+    }
   }
 
   // ENV1 section
