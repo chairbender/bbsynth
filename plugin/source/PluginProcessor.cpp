@@ -365,7 +365,7 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   // Oscillator wave type selector
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "waveType", "Wave Type",
-      juce::StringArray{"sine", "sawFall", "triangle", "square", "random"}, 1));
+      juce::StringArray{"SIN", "SAW", "TRI", "SQR", "RND"}, 1));
 
   // vco2
   // wave type
