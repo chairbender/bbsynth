@@ -160,7 +160,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   rate_label_.setText("Rate", juce::dontSendNotification);
   addAndMakeVisible(rate_label_);
 
-  rate_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  rate_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   rate_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
   addAndMakeVisible(rate_slider_);
   rate_attachment_ =
@@ -170,7 +170,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   delay_time_label_.setText("Delay Time", juce::dontSendNotification);
   addAndMakeVisible(delay_time_label_);
 
-  delay_time_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  delay_time_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   delay_time_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
   addAndMakeVisible(delay_time_slider_);
   delay_time_attachment_ =
@@ -180,7 +180,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   lfo_attack_label_.setText("Attack", juce::dontSendNotification);
   addAndMakeVisible(lfo_attack_label_);
 
-  lfo_attack_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  lfo_attack_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   lfo_attack_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
   addAndMakeVisible(lfo_attack_slider_);
   lfo_attack_attachment_ =
@@ -203,7 +203,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   // lfo -> freq mod
   vco_mod_lfo_freq_label_.setText("LFO Freq Mod", juce::dontSendNotification);
   addAndMakeVisible(vco_mod_lfo_freq_label_);
-  vco_mod_lfo_freq_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  vco_mod_lfo_freq_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   vco_mod_lfo_freq_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false,
                                            50, 20);
   addAndMakeVisible(vco_mod_lfo_freq_slider_);
@@ -214,7 +214,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   // env1 -> freq mod
   vco_mod_env1_freq_label_.setText("ENV1 Freq Mod", juce::dontSendNotification);
   addAndMakeVisible(vco_mod_env1_freq_label_);
-  vco_mod_env1_freq_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  vco_mod_env1_freq_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   vco_mod_env1_freq_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false,
                                             50, 20);
   addAndMakeVisible(vco_mod_env1_freq_slider_);
@@ -239,7 +239,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 
   pulse_width_label_.setText("Pulse Width", juce::dontSendNotification);
   addAndMakeVisible(pulse_width_label_);
-  pulse_width_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  pulse_width_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   pulse_width_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50,
                                       20);
   addAndMakeVisible(pulse_width_slider_);
@@ -285,7 +285,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   addAndMakeVisible(wave2_type_label_);
 
   // fine tune
-  fine_tune_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  fine_tune_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   fine_tune_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
   fine_tune_attachment_ =
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
@@ -309,7 +309,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   vcf_label_.setText("VCF", juce::dontSendNotification);
   addAndMakeVisible(vcf_label_);
 
-  filter_cutoff_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  filter_cutoff_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   filter_cutoff_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
                                         20);
   addAndMakeVisible(filter_cutoff_slider_);
@@ -321,7 +321,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   filter_cutoff_label_.attachToComponent(&filter_cutoff_slider_, false);
   addAndMakeVisible(filter_cutoff_label_);
 
-  filter_resonance_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  filter_resonance_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   filter_resonance_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false,
                                            80, 20);
   addAndMakeVisible(filter_resonance_slider_);
@@ -334,7 +334,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   filter_resonance_label_.attachToComponent(&filter_resonance_slider_, false);
   addAndMakeVisible(filter_resonance_label_);
 
-  filter_drive_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  filter_drive_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   filter_drive_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
                                        20);
   addAndMakeVisible(filter_drive_slider_);
@@ -354,7 +354,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   filter_slope_label_.setText("Slope", juce::dontSendNotification);
   addAndMakeVisible(filter_slope_label_);
 
-  filter_env_mod_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  filter_env_mod_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   filter_env_mod_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50,
                                          20);
   addAndMakeVisible(filter_env_mod_slider_);
@@ -365,7 +365,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   filter_env_mod_label_.attachToComponent(&filter_env_mod_slider_, false);
   addAndMakeVisible(filter_env_mod_label_);
 
-  filter_lfo_mod_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  filter_lfo_mod_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   filter_lfo_mod_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50,
                                          20);
   addAndMakeVisible(filter_lfo_mod_slider_);
@@ -386,7 +386,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   // env1 section
   env1_label_.setText("ENV1", juce::dontSendNotification);
   addAndMakeVisible(env1_label_);
-  env1_attack_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  env1_attack_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   env1_attack_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
                                       20);
   addAndMakeVisible(env1_attack_slider_);
@@ -397,7 +397,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env1_attack_label_.attachToComponent(&env1_attack_slider_, false);
   addAndMakeVisible(env1_attack_label_);
 
-  env1_decay_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  env1_decay_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   env1_decay_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
   addAndMakeVisible(env1_decay_slider_);
   env1_decay_attachment_ =
@@ -407,7 +407,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env1_decay_label_.attachToComponent(&env1_decay_slider_, false);
   addAndMakeVisible(env1_decay_label_);
 
-  env1_sustain_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  env1_sustain_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   env1_sustain_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
                                        20);
   addAndMakeVisible(env1_sustain_slider_);
@@ -418,7 +418,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env1_sustain_label_.attachToComponent(&env1_sustain_slider_, false);
   addAndMakeVisible(env1_sustain_label_);
 
-  env1_release_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  env1_release_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   env1_release_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
                                        20);
   addAndMakeVisible(env1_release_slider_);
@@ -432,7 +432,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   // env2 section
   env2_label_.setText("ENV2", juce::dontSendNotification);
   addAndMakeVisible(env2_label_);
-  env2_attack_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  env2_attack_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   env2_attack_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
                                       20);
   addAndMakeVisible(env2_attack_slider_);
@@ -443,7 +443,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env2_attack_label_.attachToComponent(&env2_attack_slider_, false);
   addAndMakeVisible(env2_attack_label_);
 
-  env2_decay_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  env2_decay_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   env2_decay_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
   addAndMakeVisible(env2_decay_slider_);
   env2_decay_attachment_ =
@@ -453,7 +453,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env2_decay_label_.attachToComponent(&env2_decay_slider_, false);
   addAndMakeVisible(env2_decay_label_);
 
-  env2_sustain_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  env2_sustain_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   env2_sustain_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
                                        20);
   addAndMakeVisible(env2_sustain_slider_);
@@ -464,7 +464,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env2_sustain_label_.attachToComponent(&env2_sustain_slider_, false);
   addAndMakeVisible(env2_sustain_label_);
 
-  env2_release_slider_.setSliderStyle(juce::Slider::LinearVertical);
+  env2_release_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   env2_release_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
                                        20);
   addAndMakeVisible(env2_release_slider_);
@@ -496,13 +496,13 @@ void AudioPluginAudioProcessorEditor::resized() {
   grid.alignContent = juce::Grid::AlignContent::center;
   grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                        juce::Grid::TrackInfo(juce::Grid::Fr(5))};
-  grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+  grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(3)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+                          juce::Grid::TrackInfo(juce::Grid::Fr(2))};
 
   grid.items = {juce::GridItem(lfo_label_),
                 juce::GridItem(vco_mod_label_),
@@ -528,11 +528,9 @@ void AudioPluginAudioProcessorEditor::resized() {
     const auto section_bounds = grid.items[item_idx++].currentBounds;
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
-    section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
-    section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
-    section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                    juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                    juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+    section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(2)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(3))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
@@ -548,7 +546,6 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.performLayout(section_bounds.toNearestInt());
 
     auto radio_area = section_grid.items[3].currentBounds.toNearestInt();
-    radio_area.removeFromRight(radio_area.getWidth() / 2);
     const auto button_height = radio_area.getHeight() / 5;
 
     for (auto& btn : lfo_wave_type_buttons_) {
@@ -561,14 +558,11 @@ void AudioPluginAudioProcessorEditor::resized() {
     const auto section_bounds = grid.items[item_idx++].currentBounds;
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
-    section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
-    section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
-    section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                    juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                    juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                                    juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                    juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                    juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+    section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(4))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.items = {juce::GridItem{vco_mod_lfo_freq_slider_},
@@ -591,7 +585,6 @@ void AudioPluginAudioProcessorEditor::resized() {
     vco_mod_osc2_button_.setBounds(button_area.toNearestInt());
 
     auto radio_area = section_grid.items[4].currentBounds.toNearestInt();
-    radio_area.removeFromRight(radio_area.getWidth() / 2);
     const auto button_height = radio_area.getHeight() / static_cast<int>(pulse_width_source_buttons_.size());
 
     for (auto& btn : pulse_width_source_buttons_) {
@@ -604,8 +597,6 @@ void AudioPluginAudioProcessorEditor::resized() {
     const auto section_bounds = grid.items[item_idx++].currentBounds;
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
-    section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
-    section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
@@ -615,10 +606,8 @@ void AudioPluginAudioProcessorEditor::resized() {
 
     section_grid.performLayout(section_bounds.toNearestInt());
 
-    auto radio_area = section_bounds.toNearestInt();
-    radio_area.removeFromBottom(radio_area.getHeight() / 5); // remove label area roughly
-    radio_area.removeFromRight(radio_area.getWidth() / 2);
-    const auto button_height = radio_area.getHeight() / 5;
+    auto radio_area = section_grid.items[0].currentBounds.toNearestInt();
+    const auto button_height = radio_area.getHeight() / 10;
 
     for (auto& btn : wave_type_buttons_) {
       btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
@@ -630,35 +619,35 @@ void AudioPluginAudioProcessorEditor::resized() {
     const auto section_bounds = grid.items[item_idx++].currentBounds;
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
-    section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
-    section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
-    section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+    section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.items = {
-        juce::GridItem{}, juce::GridItem{fine_tune_slider_},
-        juce::GridItem{vco2_sync_button_}, juce::GridItem{wave2_type_label_},
-        juce::GridItem{fine_tune_label_},  juce::GridItem{vco2_sync_label_}};
+        juce::GridItem{},
+      juce::GridItem{fine_tune_slider_},
+        juce::GridItem{vco2_sync_button_},
+      juce::GridItem{wave2_type_label_},
+        juce::GridItem{fine_tune_label_},
+      juce::GridItem{vco2_sync_label_}};
 
     section_grid.performLayout(section_bounds.toNearestInt());
 
     auto radio_area = section_grid.items[0].currentBounds.toNearestInt();
-    radio_area.removeFromRight(radio_area.getWidth() / 2);
-    const auto button_height = radio_area.getHeight() / 5;
+    const auto button_height = radio_area.getHeight() / 10;
 
     for (auto& btn : wave2_type_buttons_) {
       btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
     }
+
+
   }
 
   // VCF section
   {
     const auto section_bounds = grid.items[item_idx++].currentBounds;
     juce::Grid section_grid;
-    section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
-    section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
@@ -688,7 +677,6 @@ void AudioPluginAudioProcessorEditor::resized() {
     // filter slope layout
     {
       auto radio_area = section_grid.items[3].currentBounds.toNearestInt();
-      radio_area.removeFromRight(radio_area.getWidth() / 2);
       const auto button_height = radio_area.getHeight() / static_cast<int>(filter_slope_buttons_.size());
 
       for (auto& btn : filter_slope_buttons_) {
@@ -699,7 +687,6 @@ void AudioPluginAudioProcessorEditor::resized() {
     // filter env source layout
     {
       auto radio_area = section_grid.items[6].currentBounds.toNearestInt();
-      radio_area.removeFromRight(radio_area.getWidth() / 2);
       const auto button_height = radio_area.getHeight() / static_cast<int>(filter_env_source_buttons_.size());
 
       for (auto& btn : filter_env_source_buttons_) {
@@ -712,8 +699,6 @@ void AudioPluginAudioProcessorEditor::resized() {
   {
     const auto section_bounds = grid.items[item_idx++].currentBounds;
     juce::Grid section_grid;
-    section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
-    section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
@@ -737,8 +722,6 @@ void AudioPluginAudioProcessorEditor::resized() {
     const auto section_bounds = grid.items[item_idx++].currentBounds;
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
-    section_grid.autoColumns = juce::Grid::TrackInfo(juce::Grid::Fr(1));
-    section_grid.autoRows = juce::Grid::TrackInfo(juce::Grid::Fr(1));
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
