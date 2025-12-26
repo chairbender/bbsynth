@@ -98,7 +98,6 @@ private:
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> fine_tune_attachment_;
 
   juce::ToggleButton vco2_sync_button_;
-  juce::Label vco2_sync_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> vco2_sync_attachment_;
 
   // VCF section
