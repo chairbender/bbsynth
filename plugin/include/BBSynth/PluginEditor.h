@@ -72,9 +72,9 @@ private:
   juce::Label pulse_width_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> pulse_width_attachment_;
 
-  juce::ComboBox pulse_width_source_combo_;
+  std::vector<std::unique_ptr<juce::ToggleButton>> pulse_width_source_buttons_;
   juce::Label pulse_width_source_label_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> pulse_width_source_attachment_;
+  std::unique_ptr<juce::ParameterAttachment> pulse_width_source_attachment_;
 
   //VCO 1 section
   juce::Label vco1_label_;
@@ -116,9 +116,9 @@ private:
   juce::Label filter_drive_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filter_drive_attachment_;
 
-  juce::ComboBox filter_slope_combo_;
+  std::vector<std::unique_ptr<juce::ToggleButton>> filter_slope_buttons_;
   juce::Label filter_slope_label_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> filter_slope_attachment_;
+  std::unique_ptr<juce::ParameterAttachment> filter_slope_attachment_;
 
   juce::Slider filter_env_mod_slider_;
   juce::Label filter_env_mod_label_;
@@ -128,9 +128,9 @@ private:
   juce::Label filter_lfo_mod_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filter_lfo_mod_attachment_;
 
-  juce::ComboBox filter_env_source_combo_;
+  std::vector<std::unique_ptr<juce::ToggleButton>> filter_env_source_buttons_;
   juce::Label filter_env_source_label_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> filter_env_source_attachment_;
+  std::unique_ptr<juce::ParameterAttachment> filter_env_source_attachment_;
 
   // ENV1 section
   juce::Label env1_label_;
