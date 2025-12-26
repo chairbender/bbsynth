@@ -8,7 +8,8 @@
 
 namespace audio_plugin {
 
-class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor {
+class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                        public juce::AudioProcessorValueTreeState::Listener {
 public:
   explicit AudioPluginAudioProcessorEditor(AudioPluginAudioProcessor&);
   /**
@@ -19,6 +20,7 @@ public:
 
   void paint(juce::Graphics&) override;
   void resized() override;
+  void parameterChanged(const juce::String& parameterID, float newValue) override;
   // todo refactor so this can be private
   juce::MidiKeyboardState keyboard_state_;
 
@@ -78,9 +80,9 @@ private:
   juce::Label vco1_label_;
 
   // Wave selector
-  juce::ComboBox wave_type_combo_;
+  std::vector<std::unique_ptr<juce::ToggleButton>> wave_type_buttons_;
+  std::unique_ptr<juce::ParameterAttachment> wave_type_attachment_;
   juce::Label wave_type_label_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> wave_type_attachment_;
 
   //VCO 2 section
   juce::Label vco2_label_;
