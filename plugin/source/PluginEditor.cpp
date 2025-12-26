@@ -291,7 +291,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "fineTune", fine_tune_slider_);
   fine_tune_label_.setText("Fine Tune", juce::dontSendNotification);
-  fine_tune_label_.attachToComponent(&fine_tune_slider_, false);
+  addAndMakeVisible(fine_tune_label_);
   addAndMakeVisible(fine_tune_slider_);
 
   // sync
@@ -301,9 +301,6 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   vco2_sync_attachment_ =
       std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
           processorRef.apvts_, "vco2Sync", vco2_sync_button_);
-  vco2_sync_label_.setText("Sync", juce::dontSendNotification);
-  vco2_sync_label_.attachToComponent(&vco2_sync_button_, false);
-  addAndMakeVisible(vco2_sync_label_);
 
   // vcf section
   vcf_label_.setText("VCF", juce::dontSendNotification);
@@ -317,8 +314,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "filterCutoffFreq", filter_cutoff_slider_);
 
-  filter_cutoff_label_.setText("Fiter Cutoff", juce::dontSendNotification);
-  filter_cutoff_label_.attachToComponent(&filter_cutoff_slider_, false);
+  filter_cutoff_label_.setText("Cutoff", juce::dontSendNotification);
   addAndMakeVisible(filter_cutoff_label_);
 
   filter_resonance_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -329,9 +325,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "filterResonance", filter_resonance_slider_);
 
-  filter_resonance_label_.setText("Fiter Resonance",
+  filter_resonance_label_.setText("Resonance",
                                   juce::dontSendNotification);
-  filter_resonance_label_.attachToComponent(&filter_resonance_slider_, false);
   addAndMakeVisible(filter_resonance_label_);
 
   filter_drive_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -342,8 +337,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "filterDrive", filter_drive_slider_);
 
-  filter_drive_label_.setText("Fiter Drive", juce::dontSendNotification);
-  filter_drive_label_.attachToComponent(&filter_drive_slider_, false);
+  filter_drive_label_.setText("Drive", juce::dontSendNotification);
   addAndMakeVisible(filter_drive_label_);
 
   // filter slope
@@ -362,7 +356,6 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "filterEnvMod", filter_env_mod_slider_);
   filter_env_mod_label_.setText("Env Mod", juce::dontSendNotification);
-  filter_env_mod_label_.attachToComponent(&filter_env_mod_slider_, false);
   addAndMakeVisible(filter_env_mod_label_);
 
   filter_lfo_mod_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -373,7 +366,6 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "filterLfoMod", filter_lfo_mod_slider_);
   filter_lfo_mod_label_.setText("LFO Mod", juce::dontSendNotification);
-  filter_lfo_mod_label_.attachToComponent(&filter_lfo_mod_slider_, false);
   addAndMakeVisible(filter_lfo_mod_label_);
 
   for (auto& btn : filter_env_source_buttons_) {
@@ -394,7 +386,6 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "adsrAttack", env1_attack_slider_);
   env1_attack_label_.setText("Attack", juce::dontSendNotification);
-  env1_attack_label_.attachToComponent(&env1_attack_slider_, false);
   addAndMakeVisible(env1_attack_label_);
 
   env1_decay_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -404,7 +395,6 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "adsrDecay", env1_decay_slider_);
   env1_decay_label_.setText("Decay", juce::dontSendNotification);
-  env1_decay_label_.attachToComponent(&env1_decay_slider_, false);
   addAndMakeVisible(env1_decay_label_);
 
   env1_sustain_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -415,7 +405,6 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "adsrSustain", env1_sustain_slider_);
   env1_sustain_label_.setText("Sustain", juce::dontSendNotification);
-  env1_sustain_label_.attachToComponent(&env1_sustain_slider_, false);
   addAndMakeVisible(env1_sustain_label_);
 
   env1_release_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -426,7 +415,6 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "adsrRelease", env1_release_slider_);
   env1_release_label_.setText("Release", juce::dontSendNotification);
-  env1_release_label_.attachToComponent(&env1_release_slider_, false);
   addAndMakeVisible(env1_release_label_);
 
   // env2 section
@@ -440,7 +428,6 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "env2Attack", env2_attack_slider_);
   env2_attack_label_.setText("Attack", juce::dontSendNotification);
-  env2_attack_label_.attachToComponent(&env2_attack_slider_, false);
   addAndMakeVisible(env2_attack_label_);
 
   env2_decay_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -450,7 +437,6 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "env2Decay", env2_decay_slider_);
   env2_decay_label_.setText("Decay", juce::dontSendNotification);
-  env2_decay_label_.attachToComponent(&env2_decay_slider_, false);
   addAndMakeVisible(env2_decay_label_);
 
   env2_sustain_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -461,7 +447,6 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "env2Sustain", env2_sustain_slider_);
   env2_sustain_label_.setText("Sustain", juce::dontSendNotification);
-  env2_sustain_label_.attachToComponent(&env2_sustain_slider_, false);
   addAndMakeVisible(env2_sustain_label_);
 
   env2_release_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -472,7 +457,6 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "env2Release", env2_release_slider_);
   env2_release_label_.setText("Release", juce::dontSendNotification);
-  env2_release_label_.attachToComponent(&env2_release_slider_, false);
   addAndMakeVisible(env2_release_label_);
 
   addAndMakeVisible(spectrum_analyzer_);
@@ -546,7 +530,7 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.performLayout(section_bounds.toNearestInt());
 
     auto radio_area = section_grid.items[3].currentBounds.toNearestInt();
-    const auto button_height = radio_area.getHeight() / 5;
+    const auto button_height = radio_area.getHeight() / 10;
 
     for (auto& btn : lfo_wave_type_buttons_) {
       btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
@@ -585,7 +569,7 @@ void AudioPluginAudioProcessorEditor::resized() {
     vco_mod_osc2_button_.setBounds(button_area.toNearestInt());
 
     auto radio_area = section_grid.items[4].currentBounds.toNearestInt();
-    const auto button_height = radio_area.getHeight() / static_cast<int>(pulse_width_source_buttons_.size());
+    const auto button_height = radio_area.getHeight() / 2 / static_cast<int>(pulse_width_source_buttons_.size());
 
     for (auto& btn : pulse_width_source_buttons_) {
       btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
@@ -629,8 +613,7 @@ void AudioPluginAudioProcessorEditor::resized() {
       juce::GridItem{fine_tune_slider_},
         juce::GridItem{vco2_sync_button_},
       juce::GridItem{wave2_type_label_},
-        juce::GridItem{fine_tune_label_},
-      juce::GridItem{vco2_sync_label_}};
+        juce::GridItem{fine_tune_label_}};
 
     section_grid.performLayout(section_bounds.toNearestInt());
 
