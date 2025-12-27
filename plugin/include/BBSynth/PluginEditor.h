@@ -131,6 +131,18 @@ private:
   juce::Label filter_env_source_label_;
   std::unique_ptr<juce::ParameterAttachment> filter_env_source_attachment_;
 
+  // VCA section
+  juce::Label vca_label_;
+  juce::Slider vca_level_slider_;
+  juce::Label vca_level_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vca_level_attachment_;
+  juce::Slider vca_lfo_mod_slider_;
+  juce::Label vca_lfo_mod_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vca_lfo_mod_attachment_;
+  juce::Slider vca_tone_slider_;
+  juce::Label vca_tone_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vca_tone_attachment_;
+
   // ENV1 section
   juce::Label env1_label_;
   juce::Slider env1_attack_slider_;
