@@ -306,6 +306,17 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   vcf_label_.setText("VCF", juce::dontSendNotification);
   addAndMakeVisible(vcf_label_);
 
+  filter_hpf_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
+  filter_hpf_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
+                                        20);
+  addAndMakeVisible(filter_hpf_slider_);
+  filter_hpf_attachment_ =
+      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+          processorRef.apvts_, "hpfFreq", filter_hpf_slider_);
+
+  filter_hpf_label_.setText("HPF", juce::dontSendNotification);
+  addAndMakeVisible(filter_hpf_label_);
+
   filter_cutoff_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   filter_cutoff_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
                                         20);
@@ -671,16 +682,19 @@ void AudioPluginAudioProcessorEditor::resized() {
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-    section_grid.items = {juce::GridItem{filter_cutoff_slider_},
+    section_grid.items = {juce::GridItem{filter_hpf_slider_},
+                          juce::GridItem{filter_cutoff_slider_},
                           juce::GridItem{filter_resonance_slider_},
                           juce::GridItem{filter_drive_slider_},
                           juce::GridItem{},
                           juce::GridItem{filter_env_mod_slider_},
                           juce::GridItem{filter_lfo_mod_slider_},
                           juce::GridItem{},
+                          juce::GridItem{filter_hpf_label_},
                           juce::GridItem{filter_cutoff_label_},
                           juce::GridItem{filter_resonance_label_},
                           juce::GridItem{filter_drive_label_},
@@ -693,7 +707,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
     // filter slope layout
     {
-      auto radio_area = section_grid.items[3].currentBounds.toNearestInt();
+      auto radio_area = section_grid.items[4].currentBounds.toNearestInt();
       const auto button_height = radio_area.getHeight() / static_cast<int>(filter_slope_buttons_.size());
 
       for (auto& btn : filter_slope_buttons_) {
@@ -703,7 +717,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
     // filter env source layout
     {
-      auto radio_area = section_grid.items[6].currentBounds.toNearestInt();
+      auto radio_area = section_grid.items[7].currentBounds.toNearestInt();
       const auto button_height = radio_area.getHeight() / static_cast<int>(filter_env_source_buttons_.size());
 
       for (auto& btn : filter_env_source_buttons_) {

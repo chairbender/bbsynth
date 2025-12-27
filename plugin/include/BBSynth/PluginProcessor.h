@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include "WaveGenerator.h"
+#include "juce_dsp/juce_dsp.h"
 
 namespace audio_plugin {
 
@@ -51,6 +52,8 @@ private:
   juce::AudioBuffer<float> lfo_buffer_;
   juce::Synthesiser synth;
   WaveGenerator lfo_generator_;
+  // todo: left off - expose new hpf param (simple 6db hpf)
+  juce::dsp::IIR::Filter<float> hpf_;
   // how many samples remaining until LFO should start,
   // < 0  means LFO is not playing.
   int lfo_samples_until_start_;
