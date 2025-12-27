@@ -479,12 +479,12 @@ void AudioPluginAudioProcessorEditor::resized() {
   // todod probably dont need both auto + template
   grid.alignContent = juce::Grid::AlignContent::center;
   grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                       juce::Grid::TrackInfo(juce::Grid::Fr(5))};
+                       juce::Grid::TrackInfo(juce::Grid::Fr(7))};
   grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(3)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(3)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(5)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(2)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(2))};
 
@@ -542,10 +542,10 @@ void AudioPluginAudioProcessorEditor::resized() {
     const auto section_bounds = grid.items[item_idx++].currentBounds;
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
-    section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+    section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(2)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                                    juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                                    juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(2)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(4))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
