@@ -280,6 +280,15 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 
+    // apply VCA
+    const auto vca_level = apvts_.getRawParameterValue("vcaLevel")->load();
+    const auto vca_lfo_mod = apvts_.getRawParameterValue("vcaLfoMod")->load();
+    auto* buf_write = buffer.getWritePointer(0);
+    auto* lfo_buf_read = lfo_buffer_.getReadPointer(0);
+    for (auto i = 0; i < buffer.getNumSamples(); ++i) {
+      buf_write[i] *= (vca_level + lfo_buf_read[i] * vca_lfo_mod);
+    }
+
     // stop the LFO if no more voices
     if (lfo_samples_until_start_ == 0 && start_lfo_sample < 0) {
       bool all_voices_stopped = true;
@@ -331,7 +340,7 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
 
   // LFO
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "lfoRate", "LFO Rate", juce::NormalisableRange(0.01f, 2.f, .01f),
+      "lfoRate", "LFO Rate", juce::NormalisableRange(0.01f, 100.f, .01f, .1f),
       0.2f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "lfoDelayTimeSeconds", "LFO Delay Time",
