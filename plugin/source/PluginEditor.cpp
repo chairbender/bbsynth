@@ -427,7 +427,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env1_attack_attachment_ =
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "adsrAttack", env1_attack_slider_);
-  env1_attack_label_.setText("Attack", juce::dontSendNotification);
+  env1_attack_label_.setText("A", juce::dontSendNotification);
   addAndMakeVisible(env1_attack_label_);
 
   env1_decay_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -436,7 +436,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env1_decay_attachment_ =
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "adsrDecay", env1_decay_slider_);
-  env1_decay_label_.setText("Decay", juce::dontSendNotification);
+  env1_decay_label_.setText("D", juce::dontSendNotification);
   addAndMakeVisible(env1_decay_label_);
 
   env1_sustain_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -446,7 +446,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env1_sustain_attachment_ =
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "adsrSustain", env1_sustain_slider_);
-  env1_sustain_label_.setText("Sustain", juce::dontSendNotification);
+  env1_sustain_label_.setText("S", juce::dontSendNotification);
   addAndMakeVisible(env1_sustain_label_);
 
   env1_release_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -456,7 +456,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env1_release_attachment_ =
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "adsrRelease", env1_release_slider_);
-  env1_release_label_.setText("Release", juce::dontSendNotification);
+  env1_release_label_.setText("R", juce::dontSendNotification);
   addAndMakeVisible(env1_release_label_);
 
   // env2 section
@@ -469,7 +469,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env2_attack_attachment_ =
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "env2Attack", env2_attack_slider_);
-  env2_attack_label_.setText("Attack", juce::dontSendNotification);
+  env2_attack_label_.setText("A", juce::dontSendNotification);
   addAndMakeVisible(env2_attack_label_);
 
   env2_decay_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -478,7 +478,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env2_decay_attachment_ =
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "env2Decay", env2_decay_slider_);
-  env2_decay_label_.setText("Decay", juce::dontSendNotification);
+  env2_decay_label_.setText("D", juce::dontSendNotification);
   addAndMakeVisible(env2_decay_label_);
 
   env2_sustain_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -488,7 +488,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env2_sustain_attachment_ =
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "env2Sustain", env2_sustain_slider_);
-  env2_sustain_label_.setText("Sustain", juce::dontSendNotification);
+  env2_sustain_label_.setText("S", juce::dontSendNotification);
   addAndMakeVisible(env2_sustain_label_);
 
   env2_release_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -498,7 +498,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   env2_release_attachment_ =
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "env2Release", env2_release_slider_);
-  env2_release_label_.setText("Release", juce::dontSendNotification);
+  env2_release_label_.setText("R", juce::dontSendNotification);
   addAndMakeVisible(env2_release_label_);
 
   addAndMakeVisible(spectrum_analyzer_);

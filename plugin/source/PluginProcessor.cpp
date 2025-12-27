@@ -126,6 +126,7 @@ void AudioPluginAudioProcessor::prepareToPlay(const double sampleRate,
   hpf_.prepare(juce::dsp::ProcessSpec(sampleRate, static_cast<juce::uint32>(samplesPerBlock), 1));
   hpf_.reset();
   ConfigureLFO();
+  tone_filter_.Prepare(sampleRate, samplesPerBlock);
   // Update all voices with current parameters
   for (int i = 0; i < synth.getNumVoices(); ++i) {
     if (auto* voice = dynamic_cast<OscillatorVoice*>(synth.getVoice(i))) {
@@ -202,9 +203,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
     // lfo params
     ConfigureLFO();
-    // hpf params - todo: probably bad to be changing this every block...rather than when param is changed
-    const auto hpf_freq = static_cast<float>(apvts_.getRawParameterValue("hpfFreq")->load());
-    hpf_.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(getSampleRate(), hpf_freq);
 
     // todo instead of clearing each block, just overwrite into it instead of adding to it
     // TODO: do we actually need to do this?
@@ -286,10 +284,14 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 
-    // create audio block to pass to hpf process
+    // hpf params - todo: probably bad to be changing this every block...rather than when param is changed
+    const auto hpf_freq = static_cast<float>(apvts_.getRawParameterValue("hpfFreq")->load());
+    hpf_.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(getSampleRate(), hpf_freq);
+
     auto hpf_block = juce::dsp::AudioBlock<float>{buffer.getArrayOfWritePointers(),
       1, static_cast<size_t>(buffer.getNumSamples())};
     hpf_.process(juce::dsp::ProcessContextReplacing<float>{hpf_block});
+
 
     // apply VCA
     const auto vca_level = apvts_.getRawParameterValue("vcaLevel")->load();
@@ -299,6 +301,10 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     for (auto i = 0; i < buffer.getNumSamples(); ++i) {
       buf_write[i] *= (vca_level + lfo_buf_read[i] * vca_lfo_mod);
     }
+
+    // tone filtering
+    tone_filter_.set_tilt(apvts_.getRawParameterValue("vcaTone")->load());
+    tone_filter_.Process(buffer, buffer.getNumSamples());
 
     // stop the LFO if no more voices
     if (lfo_samples_until_start_ == 0 && start_lfo_sample < 0) {
