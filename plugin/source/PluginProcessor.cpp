@@ -422,6 +422,14 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "filterEnvSource", "Filter Env Source", juce::StringArray{"Env 1", "Env 2"}, 0));
 
+  // VCA
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "vcaLevel", "VCA Level", juce::NormalisableRange(0.f, 1.f, 0.01f), 0.8f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "vcaLfoMod", "VCA LFO Mod", juce::NormalisableRange(-1.f, 1.f, 0.01f), 0.f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "vcaTone", "VCA Tone", juce::NormalisableRange(-1.f, 1.f, 0.01f), 0.f));
+
   return {parameterList.begin(), parameterList.end()};
 }
 
