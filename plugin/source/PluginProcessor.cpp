@@ -122,6 +122,9 @@ void AudioPluginAudioProcessor::prepareToPlay(const double sampleRate,
   lfo_samples_until_start_ = -1;
   lfo_ramp_ = -1;
   lfo_generator_.PrepareToPlay(sampleRate);
+  hpf_.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 1000.0f);
+  hpf_.prepare(juce::dsp::ProcessSpec(sampleRate, static_cast<juce::uint32>(samplesPerBlock), 1));
+  hpf_.reset();
   ConfigureLFO();
   // Update all voices with current parameters
   for (int i = 0; i < synth.getNumVoices(); ++i) {
@@ -199,6 +202,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
     // lfo params
     ConfigureLFO();
+    // hpf params - todo: probably bad to be changing this every block...rather than when param is changed
+    const auto hpf_freq = static_cast<float>(apvts_.getRawParameterValue("hpfFreq")->load());
+    hpf_.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(getSampleRate(), hpf_freq);
 
     // todo instead of clearing each block, just overwrite into it instead of adding to it
     // TODO: do we actually need to do this?
@@ -279,6 +285,11 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+
+    // create audio block to pass to hpf process
+    auto hpf_block = juce::dsp::AudioBlock<float>{buffer.getArrayOfWritePointers(),
+      1, static_cast<size_t>(buffer.getNumSamples())};
+    hpf_.process(juce::dsp::ProcessContextReplacing<float>{hpf_block});
 
     // apply VCA
     const auto vca_level = apvts_.getRawParameterValue("vcaLevel")->load();
@@ -413,6 +424,10 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "env2Release", "ENV2 Release (s)",
       juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.3f));
+  // VCF
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "hpfFreq", "HPF Frequency",
+      juce::NormalisableRange(20.f, 2000.f, 1.f, 0.3f), 20.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterCutoffFreq", "Filter Cutoff Frequency",
       juce::NormalisableRange(20.f, 8000.f, 1.f), 4000.f));

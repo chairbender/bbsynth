@@ -102,7 +102,9 @@ private:
 
   // VCF section
   juce::Label vcf_label_;
-
+  juce::Slider filter_hpf_slider_;
+  juce::Label filter_hpf_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filter_hpf_attachment_;
   juce::Slider filter_cutoff_slider_;
   juce::Label filter_cutoff_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filter_cutoff_attachment_;
