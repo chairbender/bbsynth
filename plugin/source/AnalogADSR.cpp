@@ -20,6 +20,7 @@ void AnalogADSR::Configure(const float attack_seconds,
 void AnalogADSR::Reset() {
   state_ = State::idle;
   stage_samples_ = 0.0f;
+  last_level_ = 0.f;
 }
 
 void AnalogADSR::NoteOn() {
@@ -37,7 +38,7 @@ void AnalogADSR::NoteOff() {
 
 void AnalogADSR::AdvanceStateFromAttack() {
   if (decay_samples_ > 0) {
-    state_ = State::release;
+    state_ = State::decay;
     stage_samples_ = 0;
   } else {
     AdvanceStateFromDecay();
@@ -55,6 +56,7 @@ void AnalogADSR::AdvanceStateFromSustain() {
   if (release_samples_ > 0) {
     state_ = State::release;
     stage_samples_ = 0;
+    released_level_ = last_level_;
   } else {
     AdvanceStateFromRelease();
   }
@@ -62,7 +64,10 @@ void AnalogADSR::AdvanceStateFromSustain() {
 void AnalogADSR::AdvanceStateFromRelease() {
   Reset();
 }
-template<auto NextStateFunc,auto Curve,auto ConfiguredStageSamples>
+
+// TODO: probably all the below code can use compile-time logic more to reduce runtime computation...
+
+template<auto NextStateFunc,auto Curve,auto ConfiguredStageSamples,auto StartVal,auto TargetVal>
 void AnalogADSR::WriteStage(juce::AudioBuffer<float>& buffer,
                                        const int start_sample,
                                        const int num_samples) {
@@ -84,19 +89,28 @@ void AnalogADSR::WriteStage(juce::AudioBuffer<float>& buffer,
     const auto denom = std::pow(2, Curve) - 1;
     for (int i = 0; i < samples_to_write; ++i) {
       // scale time to 0,1 interval
-      // if curve is positive, we want the function to go from 1 to 0
-      // (because the curve param is OPPOSITE the direction of the envelope)
-      const float progress = [this]() {
-        if constexpr (Curve > 0) {
-           return 1 - (static_cast<float>(stage_samples_++) /
-                 static_cast<float>((this->*ConfiguredStageSamples)));
-        } else {
-          return (static_cast<float>(stage_samples_++) /
+      const float progress = (static_cast<float>(stage_samples_++) /
           static_cast<float>((this->*ConfiguredStageSamples)));
+      const auto num = (std::pow(2, Curve * progress) - 1);
+      const auto unscaled = num / denom;
+      // now scale to target -> release (either of which may be a pointer to member or a constant)
+      const float start_actual = [](const auto* self) {
+        if constexpr (std::is_member_object_pointer_v<decltype(StartVal)>) {
+          return (self->*StartVal);
+        } else {
+          return StartVal;
         }
-      }();
-      const auto num = std::pow(2, Curve * progress) - 1;
-      buffer.setSample(0, start_sample + i, static_cast<float>(num / denom));
+      }(this);
+      const float target_actual = [](const auto* self) {
+        if constexpr (std::is_member_object_pointer_v<decltype(TargetVal)>) {
+          return (self->*TargetVal);
+        } else {
+          return TargetVal;
+        }
+      }(this);
+      // now scale the 0 - 1 interval to start - end
+      const auto scaled = start_actual + (target_actual - start_actual) * static_cast<float>(unscaled);
+      buffer.setSample(0, start_sample + i, scaled);
     }
     if (excess_samples > 0) {
       // we didn't fill the buffer up - transition to the next state and
@@ -105,6 +119,7 @@ void AnalogADSR::WriteStage(juce::AudioBuffer<float>& buffer,
       WriteEnvelopeToBuffer(buffer, start_sample + samples_to_write, num_samples - samples_to_write);
     }
   }
+  last_level_ = buffer.getSample(0, start_sample + num_samples - 1);
 }
 
 void AnalogADSR::WriteEnvelopeToBuffer(juce::AudioBuffer<float>& buffer,
@@ -115,9 +130,11 @@ void AnalogADSR::WriteEnvelopeToBuffer(juce::AudioBuffer<float>& buffer,
     return;
   }
   if (state_ == State::attack) {
-    WriteStage<&AnalogADSR::AdvanceStateFromAttack,-0.5f, &AnalogADSR::attack_samples_>(buffer, start_sample, num_samples);
+    WriteStage<&AnalogADSR::AdvanceStateFromAttack,-0.4f, &AnalogADSR::attack_samples_, 0.f, 1.f>
+      (buffer, start_sample, num_samples);
   } else if (state_ == State::decay) {
-    WriteStage<&AnalogADSR::AdvanceStateFromDecay,0.5f, &AnalogADSR::decay_samples_>(buffer, start_sample, num_samples);
+    WriteStage<&AnalogADSR::AdvanceStateFromDecay,0.4f, &AnalogADSR::decay_samples_, 1.f, &AnalogADSR::sustain_level_>
+      (buffer, start_sample, num_samples);
   } else if (state_ == State::sustain) {
     // sustain lasts until note off, so just write constant value
     const auto buffer_ptr = buffer.getWritePointer(0);
@@ -125,10 +142,10 @@ void AnalogADSR::WriteEnvelopeToBuffer(juce::AudioBuffer<float>& buffer,
       buffer_ptr[i] = sustain_level_;
     }
   } else if (state_ == State::release) {
-    WriteStage<&AnalogADSR::AdvanceStateFromRelease,0.5f, &AnalogADSR::release_samples_>(buffer, start_sample, num_samples);
+    WriteStage<&AnalogADSR::AdvanceStateFromRelease,0.4f, &AnalogADSR::release_samples_, &AnalogADSR::released_level_, 0.f>(buffer, start_sample, num_samples);
   }
 }
-bool AnalogADSR::IsActive() {
+bool AnalogADSR::IsActive() const {
   return state_ != State::idle;
 }
 

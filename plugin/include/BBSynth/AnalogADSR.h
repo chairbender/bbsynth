@@ -19,7 +19,7 @@ class AnalogADSR {
   // values to the buffer so the envelope can be used by other parts of the plugin
   // This only affects the first channel of the buffer.
   void WriteEnvelopeToBuffer(juce::AudioBuffer<float>& buffer, int start_sample, int num_samples);
-  bool IsActive();
+  bool IsActive() const;
 
  private:
   void AdvanceStateFromAttack();
@@ -27,7 +27,7 @@ class AnalogADSR {
   void AdvanceStateFromSustain();
   void AdvanceStateFromRelease();
 
-  template<auto NextStateFunc,auto Curve,auto ConfiguredStageSamples>
+  template<auto NextStateFunc,auto Curve,auto ConfiguredStageSamples,auto StartVal, auto TargetVal>
   void WriteStage(juce::AudioBuffer<float>& buffer, int start_sample,
                   int num_samples);
 
@@ -43,5 +43,9 @@ class AnalogADSR {
 
   // how many samples has the current stage lasted (only relevant for attack, decay, release)
   int stage_samples_{0};
+  // what was the level when the release started?
+  float released_level_{0.f};
+  // most recent output level, used for setting released level
+  float last_level_{0.f};
 };
 }  // namespace audio_plugin
