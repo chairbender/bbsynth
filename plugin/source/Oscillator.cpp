@@ -34,22 +34,18 @@ void OscillatorVoice::Configure(
   filter_.Configure(apvts);
 
   // Configure ADSR envelope from parameters
-  envelope_.setSampleRate(getSampleRate());
-  const juce::ADSR::Parameters params(
-      apvts.getRawParameterValue("adsrAttack")->load(),
-      apvts.getRawParameterValue("adsrDecay")->load(),
-      apvts.getRawParameterValue("adsrSustain")->load(),
-      apvts.getRawParameterValue("adsrRelease")->load());
-  envelope_.setParameters(params);
-
-  // Configure ADSR envelope 2 from parameters
-  envelope2_.setSampleRate(getSampleRate());
-  const juce::ADSR::Parameters params2(
-      apvts.getRawParameterValue("env2Attack")->load(),
-      apvts.getRawParameterValue("env2Decay")->load(),
-      apvts.getRawParameterValue("env2Sustain")->load(),
-      apvts.getRawParameterValue("env2Release")->load());
-  envelope2_.setParameters(params2);
+  envelope_.Prepare(getSampleRate());
+  envelope_.Configure(
+  apvts.getRawParameterValue("adsrAttack")->load(),
+    apvts.getRawParameterValue("adsrDecay")->load(),
+    apvts.getRawParameterValue("adsrSustain")->load(),
+    apvts.getRawParameterValue("adsrRelease")->load());
+  envelope2_.Prepare(getSampleRate());
+  envelope2_.Configure(
+  apvts.getRawParameterValue("env2Attack")->load(),
+    apvts.getRawParameterValue("env2Decay")->load(),
+    apvts.getRawParameterValue("env2Sustain")->load(),
+    apvts.getRawParameterValue("env2Release")->load());
 
   if (apvts.getRawParameterValue("vcoModOsc1")->load() > 0) {
     waveGenerator_.set_pitch_bend_lfo_mod(
@@ -171,14 +167,14 @@ void OscillatorVoice::startNote(const int midiNoteNumber,
   waveGenerator_.set_volume(0);
   wave2Generator_.set_pitch_semitone(midiNoteNumber, getSampleRate());
   wave2Generator_.set_volume(0);
-  envelope_.noteOn();
-  envelope2_.noteOn();
+  envelope_.NoteOn();
+  envelope2_.NoteOn();
 }
 
 void OscillatorVoice::stopNote([[maybe_unused]] float velocity,
                                [[maybe_unused]] const bool allowTailOff) {
-  envelope_.noteOff();
-  envelope2_.noteOff();
+  envelope_.NoteOff();
+  envelope2_.NoteOff();
 }
 
 void OscillatorVoice::pitchWheelMoved([[maybe_unused]] int newPitchWheelValue) {
@@ -196,12 +192,8 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   // TODO: how does this interact with note on? Does this mean envelope always
   //  starts at start of a block even if it "should" start mid-block?
   // fill envelope buffers
-  auto* env1_data_write = env1_buffer_.getWritePointer(0);
-  auto* env2_data_write = env2_buffer_.getWritePointer(0);
-  for (int i = 0; i < numSamples; ++i) {
-    env1_data_write[i] = envelope_.getNextSample();
-    env2_data_write[i] = envelope2_.getNextSample();
-  }
+  envelope_.WriteEnvelopeToBuffer(env1_buffer_, startSample, numSamples);
+  envelope2_.WriteEnvelopeToBuffer(env2_buffer_, startSample, numSamples);
 
   // note this will fill and process only the left channel since we want to work
   // in mono until the last moment the wave generator and filter are already
@@ -217,11 +209,12 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
   auto* data = oversample_buffer_.getWritePointer(0);
+  auto* env1_data = env1_buffer_.getReadPointer(0);
   for (int i = 0; i < oversample_samples; ++i) {
-    data[i] *= env1_data_write[i / 2];
+    data[i] *= env1_data[i / 2];
   }
 
-  if (!envelope_.isActive()) {
+  if (!envelope_.IsActive()) {
     waveGenerator_.set_volume(-120);
     wave2Generator_.set_volume(-120);
     clearCurrentNote();
