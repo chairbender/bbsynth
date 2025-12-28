@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
+#include "AnalogADSR.h"
 #include "Downsampler.h"
 #include "OTAFilter.h"
 #include "WaveGenerator.h"
@@ -59,7 +60,7 @@ struct OscillatorVoice : juce::SynthesiserVoice {
   const juce::AudioBuffer<float>* filter_env_buffer_ = nullptr;
   juce::AudioBuffer<float> oversample_buffer_;
   Downsampler downsampler_;
-  juce::ADSR envelope_;
-  juce::ADSR envelope2_;
+  AnalogADSR envelope_;
+  AnalogADSR envelope2_;
 };
 }  // namespace audio_plugin
