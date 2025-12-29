@@ -219,7 +219,7 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
     if (pitch_bend_env1_mod_ != 0.) {
       mod += static_cast<double>(env1_data[i / 2]) * pitch_bend_env1_mod_;
     }
-    if (cross_mod_ != 0.) {
+    if (cross_mod_ > 0.001) {
       // unlike the other modulation buffers, the modulator is oversampled.
       // note blepping has already been applied to the modulator signal
       // so the carrier only needs to deal with its own discontinuities like

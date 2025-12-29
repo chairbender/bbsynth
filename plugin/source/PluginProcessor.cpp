@@ -409,7 +409,7 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
       "vco2Sync", "Sync (VCO1->VCO2)", false));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "crossMod", "Cross Mod", juce::NormalisableRange(0.f, .5f, 0.00001f), 0.f));
+      "crossMod", "Cross Mod", juce::NormalisableRange(0.f, 8.f, 0.1f), 0.f));
 
   // ADSR envelope parameters
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
