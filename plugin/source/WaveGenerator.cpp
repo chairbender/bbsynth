@@ -10,6 +10,8 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 
 #include "BBSynth/WaveGenerator.h"
 
+#include "BBSynth/Constants.h"
+
 namespace audio_plugin {
 
 constexpr double DELTA{.0000001};
@@ -214,10 +216,10 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
     // TODO: account better for oversampling - this hardcoded amount isn't good
     double mod = 0;
     if (pitch_bend_lfo_mod_ != 0.) {
-      mod = static_cast<double>(lfo_data[i / 2]) * pitch_bend_lfo_mod_;
+      mod = static_cast<double>(lfo_data[i / kOversample]) * pitch_bend_lfo_mod_;
     }
     if (pitch_bend_env1_mod_ != 0.) {
-      mod += static_cast<double>(env1_data[i / 2]) * pitch_bend_env1_mod_;
+      mod += static_cast<double>(env1_data[i / kOversample]) * pitch_bend_env1_mod_;
     }
     if (cross_mod_ > 0.001) {
       // unlike the other modulation buffers, the modulator is oversampled.
@@ -348,23 +350,23 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
           switch (pulse_width_mod_type_) {
             case env2Plus:
               pulse_width_actual_ =
-                  static_cast<double>(env2_data[i / 2]) * pulse_width_mod_;
+                  static_cast<double>(env2_data[i / kOversample]) * pulse_width_mod_;
               break;
             case env2Minus:
               pulse_width_actual_ =
-                  static_cast<double>(env2_data[i / 2]) * -pulse_width_mod_;
+                  static_cast<double>(env2_data[i / kOversample]) * -pulse_width_mod_;
               break;
             case env1Plus:
               pulse_width_actual_ =
-                  static_cast<double>(env1_data[i / 2]) * pulse_width_mod_;
+                  static_cast<double>(env1_data[i / kOversample]) * pulse_width_mod_;
               break;
             case env1Minus:
               pulse_width_actual_ =
-                  static_cast<double>(env1_data[i / 2]) * -pulse_width_mod_;
+                  static_cast<double>(env1_data[i / kOversample]) * -pulse_width_mod_;
               break;
             case lfo:
               pulse_width_actual_ =
-                  (static_cast<double>(lfo_data[i / 2]) / 2 + 1) *
+                  (static_cast<double>(lfo_data[i / kOversample]) / 2 + 1) *
                   pulse_width_mod_;
               break;
             case manual:

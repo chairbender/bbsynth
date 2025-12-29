@@ -1,6 +1,10 @@
 #include "BBSynth/OTAFilter.h"
-#include <cmath>
+
 #include <juce_dsp/juce_dsp.h>
+
+#include <cmath>
+
+#include "BBSynth/Constants.h"
 
 namespace audio_plugin {
 OTAFilter::OTAFilter() : cutoff_freq_{0.f}, resonance_{0.f},
@@ -40,7 +44,7 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
     // for now, let's say env_mod is -1 to 1, and it can shift cutoff by some amount
     // cutoff_freq_ is 20 to 8000
     // let's try adding env_mod_ * env_data[i] * range + lfo_mod_ * lfo_data[i] * range
-    const float modulated_cutoff = juce::jlimit(20.f, 20000.f, cutoff_freq_ + env_mod_ * env_data[i / 2] * 4000.f + lfo_mod_ * lfo_data[i / 2] * 4000.f);
+    const float modulated_cutoff = juce::jlimit(20.f, 20000.f, cutoff_freq_ + env_mod_ * env_data[i / kOversample] * 4000.f + lfo_mod_ * lfo_data[i / kOversample] * 4000.f);
     const auto g = tanf(juce::MathConstants<float>::pi * modulated_cutoff / static_cast<float>(sample_rate_));
 
     // resonance feedback from output
