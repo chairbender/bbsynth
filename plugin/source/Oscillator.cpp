@@ -230,7 +230,7 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   // from the oversample_buffer_ directly? if we're doing FM, we only use wave 2
   // for FM, we don't output it directly todo: this should be a bool set in
   // Configure, not doing this check every block...
-   if (waveGenerator_.cross_mod() <= 0.01f) {
+   if (waveGenerator_.cross_mod() <= 0.0001f) {
     oversample_buffer_.addFrom(0, 0, wave2_buffer_, 0, 0, oversample_samples);
   }
   waveGenerator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
