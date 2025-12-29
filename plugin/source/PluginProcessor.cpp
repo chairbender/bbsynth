@@ -18,7 +18,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
       apvts_(*this, nullptr, "ParameterTree", CreateParameterLayout()),
       // TODO: we should have the option to not pass these buffers -
       //   they're not needed for LFO
-      lfo_generator_{lfo_buffer_, lfo_buffer_, lfo_buffer_} {
+      lfo_generator_{lfo_buffer_, lfo_buffer_, lfo_buffer_, lfo_buffer_} {
   for (auto i = 0; i < 1; ++i) {
     synth.addVoice(new OscillatorVoice(lfo_buffer_));
   }
@@ -402,6 +402,8 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       "fineTune", "Fine Tune", juce::NormalisableRange(-10.f, 10.f, 0.01f), 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
       "vco2Sync", "Sync (VCO1->VCO2)", false));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "crossMod", "Cross Mod", juce::NormalisableRange(0.f, .5f, 0.00001f), 0.f));
 
   // ADSR envelope parameters
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(

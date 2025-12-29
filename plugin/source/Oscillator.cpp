@@ -15,8 +15,8 @@ bool OscillatorSound::appliesToChannel([[maybe_unused]] int midiChannelIndex) {
 }
 
 OscillatorVoice::OscillatorVoice(const juce::AudioBuffer<float>& lfo_buffer)
-    : waveGenerator_{lfo_buffer, env1_buffer_, env2_buffer_},
-      wave2Generator_{lfo_buffer, env1_buffer_, env2_buffer_} {
+    : waveGenerator_{lfo_buffer, env1_buffer_, env2_buffer_, wave2_buffer_},
+      wave2Generator_{lfo_buffer, env1_buffer_, env2_buffer_, wave2_buffer_} {
   waveGenerator_.PrepareToPlay(getSampleRate() * kOversample);
   wave2Generator_.PrepareToPlay(getSampleRate() * kOversample);
   // waveGenerator_.setHardsync(false);
@@ -142,6 +142,10 @@ void OscillatorVoice::Configure(
       static_cast<double>(apvts.getRawParameterValue("pulseWidth")->load());
   waveGenerator_.set_pulse_width_mod(pulseWidth);
   wave2Generator_.set_pulse_width_mod(pulseWidth);
+
+  const float crossMod = apvts.getRawParameterValue("crossMod")->load();
+  waveGenerator_.set_cross_mod(crossMod);
+
   // filter
   const int filterEnvSource = static_cast<int>(apvts.getRawParameterValue("filterEnvSource")->load());
   if (filterEnvSource == 0) {
@@ -155,6 +159,7 @@ void OscillatorVoice::SetBlockSize(const int blockSize) {
   downsampler_.prepare(getSampleRate(), blockSize);
   const auto oversample_samples = blockSize * kOversample;
   oversample_buffer_.setSize(1, oversample_samples, false, true);
+  wave2_buffer_.setSize(1, oversample_samples, false, true);
   env1_buffer_.setSize(1, blockSize, false, true);
   env2_buffer_.setSize(1, blockSize, false, true);
 }
@@ -197,9 +202,20 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 
   // note this will fill and process only the left channel since we want to work
   // in mono until the last moment the wave generator and filter are already
-  // configured to generate at 2x oversampling.
+  // configured to generate at 2x oversampling..
+  // we need wave2 first so we can use it for cross-mod (FM)
+  // TODO: should the envelope actually affect the cross-mod behavior?
+  // todo: I think we need this clear since wave generator will ADD, but let's modify
+  //   the RenderNextBlock to tell it to overwrite rather than add so we can avoid this clear
+  wave2_buffer_.clear();
+  wave2Generator_.RenderNextBlock(wave2_buffer_, 0, oversample_samples);
+  // todo: Do we even need this intermediate wave2_buffer? What if we cross-mod from the oversample_buffer_ directly?
+  // if we're doing FM, we only use wave 2 for FM, we don't output it directly
+  // todo: this should be a bool set in Configure, not doing this check every block...
+  if (waveGenerator_.cross_mod() == 0.f) {
+    oversample_buffer_.addFrom(0, 0, wave2_buffer_, 0, 0, oversample_samples);
+  }
   waveGenerator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
-  wave2Generator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
   if (filter_env_buffer_ != nullptr) {
     filter_.Process(oversample_buffer_, *filter_env_buffer_, waveGenerator_.lfo_buffer(), oversample_samples);
   } else {

@@ -68,6 +68,7 @@ class WaveGenerator {
   double actual_current_angle_delta_ = 0;  // ACTUAL CURRENT DELTA (pitch)
 
   double volume_ = 1;
+  double cross_mod_ = 0;
   double gain_last_[2] = {0, 0};  // for ramping ..
   double skew_ = 0;               // [-1, 1]
   double sample_rate_ = 0;
@@ -86,6 +87,7 @@ class WaveGenerator {
   const juce::AudioBuffer<float>& lfo_buffer_;
   const juce::AudioBuffer<float>& env1_buffer_;
   const juce::AudioBuffer<float>& env2_buffer_;
+  const juce::AudioBuffer<float>& modulator_buffer_;
 
  public:
   enum WaveType {
@@ -113,7 +115,8 @@ class WaveGenerator {
 
   WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
                 const juce::AudioBuffer<float>& env1_buffer,
-                const juce::AudioBuffer<float>& env2_buffer);
+                const juce::AudioBuffer<float>& env2_buffer,
+                const juce::AudioBuffer<float>& modulator_buffer);
 
   void PrepareToPlay(double new_sample_rate);
 
@@ -274,6 +277,8 @@ class WaveGenerator {
     else
       volume_ = juce::Decibels::decibelsToGain(db_mult);
   }
+  void set_cross_mod(const float cross_mod) { cross_mod_ = static_cast<double>(cross_mod); }
+  float cross_mod() const { return static_cast<float>(cross_mod_); }
   const juce::AudioBuffer<float>& lfo_buffer() const { return lfo_buffer_; }
   void set_hardsync(const bool shouldHardSync) { hard_sync_ = shouldHardSync; }
   bool hardsync() const { return hard_sync_; }

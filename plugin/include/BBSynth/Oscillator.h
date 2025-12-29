@@ -58,6 +58,9 @@ struct OscillatorVoice : juce::SynthesiserVoice {
   WaveGenerator wave2Generator_;
   OTAFilter filter_;
   const juce::AudioBuffer<float>* filter_env_buffer_ = nullptr;
+  // modulator buffer
+  // todo do we actually need this if we already hae oversample buffer?
+  juce::AudioBuffer<float> wave2_buffer_;
   juce::AudioBuffer<float> oversample_buffer_;
   Downsampler downsampler_;
   AnalogADSR envelope_;
