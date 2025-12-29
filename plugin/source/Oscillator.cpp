@@ -19,7 +19,6 @@ OscillatorVoice::OscillatorVoice(const juce::AudioBuffer<float>& lfo_buffer)
       wave2Generator_{lfo_buffer, env1_buffer_, env2_buffer_, wave2_buffer_} {
   waveGenerator_.PrepareToPlay(getSampleRate() * kOversample);
   wave2Generator_.PrepareToPlay(getSampleRate() * kOversample);
-  // waveGenerator_.setHardsync(false);
   waveGenerator_.set_mode(WaveGenerator::ANTIALIAS);
   wave2Generator_.set_mode(WaveGenerator::ANTIALIAS);
   filter_.set_sample_rate(getSampleRate() * kOversample);
@@ -35,17 +34,15 @@ void OscillatorVoice::Configure(
 
   // Configure ADSR envelope from parameters
   envelope_.Prepare(getSampleRate());
-  envelope_.Configure(
-  apvts.getRawParameterValue("adsrAttack")->load(),
-    apvts.getRawParameterValue("adsrDecay")->load(),
-    apvts.getRawParameterValue("adsrSustain")->load(),
-    apvts.getRawParameterValue("adsrRelease")->load());
+  envelope_.Configure(apvts.getRawParameterValue("adsrAttack")->load(),
+                      apvts.getRawParameterValue("adsrDecay")->load(),
+                      apvts.getRawParameterValue("adsrSustain")->load(),
+                      apvts.getRawParameterValue("adsrRelease")->load());
   envelope2_.Prepare(getSampleRate());
-  envelope2_.Configure(
-  apvts.getRawParameterValue("env2Attack")->load(),
-    apvts.getRawParameterValue("env2Decay")->load(),
-    apvts.getRawParameterValue("env2Sustain")->load(),
-    apvts.getRawParameterValue("env2Release")->load());
+  envelope2_.Configure(apvts.getRawParameterValue("env2Attack")->load(),
+                       apvts.getRawParameterValue("env2Decay")->load(),
+                       apvts.getRawParameterValue("env2Sustain")->load(),
+                       apvts.getRawParameterValue("env2Release")->load());
 
   if (apvts.getRawParameterValue("vcoModOsc1")->load() > 0) {
     waveGenerator_.set_pitch_bend_lfo_mod(
@@ -104,13 +101,13 @@ void OscillatorVoice::Configure(
   const float fine_tune = apvts.getRawParameterValue("fineTune")->load();
   if (hard_sync) {
     wave2Generator_.set_hardsync(true);
-    waveGenerator_.set_hardsync(true);
-    wave2Generator_.set_pitch_offset_hz(static_cast<double>(fine_tune));
+    waveGenerator_.set_hardsync(false);
   } else {
-    wave2Generator_.set_pitch_hz(waveGenerator_.current_pitch_hz() + static_cast<double>(fine_tune));
     wave2Generator_.set_hardsync(false);
     waveGenerator_.set_hardsync(false);
   }
+  // todo: fine tune not working correctly when hardsync off
+  wave2Generator_.set_pitch_offset_hz(static_cast<double>(fine_tune));
 
   const int pulseWidthSource =
       static_cast<int>(apvts.getRawParameterValue("pulseWidthSource")->load());
@@ -157,8 +154,16 @@ void OscillatorVoice::Configure(
     wave2Generator_.set_mode(WaveGenerator::ANTIALIAS);
   }
 
+  const double vco1Level =
+      static_cast<double>(apvts.getRawParameterValue("vco1Level")->load());
+  waveGenerator_.set_gain(vco1Level);
+  const double vco2Level =
+      static_cast<double>(apvts.getRawParameterValue("vco2Level")->load());
+  wave2Generator_.set_gain(vco2Level);
+
   // filter
-  const int filterEnvSource = static_cast<int>(apvts.getRawParameterValue("filterEnvSource")->load());
+  const int filterEnvSource =
+      static_cast<int>(apvts.getRawParameterValue("filterEnvSource")->load());
   if (filterEnvSource == 0) {
     filter_env_buffer_ = &env1_buffer_;
   } else {
@@ -180,9 +185,7 @@ void OscillatorVoice::startNote(const int midiNoteNumber,
                                 [[maybe_unused]] juce::SynthesiserSound* sound,
                                 [[maybe_unused]] int pitchWheelPos) {
   waveGenerator_.set_pitch_semitone(midiNoteNumber, getSampleRate());
-  waveGenerator_.set_volume(0);
   wave2Generator_.set_pitch_semitone(midiNoteNumber, getSampleRate());
-  wave2Generator_.set_volume(0);
   envelope_.NoteOn();
   envelope2_.NoteOn();
 }
@@ -216,22 +219,28 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   // configured to generate at 2x oversampling..
   // we need wave2 first so we can use it for cross-mod (FM)
   // TODO: should the envelope actually affect the cross-mod behavior?
-  // todo: I think we need this clear since wave generator will ADD, but let's modify
-  //   the RenderNextBlock to tell it to overwrite rather than add so we can avoid this clear
+  // todo: I think we need this clear since wave generator will ADD, but let's
+  // modify
+  //   the RenderNextBlock to tell it to overwrite rather than add so we can
+  //   avoid this clear
+  // TODO: for easier debugging, add a separate vco1/vco2 volume control
   wave2_buffer_.clear();
   wave2Generator_.RenderNextBlock(wave2_buffer_, 0, oversample_samples);
-  // todo: Do we even need this intermediate wave2_buffer? What if we cross-mod from the oversample_buffer_ directly?
-  // if we're doing FM, we only use wave 2 for FM, we don't output it directly
-  // todo: this should be a bool set in Configure, not doing this check every block...
-  if (waveGenerator_.cross_mod() == 0.f) {
+  // todo: Do we even need this intermediate wave2_buffer? What if we cross-mod
+  // from the oversample_buffer_ directly? if we're doing FM, we only use wave 2
+  // for FM, we don't output it directly todo: this should be a bool set in
+  // Configure, not doing this check every block...
+   if (waveGenerator_.cross_mod() <= 0.01f) {
     oversample_buffer_.addFrom(0, 0, wave2_buffer_, 0, 0, oversample_samples);
   }
   waveGenerator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
   if (filter_env_buffer_ != nullptr) {
-    filter_.Process(oversample_buffer_, *filter_env_buffer_, waveGenerator_.lfo_buffer(), oversample_samples);
+    filter_.Process(oversample_buffer_, *filter_env_buffer_,
+                    waveGenerator_.lfo_buffer(), oversample_samples);
   } else {
     // fallback if not configured
-    filter_.Process(oversample_buffer_, env1_buffer_, waveGenerator_.lfo_buffer(), oversample_samples);
+    filter_.Process(oversample_buffer_, env1_buffer_,
+                    waveGenerator_.lfo_buffer(), oversample_samples);
   }
 
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
@@ -242,8 +251,9 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   }
 
   if (!envelope_.IsActive()) {
-    waveGenerator_.set_volume(-120);
-    wave2Generator_.set_volume(-120);
+    // todo: might need this or no?
+    //waveGenerator_.set_volume(-120);
+    //wave2Generator_.set_volume(-120);
     clearCurrentNote();
   }
 

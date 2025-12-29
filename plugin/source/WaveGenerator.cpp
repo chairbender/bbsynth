@@ -210,7 +210,7 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
 
     // CHANGE the PITCH BEND (linear ramping)
     // TODO: manual pitch bend disabled currently
-    // pitch_bend_actual_ += freqDelta;
+    //pitch_bend_actual_ += freqDelta;
     // TODO: account better for oversampling - this hardcoded amount isn't good
     double mod = 0;
     if (pitch_bend_lfo_mod_ != 0.) {
@@ -647,45 +647,4 @@ void WaveGenerator::MoveAngleForwardTo(double newAngle) {
 
   MoveAngleForward(static_cast<int>(numSamples));
 }
-
-// LOAD / SAVE
-void WaveGenerator::LoadScene(const juce::ValueTree& node) {
-  // wavetype ....
-  int type = node.getProperty("waveType", 0);
-  // todo is this the right way to cast an enum?
-  set_wave_type(static_cast<WaveType>(type));
-
-  primary_pitch_offset_ = node.getProperty("primaryPitchOffset", 1.0);
-
-  volume_ = node.getProperty("volume", volume_);
-  skew_ = node.getProperty("skew", skew_);
-
-  blep_overtone_depth_ = node.getProperty("blepOvertoneDepth", 64.);
-  phase_angle_target_ =
-      node.getProperty("phaseAngleTarget", phase_angle_target_);
-
-  // ALWAYS HARD SYNC (for now)
-  hard_sync_ = true;  //(bool)node.getProperty("hardSync", false);
-
-  // TONE :::
-  float tone = node.getProperty("toneOffset", 0);
-  set_tone_offset(static_cast<double>(tone));
-}
-
-void WaveGenerator::SaveScene(juce::ValueTree node) const {
-  node.setProperty("waveType", wave_type_, nullptr);
-  node.setProperty("primaryPitchOffset", primary_pitch_offset_, nullptr);
-
-  node.setProperty("volume", volume_, nullptr);
-  node.setProperty("skew", skew_, nullptr);
-
-  node.setProperty("blepOvertoneDepth", blep_overtone_depth_, nullptr);
-  node.setProperty("phaseAngleTarget", phase_angle_target_, nullptr);
-
-  node.setProperty("hardSync", hard_sync_, nullptr);  // always true!
-
-  // TONE :::
-  node.setProperty("toneOffset", tone_offset_in_semis(), nullptr);
-}
-
 }  // namespace audio_plugin

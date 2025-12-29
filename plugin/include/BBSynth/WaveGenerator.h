@@ -82,7 +82,7 @@ class WaveGenerator {
   double phase_angle_actual_ =
       0;  // the target angle to get to (used for phase shifting)
 
-  bool hard_sync_ = true;
+  bool hard_sync_;
 
   const juce::AudioBuffer<float>& lfo_buffer_;
   const juce::AudioBuffer<float>& env1_buffer_;
@@ -276,6 +276,10 @@ class WaveGenerator {
       volume_ = 0;
     else
       volume_ = juce::Decibels::decibelsToGain(db_mult);
+  }
+
+  void set_gain(const double gain) {
+    volume_ = gain;
   }
   void set_cross_mod(const float cross_mod) { cross_mod_ = static_cast<double>(cross_mod); }
   float cross_mod() const { return static_cast<float>(cross_mod_); }

@@ -392,12 +392,18 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "waveType", "Wave Type",
       juce::StringArray{"SIN", "SAW", "TRI", "SQR", "RND"}, 1));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "vco1Level", "VCO 1 Level", juce::NormalisableRange(0.f, 1.f, 0.01f),
+      1.0f));
 
   // vco2
   // wave type
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "wave2Type", "Wave 2 Type",
       juce::StringArray{"sine", "sawFall", "triangle", "square", "random"}, 1));
+  parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+      "vco2Level", "VCO 2 Level", juce::NormalisableRange(0.f, 1.f, 0.01f),
+      1.0f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "fineTune", "Fine Tune", juce::NormalisableRange(-10.f, 10.f, 0.01f), 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
