@@ -84,6 +84,10 @@ private:
   std::unique_ptr<juce::ParameterAttachment> wave_type_attachment_;
   juce::Label wave_type_label_;
 
+  juce::Slider vco1_level_slider_;
+  juce::Label vco1_level_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vco1_level_attachment_;
+
   //VCO 2 section
   juce::Label vco2_label_;
 
@@ -91,6 +95,10 @@ private:
   std::vector<std::unique_ptr<juce::ToggleButton>> wave2_type_buttons_;
   juce::Label wave2_type_label_;
   std::unique_ptr<juce::ParameterAttachment> wave2_type_attachment_;
+
+  juce::Slider vco2_level_slider_;
+  juce::Label vco2_level_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vco2_level_attachment_;
 
   juce::Slider cross_mod_slider_;
   juce::Label cross_mod_label_;
