@@ -46,7 +46,7 @@ TEST_P(WaveGeneratorSawTest, RendersAndReportsBleps) {
   const auto [type, expected_pos_change, ramp_up, reset_level] = GetParam();
 
   juce::AudioBuffer<float> dummy;
-  WaveGenerator gen(dummy, dummy, dummy);
+  WaveGenerator gen(dummy, dummy, dummy, dummy);
   juce::AudioSampleBuffer raw_buf(2, kNumSamples);
   PrepareAndRender(gen, raw_buf, type);
 
@@ -98,7 +98,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST(WaveGeneratorTriangleTest, RendersAndReportsTriangleBleps) {
   juce::AudioBuffer<float> dummy;
-  WaveGenerator gen(dummy, dummy, dummy);
+  WaveGenerator gen(dummy, dummy, dummy, dummy);
   juce::AudioSampleBuffer raw_buf(2, kNumSamples);
   PrepareAndRender(gen, raw_buf, WaveGenerator::triangle);
 
@@ -155,7 +155,7 @@ TEST(WaveGeneratorTriangleTest, RendersAndReportsTriangleBleps) {
 
 TEST(WaveGeneratorSquareTest, RendersAndReportsSquareBleps) {
   juce::AudioBuffer<float> dummy;
-  WaveGenerator gen(dummy, dummy, dummy);
+  WaveGenerator gen(dummy, dummy, dummy, dummy);
   juce::AudioSampleBuffer raw_buf(2, kNumSamples);
   PrepareAndRender(gen, raw_buf, WaveGenerator::square);
 

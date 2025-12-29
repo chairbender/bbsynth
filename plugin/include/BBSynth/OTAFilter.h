@@ -35,6 +35,7 @@ public:
 
   float cutoff_freq_;
   float resonance_;
+  // value of zero disables the distortion
   float drive_;
   float env_mod_;
   float lfo_mod_;

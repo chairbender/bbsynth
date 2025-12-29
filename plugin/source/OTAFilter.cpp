@@ -15,9 +15,9 @@ inline void OTAFilter::FilterStage(const float in, float& out,
                                    TanhADAA& tanh_in, TanhADAA& tanh_state,
                                    const float g, const float scale) const {
   constexpr auto kLeak = 0.99995f;
-  const float v = drive_ > 0.01f ? tanh_in.process(in * scale) * drive_ : in;
-  out = kLeak * out + g * (v - (drive_ > 0.01f ? tanh_state.process(
-                               out * scale) * drive_ : out));
+  const float v = drive_ > 0.f ? ( tanh_in.process(in * scale) * drive_) : in;
+  out = kLeak * out + g * (v - (drive_ > 0.f ? (tanh_state.process(
+                               out * scale) * drive_) : out));
 }
 
 void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
@@ -27,7 +27,7 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
   jassert(sample_rate_ > 0);
 
   // todo vectorize
-  const auto scale = drive_ > 0.01f ? 1.f / drive_ : 1.f;
+  const auto scale = drive_ > 0.f ? 1.f / drive_ : 1.f;
   // leaky integrator for numerical stability
   const auto buf = buffers.getWritePointer(0);
   const auto env_data = env_buffer.getReadPointer(0);
@@ -35,7 +35,6 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
 
   for (auto i = 0; i < numSamples; ++i) {
     const auto sample = buf[i];
-
     // modulation - envelope and LFO affects cutoff frequency
     // todo: decide on a reasonable modulation range/curve
     // for now, let's say env_mod is -1 to 1, and it can shift cutoff by some amount
@@ -53,6 +52,7 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
       case 4: last_stage_output = s4_; break;
       default: last_stage_output = s4_; break;
     }
+    // TODO: weird behavior when res set to 0...
     const auto feedback = resonance_ * last_stage_output;
 
     // input with feedback compensation
@@ -74,12 +74,13 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
 
 void OTAFilter::Configure(const juce::AudioProcessorValueTreeState& state) {
   cutoff_freq_ = state.getRawParameterValue("filterCutoffFreq")->load();
+  // todo: "0" resonance should actually be somewhere between .5 and 1 - such as .707.
   resonance_ = state.getRawParameterValue("filterResonance")->load();
   drive_ = state.getRawParameterValue("filterDrive")->load();
   env_mod_ = state.getRawParameterValue("filterEnvMod")->load();
   lfo_mod_ = state.getRawParameterValue("filterLfoMod")->load();
-  const int slope_choice = static_cast<int>(state.getRawParameterValue("filterSlope")->load());
-  switch (slope_choice) {
+  switch (static_cast<int>(
+              state.getRawParameterValue("filterSlope")->load())) {
     case 0: num_stages_ = 4; break;
     case 1: num_stages_ = 3; break;
     case 2: num_stages_ = 2; break;
