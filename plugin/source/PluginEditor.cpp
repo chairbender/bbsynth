@@ -284,6 +284,15 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   wave2_type_label_.setText("Waveform", juce::dontSendNotification);
   addAndMakeVisible(wave2_type_label_);
 
+  cross_mod_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
+  cross_mod_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(cross_mod_slider_);
+  cross_mod_attachment_ =
+      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+          processorRef.apvts_, "crossMod", cross_mod_slider_);
+  cross_mod_label_.setText("Cross Mod", juce::dontSendNotification);
+  addAndMakeVisible(cross_mod_label_);
+
   // fine tune
   fine_tune_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   fine_tune_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
@@ -650,19 +659,22 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.alignContent = juce::Grid::AlignContent::center;
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.items = {
+        juce::GridItem{cross_mod_slider_},
         juce::GridItem{},
       juce::GridItem{fine_tune_slider_},
         juce::GridItem{vco2_sync_button_},
+        juce::GridItem{cross_mod_label_},
       juce::GridItem{wave2_type_label_},
         juce::GridItem{fine_tune_label_}};
 
     section_grid.performLayout(section_bounds.toNearestInt());
 
-    auto radio_area = section_grid.items[0].currentBounds.toNearestInt();
+    auto radio_area = section_grid.items[1].currentBounds.toNearestInt();
     const auto button_height = radio_area.getHeight() / 10;
 
     for (auto& btn : wave2_type_buttons_) {

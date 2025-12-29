@@ -92,6 +92,10 @@ private:
   juce::Label wave2_type_label_;
   std::unique_ptr<juce::ParameterAttachment> wave2_type_attachment_;
 
+  juce::Slider cross_mod_slider_;
+  juce::Label cross_mod_label_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> cross_mod_attachment_;
+
   //fine tune
   juce::Slider fine_tune_slider_;
   juce::Label fine_tune_label_;

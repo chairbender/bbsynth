@@ -17,10 +17,12 @@ constexpr double DELTA{.0000001};
 // WAVE GEN :::::
 WaveGenerator::WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
                              const juce::AudioBuffer<float>& env1_buffer,
-                             const juce::AudioBuffer<float>& env2_buffer)
+                             const juce::AudioBuffer<float>& env2_buffer,
+                             const juce::AudioBuffer<float>& modulator_buffer)
     : lfo_buffer_(lfo_buffer),
       env1_buffer_(env1_buffer),
-      env2_buffer_(env2_buffer) {
+      env2_buffer_(env2_buffer),
+      modulator_buffer_{modulator_buffer} {
   history_length_ = 500;
   sample_rate_ = 0;
 
@@ -202,6 +204,7 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
   const auto lfo_data = lfo_buffer_.getReadPointer(0);
   const auto env1_data = env1_buffer_.getReadPointer(0);
   const auto env2_data = env2_buffer_.getReadPointer(0);
+  const auto modulator_data = modulator_buffer_.getReadPointer(0);
   for (int i = 0; i < numSamples; i++) {
     bool primary_blep_occurred = false;
 
@@ -216,6 +219,14 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
     if (pitch_bend_env1_mod_ != 0.) {
       mod += static_cast<double>(env1_data[i / 2]) * pitch_bend_env1_mod_;
     }
+    if (cross_mod_ != 0.) {
+      // unlike the other modulation buffers, the modulator is oversampled.
+      // note blepping has already been applied to the modulator signal
+      // so the carrier only needs to deal with its own discontinuities like
+      // normal todo: is this reasoning actually correct for what blepping is
+      // needed?
+      mod += static_cast<double>(modulator_data[i]) * cross_mod_;
+    }
     if (mod != 0.) {
       pitch_bend_actual_ = 1 + mod;
     }
@@ -229,7 +240,8 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
         secondary_delta_base_ * pitch_bend_actual_ + phaseShiftPerSample;
 
     // HARD SYNCING ::::::
-    // TODO: seemingly the pitch offset is being ignored completely unless hard sync is true...
+    // TODO: seemingly the pitch offset is being ignored completely unless hard
+    // sync is true...
     if (hard_sync_ &&
         (fabs(primary_delta_base_ - secondary_delta_base_) > DELTA)) {
       // primary OSC DOES use pitch bending and phase shifting ...
@@ -351,7 +363,8 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
               break;
             case lfo:
               pulse_width_actual_ =
-                  (static_cast<double>(lfo_data[i / 2]) / 2 + 1) * pulse_width_mod_;
+                  (static_cast<double>(lfo_data[i / 2]) / 2 + 1) *
+                  pulse_width_mod_;
               break;
             case manual:
               pulse_width_actual_ = pulse_width_mod_;
