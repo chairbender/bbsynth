@@ -270,6 +270,15 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   wave_type_label_.setText("Waveform", juce::dontSendNotification);
   addAndMakeVisible(wave_type_label_);
 
+  vco1_level_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
+  vco1_level_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(vco1_level_slider_);
+  vco1_level_attachment_ =
+      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+          processorRef.apvts_, "vco1Level", vco1_level_slider_);
+  vco1_level_label_.setText("Level", juce::dontSendNotification);
+  addAndMakeVisible(vco1_level_label_);
+
   // vco2 section
   vco2_label_.setText("VCO 2", juce::dontSendNotification);
   addAndMakeVisible(vco2_label_);
@@ -283,6 +292,15 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 
   wave2_type_label_.setText("Waveform", juce::dontSendNotification);
   addAndMakeVisible(wave2_type_label_);
+
+  vco2_level_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
+  vco2_level_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  addAndMakeVisible(vco2_level_slider_);
+  vco2_level_attachment_ =
+      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+          processorRef.apvts_, "vco2Level", vco2_level_slider_);
+  vco2_level_label_.setText("Level", juce::dontSendNotification);
+  addAndMakeVisible(vco2_level_label_);
 
   cross_mod_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
   cross_mod_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
@@ -635,12 +653,15 @@ void AudioPluginAudioProcessorEditor::resized() {
     const auto section_bounds = grid.items[item_idx++].currentBounds;
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
-    section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+    section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
 
     section_grid.items = {juce::GridItem{},  // placeholder for radio area
-                          juce::GridItem{wave_type_label_}};
+                          juce::GridItem{vco1_level_slider_},
+                          juce::GridItem{wave_type_label_},
+                          juce::GridItem{vco1_level_label_}};
 
     section_grid.performLayout(section_bounds.toNearestInt());
 
@@ -660,17 +681,21 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.items = {
         juce::GridItem{cross_mod_slider_},
         juce::GridItem{},
-      juce::GridItem{fine_tune_slider_},
+        juce::GridItem{fine_tune_slider_},
         juce::GridItem{vco2_sync_button_},
+        juce::GridItem{vco2_level_slider_},
         juce::GridItem{cross_mod_label_},
-      juce::GridItem{wave2_type_label_},
-        juce::GridItem{fine_tune_label_}};
+        juce::GridItem{wave2_type_label_},
+        juce::GridItem{fine_tune_label_},
+        juce::GridItem{},
+        juce::GridItem{vco2_level_label_}};
 
     section_grid.performLayout(section_bounds.toNearestInt());
 
