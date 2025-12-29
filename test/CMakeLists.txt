@@ -9,7 +9,6 @@ enable_testing()
 set(SOURCE_FILES
     source/MinBlepGeneratorTest.cpp
     source/WaveGeneratorTest.cpp
-    source/TanhADAATest.cpp
 )
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 

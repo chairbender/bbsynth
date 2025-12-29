@@ -1,7 +1,8 @@
 #include "BBSynth/Oscillator.h"
 
+#include "BBSynth/Constants.h"
+
 namespace audio_plugin {
-constexpr auto kOversample = 2;
 
 OscillatorSound::OscillatorSound(
     [[maybe_unused]] juce::AudioProcessorValueTreeState& apvts) {}
@@ -173,7 +174,7 @@ void OscillatorVoice::Configure(
 }
 
 void OscillatorVoice::SetBlockSize(const int blockSize) {
-  downsampler_.prepare(getSampleRate(), blockSize);
+  downsampler_.prepare(blockSize, kOversample);
   const auto oversample_samples = blockSize * kOversample;
   oversample_buffer_.setSize(1, oversample_samples, false, true);
   wave2_buffer_.setSize(1, oversample_samples, false, true);
@@ -248,7 +249,7 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   auto* data = oversample_buffer_.getWritePointer(0);
   auto* env1_data = env1_buffer_.getReadPointer(0);
   for (int i = 0; i < oversample_samples; ++i) {
-    data[i] *= env1_data[i / 2];
+    data[i] *= env1_data[i / kOversample];
   }
 
   if (!envelope_.IsActive()) {
