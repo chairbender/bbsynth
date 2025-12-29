@@ -145,6 +145,7 @@ void OscillatorVoice::Configure(
   const float crossMod = apvts.getRawParameterValue("crossMod")->load();
   waveGenerator_.set_cross_mod(crossMod);
   if (crossMod > 0.f) {
+    // todo: when turning crossmod back down the pitch mod gets "stuck"
     // minblep AA is not compatible with FM
     // todo: is this really true? I think there is some other issue...
     waveGenerator_.set_mode(WaveGenerator::NO_ANTIALIAS);
