@@ -103,11 +103,13 @@ void OscillatorVoice::Configure(
   const auto hard_sync = apvts.getRawParameterValue("vco2Sync")->load() > 0.5f;
   const float fine_tune = apvts.getRawParameterValue("fineTune")->load();
   if (hard_sync) {
-    wave2Generator_.set_hardsync(
-        apvts.getRawParameterValue("vco2Sync")->load() > 0.5f);
+    wave2Generator_.set_hardsync(true);
+    waveGenerator_.set_hardsync(true);
     wave2Generator_.set_pitch_offset_hz(static_cast<double>(fine_tune));
   } else {
     wave2Generator_.set_pitch_hz(waveGenerator_.current_pitch_hz() + static_cast<double>(fine_tune));
+    wave2Generator_.set_hardsync(false);
+    waveGenerator_.set_hardsync(false);
   }
 
   const int pulseWidthSource =
@@ -145,6 +147,15 @@ void OscillatorVoice::Configure(
 
   const float crossMod = apvts.getRawParameterValue("crossMod")->load();
   waveGenerator_.set_cross_mod(crossMod);
+  if (crossMod > 0.f) {
+    // minblep AA is not compatible with FM
+    // todo: is this really true? I think there is some other issue...
+    waveGenerator_.set_mode(WaveGenerator::NO_ANTIALIAS);
+    wave2Generator_.set_mode(WaveGenerator::NO_ANTIALIAS);
+  } else {
+    waveGenerator_.set_mode(WaveGenerator::ANTIALIAS);
+    wave2Generator_.set_mode(WaveGenerator::ANTIALIAS);
+  }
 
   // filter
   const int filterEnvSource = static_cast<int>(apvts.getRawParameterValue("filterEnvSource")->load());

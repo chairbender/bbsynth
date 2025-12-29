@@ -15,9 +15,9 @@ inline void OTAFilter::FilterStage(const float in, float& out,
                                    TanhADAA& tanh_in, TanhADAA& tanh_state,
                                    const float g, const float scale) const {
   constexpr auto kLeak = 0.99995f;
-  const auto v = tanh_in.process(in * scale) * drive_;
-  out = kLeak * out + g * (v - tanh_state.process(
-                               out * scale) * drive_);
+  const float v = drive_ > 0.01f ? tanh_in.process(in * scale) * drive_ : in;
+  out = kLeak * out + g * (v - (drive_ > 0.01f ? tanh_state.process(
+                               out * scale) * drive_ : out));
 }
 
 void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
@@ -27,7 +27,7 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
   jassert(sample_rate_ > 0);
 
   // todo vectorize
-  const auto scale = 1.f / drive_;
+  const auto scale = drive_ > 0.01f ? 1.f / drive_ : 1.f;
   // leaky integrator for numerical stability
   const auto buf = buffers.getWritePointer(0);
   const auto env_data = env_buffer.getReadPointer(0);

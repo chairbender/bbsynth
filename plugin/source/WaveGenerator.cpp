@@ -225,6 +225,7 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
       // so the carrier only needs to deal with its own discontinuities like
       // normal todo: is this reasoning actually correct for what blepping is
       // needed?
+      // todo: this is not producing the expected sound...
       mod += static_cast<double>(modulator_data[i]) * cross_mod_;
     }
     if (mod != 0.) {
