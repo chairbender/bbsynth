@@ -1,20 +1,9 @@
 # Setup Notes
 
-on popos, with clang++-20, had to sudo apt install g++ libstdc++-12-dev
+on PopOS, with clang++-20, had to sudo apt install g++ libstdc++-12-dev
 
 style guide
 https://google.github.io/styleguide/cppguide.html
-
-todos:
-- 4-pole OTA filter simulation
-- analog oscillator simulation (drift, calibration)
-- analog VCA simulation
-- ADSR envelope simulation
-- refactor to follow the style guide (can be a work in progress / gradual)
-- refactor to use more things in juce::dsp vs the hand-rolled stuff
-- cpp_args = ['-std=c++2c', '-Wall', '-Wextra', '-Wshadow', '-Wconversion', '-Wpedantic', '-Werror']
-- set up sanitizer support (asan, ubsan, etc...)
-- double check "right way to write c++ code" https://www.youtube.com/watch?v=q7Gv4J3FyYE
 
 # 🐺 WolfSound's Audio Plugin Template
 
