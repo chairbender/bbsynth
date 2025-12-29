@@ -416,6 +416,16 @@ static void lerpCorrection(float* outputBuffer,
   outputBuffer[static_cast<int>(outputSampleIdx)] += exactValue;
 }
 
+// TODO: this approach was what I originally copied and does work, but
+//  I think a much more efficient approach would not actively track "ongoing bleps.".
+//  Instead, we would use a ring buffer sized 2x the length of the blep signal.
+//  When a blep is detected, it would simply be scaled _and added to the ring buffer_
+//  When the buffer advances, it would zero out the "old" part of the buffer being expanded to.
+//  This way, rather than constantly track bleps, we simply accumulate everything in a buffer and
+//  Ultimately add that buffer to the signal. Note it has to deal with both scaling and frequency correction.
+//  But frequency should have a lower bound as below that bound we no longer have aliasing, and
+//  higher frequency only makes the signal shorter, so we can definitely size the ring buffer
+//  so that it will accommodate the longest possible blep.
 void MinBlepGenerator::ProcessCurrentBleps(float* buffer, int numSamples) {
   // PROCESS ALL BLEPS -
   /// for each offset, mix a portion of the blep array with the output ....
