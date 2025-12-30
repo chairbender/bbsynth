@@ -55,6 +55,7 @@ private:
   WaveGenerator lfo_generator_;
   juce::dsp::IIR::Filter<float> hpf_;
   ToneFilter tone_filter_;
+  juce::dsp::Limiter<float> main_limiter_;
   // how many samples remaining until LFO should start,
   // < 0  means LFO is not playing.
   int lfo_samples_until_start_;

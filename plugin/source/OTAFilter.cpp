@@ -60,10 +60,6 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
     // this approach simply clamps g to ensure it doesn't exceed 1
     //const auto g = std::min(.9f, std::tanf(juce::MathConstants<float>::pi * modulated_cutoff/static_cast<float>(sample_rate_)));
 
-    if (g >= 1) {
-      DBG("g exceeded 1 " + juce::String(g));
-    }
-
     // resonance feedback from output
     float last_stage_output = 0;
     switch (num_stages_) {
@@ -82,8 +78,9 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
     // input with soft clipping
     // try 0.8 to 1.5 range
     // todo: we could even expose this as yet another param
-    const auto kFeedbackDrive = 1.f;
-    const auto u = sample - tanh_feedback_.process(feedback / kFeedbackDrive) * kFeedbackDrive;
+    constexpr auto kFeedbackDrive = 1.f;
+    constexpr auto kFeedbackScale = 1.f / kFeedbackDrive;
+    const auto u = sample - tanh_feedback_.process(feedback * kFeedbackScale) * kFeedbackDrive;
 
     // todo: different scale for each stage
 
@@ -96,7 +93,11 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
     // try 2.0 - 4.0 range
     // todo: we could even expose this as yet another param
     constexpr auto kOutputDrive = 2.f;
-    buf[i] = tanh_final_out_.process((last_stage_output - dc_out_x1_ + 0.99f * dc_out_y1_) / kOutputDrive) * kOutputDrive;
+    constexpr auto kOutputScale = 1.f / kOutputDrive;
+    buf[i] = tanh_final_out_.process((last_stage_output - dc_out_x1_ + 0.99f * dc_out_y1_) * kOutputScale) * kOutputDrive;
+    if (buf[i] > 1.f) {
+      DBG("output clip detected " + juce::String(buf[i]));
+    }
     dc_out_x1_ = last_stage_output;
     dc_out_y1_ = buf[i];
   }
