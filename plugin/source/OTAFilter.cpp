@@ -8,7 +8,7 @@
 
 namespace audio_plugin {
 OTAFilter::OTAFilter() : cutoff_freq_{0.f}, resonance_{0.f},
-                         drive_{0.f}, env_mod_{0.f}, lfo_mod_{0.f}, num_stages_{4}, sample_rate_{0}, s1_{0},
+                         drive_{0.f}, env_mod_{0.f}, lfo_mod_{0.f}, num_stages_{4}, bypass_{false}, sample_rate_{0}, s1_{0},
                          s2_{0}, s3_{0},
                          s4_{0},
                          dc_out_x1_{0},
@@ -28,6 +28,9 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
                         const juce::AudioBuffer<float>& env_buffer,
                         const juce::AudioBuffer<float>& lfo_buffer,
                         const int numSamples) {
+  if (bypass_) {
+    return;
+  }
   jassert(sample_rate_ > 0);
 
   // todo vectorize
@@ -83,6 +86,7 @@ void OTAFilter::Configure(const juce::AudioProcessorValueTreeState& state) {
   drive_ = state.getRawParameterValue("filterDrive")->load();
   env_mod_ = state.getRawParameterValue("filterEnvMod")->load();
   lfo_mod_ = state.getRawParameterValue("filterLfoMod")->load();
+  bypass_ = state.getRawParameterValue("vcfBypass")->load() > 0.5f;
   switch (static_cast<int>(
               state.getRawParameterValue("filterSlope")->load())) {
     case 0: num_stages_ = 4; break;

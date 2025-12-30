@@ -413,6 +413,13 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   filter_env_source_label_.setText("Env Source", juce::dontSendNotification);
   addAndMakeVisible(filter_env_source_label_);
 
+  filter_bypass_button_.setButtonText("Bypass");
+  filter_bypass_button_.setClickingTogglesState(true);
+  addAndMakeVisible(filter_bypass_button_);
+  filter_bypass_attachment_ =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          processorRef.apvts_, "vcfBypass", filter_bypass_button_);
+
   // VCA section
   vca_label_.setText("VCA", juce::dontSendNotification);
   addAndMakeVisible(vca_label_);
@@ -720,11 +727,13 @@ void AudioPluginAudioProcessorEditor::resized() {
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.items = {juce::GridItem{filter_hpf_slider_},
                           juce::GridItem{filter_cutoff_slider_},
+                          juce::GridItem{filter_bypass_button_},
                           juce::GridItem{filter_resonance_slider_},
                           juce::GridItem{filter_drive_slider_},
                           juce::GridItem{},
@@ -744,7 +753,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
     // filter slope layout
     {
-      auto radio_area = section_grid.items[4].currentBounds.toNearestInt();
+      auto radio_area = section_grid.items[5].currentBounds.toNearestInt();
       const auto button_height = radio_area.getHeight() / static_cast<int>(filter_slope_buttons_.size());
 
       for (auto& btn : filter_slope_buttons_) {
@@ -754,7 +763,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
     // filter env source layout
     {
-      auto radio_area = section_grid.items[7].currentBounds.toNearestInt();
+      auto radio_area = section_grid.items[8].currentBounds.toNearestInt();
       const auto button_height = radio_area.getHeight() / static_cast<int>(filter_env_source_buttons_.size());
 
       for (auto& btn : filter_env_source_buttons_) {
