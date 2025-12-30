@@ -54,6 +54,8 @@ private:
   // ADAA tanh
   std::array<TanhADAA, 4> tanh_in_;
   std::array<TanhADAA, 4> tanh_state_;
+  TanhADAA tanh_final_out_;
+  TanhADAA tanh_feedback_;
 };
 
 }

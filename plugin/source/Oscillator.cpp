@@ -225,7 +225,7 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   // TODO: should the envelope actually affect the cross-mod behavior?
   // todo: add ability to tell RenderNextBlock to OVERWRITE instead of add
   //    I think we need this clear since wave generator will ADD so we can avoid the clearing
-  wave2_buffer_.clear();
+  wave2_buffer_.clear(oversample_start_sample, oversample_samples);
   wave2Generator_.RenderNextBlock(wave2_buffer_, oversample_start_sample, oversample_samples);
   oversample_buffer_.clear( oversample_start_sample, oversample_samples);
   // todo: Do we even need this intermediate wave2_buffer? What if we cross-mod
@@ -249,7 +249,7 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   auto* env1_data = env1_buffer_.getReadPointer(0);
   // prevent clipping
   for (int i = oversample_start_sample; i < oversample_samples; ++i) {
-    constexpr auto gain_stage = .6f;
+    constexpr auto gain_stage = 1.f;
     // todo do this in a smarter way to prevent clipping
     data[i] *= env1_data[i / kOversample] * gain_stage;
   }

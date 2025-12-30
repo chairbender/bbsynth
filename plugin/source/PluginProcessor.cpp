@@ -450,13 +450,13 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterCutoffFreq", "Filter Cutoff Frequency",
       // todo what would actually be the best range, considering we do oversampling?
-      juce::NormalisableRange(kMinCutoff, kMaxCutoff, 1.f), 30000.f));
+      juce::NormalisableRange(kMinCutoff, kMaxCutoff, 1.f), 23000.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterResonance", "Filter Resonance",
       juce::NormalisableRange(0.f, 4.f, 0.01f), 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "filterDrive", "Filter Drive", juce::NormalisableRange(0.f, 100.f, 0.0001f, .1f),
-      0.f));
+      "filterDrive", "Filter Drive", juce::NormalisableRange(kMinDrive, 100.f, 0.0001f, .2f),
+      kMinDrive));
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "filterSlope", "Filter Slope", juce::StringArray{"-24 dB", "-18 dB", "-12 dB"}, 0));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
