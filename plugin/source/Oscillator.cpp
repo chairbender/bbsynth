@@ -236,27 +236,47 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     oversample_buffer_.addFrom(0, 0, wave2_buffer_, 0, 0, oversample_samples);
   }
   waveGenerator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
-  if (filter_env_buffer_ != nullptr) {
-    // todo: somehow filter is exploding the volume by a huge amount and then causing nans. There must be some mistake here.
-    filter_.Process(oversample_buffer_, *filter_env_buffer_,
-                    waveGenerator_.lfo_buffer(), oversample_samples);
-  } else {
-    // fallback if not configured
-    filter_.Process(oversample_buffer_, env1_buffer_,
-                    waveGenerator_.lfo_buffer(), oversample_samples);
+
+  // x .4 =
+  // clipping check
+  const auto oscData = oversample_buffer_.getReadPointer(0);
+  auto max = 0.f;
+  for (int i = 0; i < oversample_samples; i++) {
+    max = std::max(max, std::abs(oscData[i]));
+  }
+  if (max > 1.f) {
+    DBG("post osc mix max val " + juce::String(max) + " correction should be " + juce::String(1.f / max));
+  }
+
+  filter_.Process(oversample_buffer_, *filter_env_buffer_,
+                  waveGenerator_.lfo_buffer(), oversample_samples);
+
+  // clipping check
+  max = 0.f;
+  for (int i = 0; i < oversample_samples; i++) {
+    max = std::max(max, std::abs(oscData[i]));
+  }
+  if (max > 1.f) {
+    DBG("post filter max val " + juce::String(max) + " correction should be " + juce::String(1.f / max));
   }
 
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
   auto* data = oversample_buffer_.getWritePointer(0);
   auto* env1_data = env1_buffer_.getReadPointer(0);
+  // prevent clipping
   for (int i = 0; i < oversample_samples; ++i) {
+    constexpr auto gain_stage = .6f;
     // todo do this in a smarter way to prevent clipping
-    data[i] *= env1_data[i / kOversample] * .5f;
-    // validate we aren't overshooting
-    // todo - clipping happening here - but is it just a DC offset or is it actually too loud?
-    if (data[i] > 1 || data[i] < -1) {
-      DBG("clipping " + juce::String(data[i]) + " at sample " + juce::String(i));
-    }
+    data[i] *= env1_data[i / kOversample] * gain_stage;
+  }
+
+  // clipping check
+  max = 0.f;
+  for (int i = 0; i < oversample_samples; i++) {
+    max = std::max(max, std::abs(oscData[i]));
+  }
+  if (max > 1.f) {
+    DBG("post env max val " + juce::String(max) + " correction should be " + juce::String(1.f / max));
   }
 
 
@@ -268,5 +288,15 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   }
 
   downsampler_.process(oversample_buffer_, outputBuffer, numSamples);
+
+  // post-downsample clipping check
+  max = 0.f;
+  for (int i = 0; i < oversample_samples; i++) {
+    max = std::max(max, std::abs(oscData[i]));
+  }
+  if (max > 1.f) {
+    DBG("post downsample max val " + juce::String(max) + " correction should be " + juce::String(1.f / max));
+  }
+
 }
 }  // namespace audio_plugin

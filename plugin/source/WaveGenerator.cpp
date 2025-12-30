@@ -118,19 +118,19 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     // have a positive bias) adding together, which gets worse as the note
     // gets higher.
     if (dc_blocker_enabled_) {
-      auto samples = wave.getRawDataPointer();
-      const float R = 0.995f;  // pole close to 1.0
+      const auto samples = wave.getRawDataPointer();
 
       // Preserve last raw input of this block (before we overwrite samples)
       const float lastInputRaw = samples[numSamples - 1];
 
       // Use persistent states from previous block
-      float xPrev = static_cast<float>(prev_buffer_last_sample_raw_);
-      float yPrev = static_cast<float>(prev_buffer_last_sample_filtered_);
+      auto xPrev = static_cast<float>(prev_buffer_last_sample_raw_);
+      auto yPrev = static_cast<float>(prev_buffer_last_sample_filtered_);
 
       for (int i = 0; i < numSamples; ++i) {
+        constexpr float r = 0.995f;
         const float x = samples[i];
-        const float y = (x - xPrev) + R * yPrev;
+        const float y = (x - xPrev) + r * yPrev;
         samples[i] = y;
         xPrev = x;
         yPrev = y;
@@ -155,24 +155,16 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   //  is because the minblep can cause overshoots.
   //  but we shouldn't apply it to the lfo...
   //  athis is not really efficient way to do this.
-  const auto gain_stage = mode_ == ANTIALIAS ? .25f : 1.f;
+  // this fixed amount helps to prevent clipping at this stage caused by minblep-induced overshoots
+  // + the combination of the 2 oscillators.
+  // It is quite a large attenuation because the worst case is about a F0 note,
+  //  which produces a very loud blep
+  const auto gain_stage = mode_ == ANTIALIAS ? .15f : 1.f;
   outputBuffer.addFromWithRamp(0, startSample, wave.getRawDataPointer(),
-                               numSamples, static_cast<float>(gain_last_[0]) * gain_stage,
-                               static_cast<float>(volume_) * gain_stage);
+                               numSamples,gain_stage, gain_stage);
 
+  // todo: we aren't using gain_last_ / volume right now
   gain_last_[0] = volume_;
-
-  // clipping check
-  if (mode_ == ANTIALIAS) {
-    const auto data = outputBuffer.getReadPointer(0, startSample);
-    for (int i = 0; i < numSamples; i++) {
-      if (data[i] > .5f || data[i] < -.5f) {
-        DBG("clipping in osc final " + juce::String(data[i]) + " raw " + juce::String(wave.getRawDataPointer()[i]));
-      }
-    }
-  }
-
-
 
 #if JUCE_DEBUG
 

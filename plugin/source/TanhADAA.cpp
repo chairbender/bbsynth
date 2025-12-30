@@ -30,7 +30,7 @@ float TanhADAA::process(const float x0) {
     const auto tanhVal = std::tanh(xbar);
     const auto sech2 = 1.0f - tanhVal * tanhVal;
 
-    // First-order Taylor approx.
+    // First-order Taylor approx for smaller dx values
     y = tanhVal + (dx / 2.0f) * sech2;
   } else {
     // Use the antiderivative formula
