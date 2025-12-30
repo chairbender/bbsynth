@@ -1,5 +1,6 @@
 #include "BBSynth/PluginProcessor.h"
 
+#include "BBSynth/Constants.h"
 #include "BBSynth/Oscillator.h"
 #include "BBSynth/PluginEditor.h"
 #include "BBSynth/WaveGenerator.h"
@@ -448,7 +449,7 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterCutoffFreq", "Filter Cutoff Frequency",
       // todo what would actually be the best range, considering we do oversampling?
-      juce::NormalisableRange(20.f, 30000.f, 1.f), 30000.f));
+      juce::NormalisableRange(kMinCutoff, kMaxCutoff, 1.f), 30000.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterResonance", "Filter Resonance",
       juce::NormalisableRange(0.f, 4.f, 0.01f), 0.f));

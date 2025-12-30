@@ -19,6 +19,7 @@ inline float LogCosh(const float x) {
   return std::log(std::cosh(ax));
 }
 
+// todo i think this impl still isn't correct - giving nans/inf when oversampling is only 1x
 float TanhADAA::process(const float x0) {
   float y;
 
