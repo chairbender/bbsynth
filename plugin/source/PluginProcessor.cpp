@@ -285,7 +285,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 
-    // hpf params - todo: probably bad to be changing this every block...rather than when param is changed
+    // // hpf params - todo: probably bad to be changing this every block...rather than when param is changed
     const auto hpf_freq = static_cast<float>(apvts_.getRawParameterValue("hpfFreq")->load());
     hpf_.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(getSampleRate(), hpf_freq);
 
@@ -303,7 +303,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       buf_write[i] *= (vca_level + lfo_buf_read[i] * vca_lfo_mod);
     }
 
-    // tone filtering
+    // // tone filtering
     tone_filter_.set_tilt(apvts_.getRawParameterValue("vcaTone")->load());
     tone_filter_.Process(buffer, buffer.getNumSamples());
 
@@ -396,9 +396,10 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "waveType", "Wave Type",
       juce::StringArray{"SIN", "SAW", "TRI", "SQR", "RND"}, 1));
+  // level should never exceed 1 as that will cause clipping when both voices are added together
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "vco1Level", "VCO 1 Level", juce::NormalisableRange(0.f, 1.f, 0.01f),
-      1.0f));
+      "vco1Level", "VCO 1 Level", juce::NormalisableRange(0.f, .5f, 0.01f),
+      0.5f));
 
   // vco2
   // wave type
@@ -406,8 +407,8 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       "wave2Type", "Wave 2 Type",
       juce::StringArray{"sine", "sawFall", "triangle", "square", "random"}, 1));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "vco2Level", "VCO 2 Level", juce::NormalisableRange(0.f, 1.f, 0.01f),
-      1.0f));
+  "vco2Level", "VCO 2 Level", juce::NormalisableRange(0.f, .5f, 0.01f),
+  0.5f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "fineTune", "Fine Tune", juce::NormalisableRange(-10.f, 10.f, 0.01f), 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
