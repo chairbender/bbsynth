@@ -250,8 +250,15 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   auto* data = oversample_buffer_.getWritePointer(0);
   auto* env1_data = env1_buffer_.getReadPointer(0);
   for (int i = 0; i < oversample_samples; ++i) {
-    data[i] *= env1_data[i / kOversample];
+    // todo do this in a smarter way to prevent clipping
+    data[i] *= env1_data[i / kOversample] * .5f;
+    // validate we aren't overshooting
+    // todo - clipping happening here - but is it just a DC offset or is it actually too loud?
+    if (data[i] > 1 || data[i] < -1) {
+      DBG("clipping " + juce::String(data[i]) + " at sample " + juce::String(i));
+    }
   }
+
 
   if (!envelope_.IsActive()) {
     // todo: might need this or no?

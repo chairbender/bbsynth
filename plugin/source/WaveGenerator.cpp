@@ -106,7 +106,7 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     double freq = current_pitch_hz();               // Current, playing, Freq
     double relativeFreq = 2 * freq / sample_rate_;  // 2 for Nyquist ...
     relativeFreq *= blep_overtone_depth_;  // ie - up to the 3nd harmonic (2*2*2
-                                           // -> 8x fundamental)
+    // -> 8x fundamental)
 
     blep_generator_.set_limiting_freq(
         static_cast<float>(relativeFreq));  // up to the 2nd harmonic ..
@@ -151,11 +151,28 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   }
 
   // COPY it to the outputbuffer ....
+  // todo do the gain staging more intelligently - I think one reason we need it
+  //  is because the minblep can cause overshoots.
+  //  but we shouldn't apply it to the lfo...
+  //  athis is not really efficient way to do this.
+  const auto gain_stage = mode_ == ANTIALIAS ? .25f : 1.f;
   outputBuffer.addFromWithRamp(0, startSample, wave.getRawDataPointer(),
-                               numSamples, static_cast<float>(gain_last_[0]),
-                               static_cast<float>(volume_));
+                               numSamples, static_cast<float>(gain_last_[0]) * gain_stage,
+                               static_cast<float>(volume_) * gain_stage);
 
   gain_last_[0] = volume_;
+
+  // clipping check
+  if (mode_ == ANTIALIAS) {
+    const auto data = outputBuffer.getReadPointer(0, startSample);
+    for (int i = 0; i < numSamples; i++) {
+      if (data[i] > .5f || data[i] < -.5f) {
+        DBG("clipping in osc final " + juce::String(data[i]) + " raw " + juce::String(wave.getRawDataPointer()[i]));
+      }
+    }
+  }
+
+
 
 #if JUCE_DEBUG
 
