@@ -19,9 +19,12 @@ inline void OTAFilter::FilterStage(const float in, float& out,
                                    TanhADAA& tanh_in, TanhADAA& tanh_state,
                                    const float g, const float scale) const {
   constexpr auto kLeak = 0.99995f;
-  const float v = drive_ > 0.f ? ( tanh_in.process(in * scale) * drive_) : in;
-  out = kLeak * out + g * (v - (drive_ > 0.f ? (tanh_state.process(
-                               out * scale) * drive_) : out));
+  // even when drive is disabled, we still need to
+  // feed the integrator so it doesn't go crazy when re-enabled
+  const auto tanh_in_val = tanh_in.process(in * scale);
+  const auto tanh_state_val = tanh_state.process(out * scale);
+  const float v = drive_ > 0.f ? ( tanh_in_val * drive_) : in;
+  out = kLeak * out + g * (v - (drive_ > 0.f ? (tanh_state_val * drive_) : out));
 }
 
 void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
@@ -35,7 +38,6 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
 
   // todo vectorize
   const auto scale = drive_ > 0.f ? 1.f / drive_ : 1.f;
-  // leaky integrator for numerical stability
   const auto buf = buffers.getWritePointer(0);
   const auto env_data = env_buffer.getReadPointer(0);
   const auto lfo_data = lfo_buffer.getReadPointer(0);
@@ -47,8 +49,20 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
     // for now, let's say env_mod is -1 to 1, and it can shift cutoff by some amount
     // cutoff_freq_ is 20 to 8000
     // let's try adding env_mod_ * env_data[i] * range + lfo_mod_ * lfo_data[i] * range
-    const float modulated_cutoff = juce::jlimit(kMinCutoff, kMaxCutoff, cutoff_freq_ + env_mod_ * env_data[i / kOversample] * 4000.f + lfo_mod_ * lfo_data[i / kOversample] * 4000.f);
-    const auto g = tanf(juce::MathConstants<float>::pi * modulated_cutoff / static_cast<float>(sample_rate_));
+    // prevent exceeding the nyquist
+    const float modulated_cutoff = juce::jlimit(kMinCutoff, static_cast<float>(sample_rate_) * 0.49f, cutoff_freq_ + env_mod_ * env_data[i / kOversample] * 4000.f + lfo_mod_ * lfo_data[i / kOversample] * 4000.f);
+
+    // this was my original "naive" approach which can exceed 1 in some cases and blow the filter up
+    //const auto g = tanf(juce::MathConstants<float>::pi * modulated_cutoff / static_cast<float>(sample_rate_));
+    // this TPT method of calculating g ensures the value won't exceed 1.
+    //const auto g = tanf(juce::MathConstants<float>::pi * modulated_cutoff/static_cast<float>(sample_rate_)) /
+    //  (1 + tanf(juce::MathConstants<float>::pi * modulated_cutoff/static_cast<float>(sample_rate_)));
+    // this approach simply clamps g to ensure it doesn't exceed 1
+    const auto g = std::min(.9f, std::tanf(juce::MathConstants<float>::pi * modulated_cutoff/static_cast<float>(sample_rate_)));
+
+    if (g >= 1) {
+      DBG("g exceeded 1 " + juce::String(g));
+    }
 
     // resonance feedback from output
     float last_stage_output = 0;
@@ -59,11 +73,15 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
       case 4: last_stage_output = s4_; break;
       default: last_stage_output = s4_; break;
     }
-    // TODO: weird behavior when res set to 0...
-    const auto feedback = resonance_ * last_stage_output;
 
-    // input with feedback compensation
-    const auto u = sample - feedback;
+    // feedback with compensation
+    // todo: is it really correct that compensation should scale based on number of stages?
+    const auto feedback = resonance_ * last_stage_output / (1 + resonance_ * (1.f / static_cast<float>(num_stages_)));
+
+    // input with feedback compensation + soft clipping to minimize explosions
+    // todo: should we also ADAA on this tanh as well?
+    // TODO: are we sure this is the sound we want?
+    const auto u = sample - std::tanh(feedback);
 
     // todo: different scale for each stage
 
@@ -71,6 +89,10 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
     if (num_stages_ >= 2) FilterStage(s1_, s2_, tanh_in_[1], tanh_state_[1], g, scale);
     if (num_stages_ >= 3) FilterStage(s2_, s3_, tanh_in_[2], tanh_state_[2], g, scale);
     if (num_stages_ >= 4) FilterStage(s3_, s4_, tanh_in_[3], tanh_state_[3], g, scale);
+
+    if (std::isinf(last_stage_output)) {
+      DBG("filter - last_stage_output is inf");
+    }
 
     // DC block the output
     buf[i] = last_stage_output - dc_out_x1_ + 0.99f * dc_out_y1_;
@@ -81,7 +103,6 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
 
 void OTAFilter::Configure(const juce::AudioProcessorValueTreeState& state) {
   cutoff_freq_ = state.getRawParameterValue("filterCutoffFreq")->load();
-  // todo: "0" resonance should actually be somewhere between .5 and 1 - such as .707.
   resonance_ = state.getRawParameterValue("filterResonance")->load();
   drive_ = state.getRawParameterValue("filterDrive")->load();
   env_mod_ = state.getRawParameterValue("filterEnvMod")->load();
