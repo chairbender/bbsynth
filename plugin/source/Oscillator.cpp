@@ -1,6 +1,7 @@
 #include "BBSynth/Oscillator.h"
 
 #include "BBSynth/Constants.h"
+#include "BBSynth/Utils.h"
 
 namespace audio_plugin {
 
@@ -208,7 +209,8 @@ void OscillatorVoice::controllerMoved([[maybe_unused]] int controllerNumber,
 void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                       [[maybe_unused]] int startSample,
                                       const int numSamples) {
-  const auto oversample_samples = oversample_buffer_.getNumSamples();
+  const auto oversample_samples = numSamples * kOversample;;
+  const auto oversample_start_sample = startSample * kOversample;
 
   // TODO: how does this interact with note on? Does this mean envelope always
   //  starts at start of a block even if it "should" start mid-block?
@@ -221,64 +223,39 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   // configured to generate at 2x oversampling..
   // we need wave2 first so we can use it for cross-mod (FM)
   // TODO: should the envelope actually affect the cross-mod behavior?
-  // todo: I think we need this clear since wave generator will ADD, but let's
-  // modify
-  //   the RenderNextBlock to tell it to overwrite rather than add so we can
-  //   avoid this clear
-  // TODO: for easier debugging, add a separate vco1/vco2 volume control
+  // todo: add ability to tell RenderNextBlock to OVERWRITE instead of add
+  //    I think we need this clear since wave generator will ADD so we can avoid the clearing
   wave2_buffer_.clear();
-  wave2Generator_.RenderNextBlock(wave2_buffer_, 0, oversample_samples);
+  wave2Generator_.RenderNextBlock(wave2_buffer_, oversample_start_sample, oversample_samples);
+  oversample_buffer_.clear( oversample_start_sample, oversample_samples);
   // todo: Do we even need this intermediate wave2_buffer? What if we cross-mod
   // from the oversample_buffer_ directly? if we're doing FM, we only use wave 2
   // for FM, we don't output it directly todo: this should be a bool set in
   // Configure, not doing this check every block...
    if (waveGenerator_.cross_mod() <= 0.0001f) {
-    oversample_buffer_.addFrom(0, 0, wave2_buffer_, 0, 0, oversample_samples);
+    oversample_buffer_.addFrom(0, oversample_start_sample, wave2_buffer_, 0, oversample_start_sample, oversample_samples);
   }
-  waveGenerator_.RenderNextBlock(oversample_buffer_, 0, oversample_samples);
+  waveGenerator_.RenderNextBlock(oversample_buffer_, oversample_start_sample, oversample_samples);
 
-  // x .4 =
-  // clipping check
-  const auto oscData = oversample_buffer_.getReadPointer(0);
-  auto max = 0.f;
-  for (int i = 0; i < oversample_samples; i++) {
-    max = std::max(max, std::abs(oscData[i]));
-  }
-  if (max > 1.f) {
-    DBG("post osc mix max val " + juce::String(max) + " correction should be " + juce::String(1.f / max));
-  }
+  DetectClip(oversample_buffer_, "post oscillator mix");
 
   filter_.Process(oversample_buffer_, *filter_env_buffer_,
-                  waveGenerator_.lfo_buffer(), oversample_samples);
+                  waveGenerator_.lfo_buffer(), oversample_start_sample, oversample_samples);
 
-  // clipping check
-  max = 0.f;
-  for (int i = 0; i < oversample_samples; i++) {
-    max = std::max(max, std::abs(oscData[i]));
-  }
-  if (max > 1.f) {
-    DBG("post filter max val " + juce::String(max) + " correction should be " + juce::String(1.f / max));
-  }
+  DetectClip(oversample_buffer_, "post filter");
 
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
   auto* data = oversample_buffer_.getWritePointer(0);
   auto* env1_data = env1_buffer_.getReadPointer(0);
   // prevent clipping
-  for (int i = 0; i < oversample_samples; ++i) {
+  for (int i = oversample_start_sample; i < oversample_samples; ++i) {
     constexpr auto gain_stage = .6f;
     // todo do this in a smarter way to prevent clipping
     data[i] *= env1_data[i / kOversample] * gain_stage;
   }
 
   // clipping check
-  max = 0.f;
-  for (int i = 0; i < oversample_samples; i++) {
-    max = std::max(max, std::abs(oscData[i]));
-  }
-  if (max > 1.f) {
-    DBG("post env max val " + juce::String(max) + " correction should be " + juce::String(1.f / max));
-  }
-
+  DetectClip(oversample_buffer_, "post VCA env");
 
   if (!envelope_.IsActive()) {
     // todo: might need this or no?
@@ -287,16 +264,9 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     clearCurrentNote();
   }
 
-  downsampler_.process(oversample_buffer_, outputBuffer, numSamples);
+  downsampler_.process(oversample_buffer_, outputBuffer, oversample_start_sample, oversample_samples);
 
   // post-downsample clipping check
-  max = 0.f;
-  for (int i = 0; i < oversample_samples; i++) {
-    max = std::max(max, std::abs(oscData[i]));
-  }
-  if (max > 1.f) {
-    DBG("post downsample max val " + juce::String(max) + " correction should be " + juce::String(1.f / max));
-  }
-
+  DetectClip(outputBuffer, "post downsample");
 }
 }  // namespace audio_plugin

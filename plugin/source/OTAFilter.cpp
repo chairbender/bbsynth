@@ -30,6 +30,7 @@ inline void OTAFilter::FilterStage(const float in, float& out,
 void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
                         const juce::AudioBuffer<float>& env_buffer,
                         const juce::AudioBuffer<float>& lfo_buffer,
+                        const int start_sample,
                         const int numSamples) {
   if (bypass_) {
     return;
@@ -42,7 +43,7 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
   const auto env_data = env_buffer.getReadPointer(0);
   const auto lfo_data = lfo_buffer.getReadPointer(0);
 
-  for (auto i = 0; i < numSamples; ++i) {
+  for (auto i = start_sample; i < numSamples; ++i) {
     const auto sample = buf[i];
     // modulation - envelope and LFO affects cutoff frequency
     // todo: decide on a reasonable modulation range/curve
@@ -90,12 +91,10 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
     if (num_stages_ >= 3) FilterStage(s2_, s3_, tanh_in_[2], tanh_state_[2], g, scale);
     if (num_stages_ >= 4) FilterStage(s3_, s4_, tanh_in_[3], tanh_state_[3], g, scale);
 
-    if (std::isinf(last_stage_output)) {
-      DBG("filter - last_stage_output is inf");
-    }
-
-    // DC block the output
-    buf[i] = last_stage_output - dc_out_x1_ + 0.99f * dc_out_y1_;
+    // DC block and soft clip the output
+    // todo: do we need to soft clip when drive is within safe levels?
+    // todo: should we use ADAA here?
+    buf[i] = std::tanh(last_stage_output - dc_out_x1_ + 0.99f * dc_out_y1_);
     dc_out_x1_ = last_stage_output;
     dc_out_y1_ = buf[i];
   }

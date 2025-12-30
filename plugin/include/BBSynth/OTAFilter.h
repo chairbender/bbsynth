@@ -20,7 +20,8 @@ public:
    */
   void Process(juce::AudioBuffer<float>& buffers,
                const juce::AudioBuffer<float>& env_buffer,
-               const juce::AudioBuffer<float>& lfo_buffer, int numSamples);
+               const juce::AudioBuffer<float>& lfo_buffer, int start_sample,
+               int numSamples);
 
   /**
    * Update params based on current state
