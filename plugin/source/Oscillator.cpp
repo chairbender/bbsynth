@@ -237,8 +237,6 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   }
   waveGenerator_.RenderNextBlock(oversample_buffer_, oversample_start_sample, oversample_samples);
 
-  DetectClip(oversample_buffer_, "post oscillator mix");
-
   filter_.Process(oversample_buffer_, *filter_env_buffer_,
                   waveGenerator_.lfo_buffer(), oversample_start_sample, oversample_samples);
 

@@ -94,14 +94,15 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
     // todo: we could even expose this as yet another param
     constexpr auto kOutputDrive = 2.f;
     constexpr auto kOutputScale = 1.f / kOutputDrive;
-    // prevents the clipping inherent in the TanhADAA calculation
-    // (happens at extreme g, res, drive values)
-    buf[i] = tanh_final_out_.process((last_stage_output - dc_out_x1_ + 0.99f * dc_out_y1_) * kOutputScale) * kOutputDrive;
+    const auto tanh_final_out_val = tanh_final_out_.process(last_stage_output * kOutputScale);
+    const auto final_scaled_val = tanh_final_out_val * kOutputDrive;
+    const auto final_blocked_val = final_scaled_val - dc_out_x1_ + 0.995f * dc_out_y1_;
+    buf[i] = final_blocked_val;
     if (buf[i] > 1.f) {
-      DBG("output clip detected " + juce::String(buf[i]));
+      DBG("tanh output clip detected tanh: " + juce::String(tanh_final_out_val) + " scaled + " + juce::String(buf[i]));
     }
-    dc_out_x1_ = last_stage_output;
-    dc_out_y1_ = buf[i];
+    dc_out_x1_ = final_scaled_val;
+    dc_out_y1_ = final_blocked_val;
   }
 }
 
