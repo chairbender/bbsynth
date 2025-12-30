@@ -469,7 +469,8 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       "filterResonance", "Filter Resonance",
       juce::NormalisableRange(0.f, 4.f, 0.01f), 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "filterDrive", "Filter Drive", juce::NormalisableRange(kMinDrive, 100.f, 0.0001f, .2f),
+      "filterDrive", "Filter Drive", juce::NormalisableRange(kMinDrive, 10.f, 0.0001f,
+        .4f),
       kMinDrive));
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "filterSlope", "Filter Slope", juce::StringArray{"-24 dB", "-18 dB", "-12 dB"}, 0));
