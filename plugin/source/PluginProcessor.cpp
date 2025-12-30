@@ -3,6 +3,7 @@
 #include "BBSynth/Constants.h"
 #include "BBSynth/Oscillator.h"
 #include "BBSynth/PluginEditor.h"
+#include "BBSynth/Utils.h"
 #include "BBSynth/WaveGenerator.h"
 
 namespace audio_plugin {
@@ -115,6 +116,11 @@ void AudioPluginAudioProcessor::ConfigureLFO() {
 
 void AudioPluginAudioProcessor::prepareToPlay(const double sampleRate,
                                               const int samplesPerBlock) {
+  juce::dsp::ProcessSpec process_spec{sampleRate, static_cast<juce::uint32>(samplesPerBlock), 1};
+
+  main_limiter_.prepare(process_spec);
+  main_limiter_.setRelease(50.f);
+  main_limiter_.setThreshold(0.f);
   synth.setCurrentPlaybackSampleRate(sampleRate);
   lfo_buffer_.setSize(1, samplesPerBlock, false, true);
   lfo_generator_.set_mode(WaveGenerator::NO_ANTIALIAS);
@@ -124,7 +130,7 @@ void AudioPluginAudioProcessor::prepareToPlay(const double sampleRate,
   lfo_ramp_ = -1;
   lfo_generator_.PrepareToPlay(sampleRate);
   hpf_.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 1000.0f);
-  hpf_.prepare(juce::dsp::ProcessSpec(sampleRate, static_cast<juce::uint32>(samplesPerBlock), 1));
+  hpf_.prepare(process_spec);
   hpf_.reset();
   ConfigureLFO();
   tone_filter_.Prepare(sampleRate, samplesPerBlock);
@@ -283,18 +289,21 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       }
     }
 
+    // TODO: with multiple voices active, this will likely clip
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+
+    DetectClip(buffer, "synth output");
+
+    // todo: may be a more efficient way to allocate this instead of per block
+    auto audio_block = juce::dsp::AudioBlock<float>{buffer.getArrayOfWritePointers(),
+      1, static_cast<size_t>(buffer.getNumSamples())};
+    const auto process_context = juce::dsp::ProcessContextReplacing<float>{audio_block};
 
     // // hpf params - todo: probably bad to be changing this every block...rather than when param is changed
     const auto hpf_freq = static_cast<float>(apvts_.getRawParameterValue("hpfFreq")->load());
     hpf_.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(getSampleRate(), hpf_freq);
-
-    auto hpf_block = juce::dsp::AudioBlock<float>{buffer.getArrayOfWritePointers(),
-      1, static_cast<size_t>(buffer.getNumSamples())};
-    hpf_.process(juce::dsp::ProcessContextReplacing<float>{hpf_block});
-
-
-    // apply VCA
+    hpf_.process(process_context);
+    // apply global LFO-based VCA
     const auto vca_level = apvts_.getRawParameterValue("vcaLevel")->load();
     const auto vca_lfo_mod = apvts_.getRawParameterValue("vcaLfoMod")->load();
     auto* buf_write = buffer.getWritePointer(0);
@@ -321,6 +330,11 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         lfo_samples_until_start_ = -1;
       }
     }
+
+    DetectClip(buffer, "final output");
+
+    // apply safety limiter
+    main_limiter_.process(process_context);
 
     // mono to stereo
     buffer.addFrom(1,  0, buffer, 0, 0, buffer.getNumSamples());

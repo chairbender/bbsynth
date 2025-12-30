@@ -247,11 +247,8 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
   auto* data = oversample_buffer_.getWritePointer(0);
   auto* env1_data = env1_buffer_.getReadPointer(0);
-  // prevent clipping
   for (int i = oversample_start_sample; i < oversample_samples; ++i) {
-    constexpr auto gain_stage = 1.f;
-    // todo do this in a smarter way to prevent clipping
-    data[i] *= env1_data[i / kOversample] * gain_stage;
+    data[i] *= env1_data[i / kOversample];
   }
 
   // clipping check
