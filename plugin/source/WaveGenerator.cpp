@@ -157,9 +157,9 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   //  athis is not really efficient way to do this.
   // this fixed amount helps to prevent clipping at this stage caused by minblep-induced overshoots
   // + the combination of the 2 oscillators.
-  // It is quite a large attenuation because the worst case is about a F0 note,
+  // It is quite a large attenuation because the worst case is about a F0 saw note,
   //  which produces a very loud blep
-  const auto gain_stage = mode_ == ANTIALIAS ? .15f : 1.f;
+  const auto gain_stage = mode_ == ANTIALIAS ? .2f : 1.f;
   outputBuffer.addFromWithRamp(0, startSample, wave.getRawDataPointer(),
                                numSamples,gain_stage, gain_stage);
 
