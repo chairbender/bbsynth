@@ -13,9 +13,9 @@ class Downsampler {
 public:
   void prepare(int max_block_size, int oversamplingFactor);
 
-  void process(const juce::AudioBuffer<float>& input,
-               juce::AudioBuffer<float>& output,
-               int numOutputSamples);
+  void process(const juce::AudioBuffer<float> &input,
+               juce::AudioBuffer<float> &output, int sourceStartSample,
+               int sourceNumSamples);
 
 private:
   struct Stage {

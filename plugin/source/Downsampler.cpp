@@ -49,18 +49,13 @@ void Downsampler::prepare(const int max_block_size,
 
 void Downsampler::process(const juce::AudioBuffer<float>& input,
                           juce::AudioBuffer<float>& output,
-                          const int numOutputSamples) {
+                          const int sourceStartSample,
+                          const int sourceNumSamples) {
+  const int dest_start_sample = sourceStartSample / oversamplingFactor_;
+  const int dest_num_samples = sourceNumSamples / oversamplingFactor_;
   if (stages_.empty()) {
-    if (oversamplingFactor_ > 1) {
-      // Crude fallback if not prepared or factor not supported
-      auto* inputData = input.getReadPointer(0);
-      auto* outputData = output.getWritePointer(0);
-      for (int i = 0; i < numOutputSamples; ++i) {
-        outputData[i] = inputData[i * oversamplingFactor_];
-      }
-    } else {
-      output.copyFrom(0, 0, input, 0, 0, numOutputSamples);
-    }
+    jassert(oversamplingFactor_ == 1);
+    output.copyFrom(0, sourceStartSample, input, 0, sourceStartSample, sourceNumSamples);
     return;
   }
 
@@ -68,7 +63,8 @@ void Downsampler::process(const juce::AudioBuffer<float>& input,
 
   for (size_t s = 0; s < stages_.size(); ++s) {
     auto& stage = stages_[s];
-    const int stageOutputSamples = numOutputSamples << (stages_.size() - 1 - s);
+    const int stageOutputSamples = dest_num_samples << (stages_.size() - 1 - s);
+    const int stageStartSample = dest_start_sample << (stages_.size() - 1 - s);
     
     juce::AudioBuffer<float>* currentOutput;
     if (s == stages_.size() - 1) {
@@ -86,7 +82,7 @@ void Downsampler::process(const juce::AudioBuffer<float>& input,
     float* lv1 = stage.v1.data();
     float delay = stage.delay;
 
-    for (int i = 0; i < stageOutputSamples; ++i) {
+    for (int i = stageStartSample; i < stageOutputSamples; ++i) {
       // Direct path cascaded allpass filters (even sample)
       float inEven = inputData[(i << 1)];
       for (int n = 0; n < directStages; ++n) {
