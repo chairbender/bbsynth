@@ -714,7 +714,6 @@ void AudioPluginAudioProcessorEditor::resized() {
         juce::GridItem{cross_mod_label_},
         juce::GridItem{wave2_type_label_},
         juce::GridItem{fine_tune_label_},
-        juce::GridItem{},
         juce::GridItem{vco2_level_label_}};
 
     section_grid.performLayout(section_bounds.toNearestInt());
