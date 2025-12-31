@@ -16,7 +16,59 @@ namespace audio_plugin {
 
 constexpr double DELTA{.0000001};
 
-// WAVE GEN :::::
+
+inline double GetSine(const double angle) {
+  const double sample = sin(angle);
+  return sample;
+}
+
+inline double GetSawRise(const double angle) {
+  // remainder ....
+  double sample = GetSawFall(angle);
+
+  // JUST INVERT IT NOW ... to get rising ...
+  sample = -sample;
+
+  return sample;
+}
+
+inline double GetSawFall(double angle) {
+  angle = fmod(angle + juce::MathConstants<double>::twoPi,
+               2 * juce::MathConstants<double>::twoPi);  // shift x
+  const double sample = angle / juce::MathConstants<double>::twoPi -
+                        1;  // computer as remainder
+
+  return sample;
+}
+inline double GetTriangle(double angle) {
+  double sample = 0;
+
+  // using a simple offset, we can make this a ramp up, then down ....
+  // angle += double_Pi/4;
+  angle = fmod(angle + juce::MathConstants<double>::twoPi / 2,
+               2 * juce::MathConstants<double>::twoPi);  // ROLL
+
+  if (const double frac = angle / (2 * juce::MathConstants<double>::twoPi);
+      frac < .5)
+    sample = 2 * frac;  // RAMPS up
+  else
+    sample = 1 - 2 * (frac - .5);  // RAMPS down
+
+  // SCALE and Y-OFFSET
+  sample = (sample - .5) * 2;  // so it goes from -1 .. 1
+
+  jassert(sample <= 1);
+  jassert(sample >= -1);
+
+  return sample;
+}
+
+inline double GetSquare(const double angle, const double pulse_width) {
+  if (angle >= juce::MathConstants<double>::twoPi * pulse_width) return -1;
+  return 1;
+}
+
+
 WaveGenerator::WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
                              const juce::AudioBuffer<float>& env1_buffer,
                              const juce::AudioBuffer<float>& env2_buffer,
@@ -51,16 +103,154 @@ WaveGenerator::WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
   phase_angle_target_ = phase_angle_actual_ = 0;  // expressed 0 - 2*PI
 }
 
+// Enable/disable the post-BLEP DC blocker (1st-order high-pass) used in
+// ANTIALIAS mode
+void WaveGenerator::set_dc_blocker_enabled(const bool enabled) {
+  dc_blocker_enabled_ = enabled;
+}
+
+void WaveGenerator::set_wave_type(const WaveType wave_type) {
+  wave_type_ = wave_type;
+
+  if (wave_type_ == triangle)
+    blep_generator_.set_return_derivative(true);
+  else if (wave_type_ == sine)
+    blep_generator_.set_return_derivative(true);
+  else
+    blep_generator_.set_return_derivative(false);
+}
+
+void WaveGenerator::set_mode(const WaveMode mode) {
+  mode_ = mode;
+  // BUILD the appropriate BLEP step ....
+  if (mode_ == ANTIALIAS) {
+    blep_generator_.BuildBlep();
+  }
+}
+
+MinBlepGenerator* WaveGenerator::blep_generator() { return &blep_generator_; }
+
+void WaveGenerator::set_pulse_width_mod_type(const PulseWidthModType type) {
+  pulse_width_mod_type_ = type;
+}
+
+void WaveGenerator::set_pulse_width_mod(const double pulse_width) {
+  jassert(pulse_width >= 0 && pulse_width <= 1);
+  pulse_width_mod_ = pulse_width;
+}
+
+void WaveGenerator::set_delta_bases(const double radians) {
+  hard_sync_delta_base_ = hard_sync_pitch_offset_ * radians;
+  delta_base_ = pitch_offset_ * radians;
+}
+
+void WaveGenerator::set_pitch_semitone(const int midi_note_value,
+                                       const double sample_rate) {
+  const double centerF = juce::MidiMessage::getMidiNoteInHertz(midi_note_value);
+  const double cyclesPerSample = centerF / sample_rate;
+  const float angleDelta = static_cast<float>(
+      cyclesPerSample * 2.0 * juce::MathConstants<double>::twoPi);
+
+  set_delta_bases(static_cast<double>(angleDelta));
+}
+
+void WaveGenerator::set_pitch_hz(const double freq) {
+  const double cyclesPerSample = freq / sample_rate_;
+  const float angleDelta = static_cast<float>(
+      cyclesPerSample * 2.0 * juce::MathConstants<double>::twoPi);
+  set_delta_bases(static_cast<double>(angleDelta));
+}
+
+double WaveGenerator::current_pitch_hz() const {
+  // float angleDelta = cyclesPerSample * 2.0 * double_Pi;
+  const double cyclesPerSample =
+      actual_current_angle_delta_ / (2.0 * juce::MathConstants<double>::twoPi);
+  const double freq = cyclesPerSample * sample_rate_;
+
+  return freq;
+}
+
+// PITCH MOD ::: shifts the primary angleDelta up/down in semitones ...
+void WaveGenerator::set_pitch_offset_semis(
+    const double pitch_offset_in_semitones) {
+  // TONE is ALWAYS higher than primary center (or has no effect)
+  double secondary_tone_offset = tone_offset_in_semis();
+
+  // Convert from semitones to * factor
+  hard_sync_pitch_offset_ = (pow(2, pitch_offset_in_semitones / 12.));
+
+  // UPDATE the secondary freq
+  double newToneOffset = pitch_offset_in_semitones + secondary_tone_offset;
+  pitch_offset_ = (pow(2, newToneOffset / 12));
+}
+
+void WaveGenerator::set_pitch_offset_hz(const double pitch_offset_in_hz) {
+  // todo: idk what this should do
+  // TONE is ALWAYS higher than primary center (or has no effect)
+  // double secondary_tone_offset = tone_offset_in_semis();
+
+  // todo: the scaling here is totally not right
+  hard_sync_pitch_offset_ = 1 + pitch_offset_in_hz * .1;
+
+  // todo: idk what this should do
+  // // UPDATE the secondary freq
+  // double newToneOffset = pitch_offset_in_semitones + secondary_tone_offset;
+  // secondary_pitch_offset_ = (pow(2, newToneOffset / 12));
+}
+
+double WaveGenerator::pitch_offset_in_semis() const {
+  // return the Log pitch offset ....
+  double pitchOffsetInSemis = 12 * log2(hard_sync_pitch_offset_);
+  return pitchOffsetInSemis;
+}
+
+void WaveGenerator::set_tone_offset(const double new_tone_offset_in_semis) {
+  // Convert from semitones to * factor
+  const double primary_semis = pitch_offset_in_semis();
+
+  // TONE is ALWAYS higher than primary center (or has no effect)
+  const double newToneOffset = primary_semis + new_tone_offset_in_semis;
+  pitch_offset_ = (pow(2, newToneOffset / 12.));
+}
+double WaveGenerator::tone_offset_in_semis() const {
+  // return the Log pitch offset ....
+  const double toneOffsetInSemis = 12 * log2(pitch_offset_);
+
+  // RELATIVE to primary ...
+  const double primary_semis = pitch_offset_in_semis();
+
+  return (toneOffsetInSemis - primary_semis);
+}
+
+void WaveGenerator::set_pitch_bend(const double newBendInSemiTones) {
+  jassert(newBendInSemiTones == newBendInSemiTones);
+
+  // For EQUAL TEMPERMENT :::::
+  pitch_bend_target_ = pow(2.0, (newBendInSemiTones / 12.0));
+}
+
+double WaveGenerator::get_pitch_bend_semis() const {
+  return 12 * log2(pitch_bend_actual_);
+}
+
+void WaveGenerator::set_volume(const double db_mult) {
+  if (db_mult <= -80)
+    volume_ = 0;
+  else
+    volume_ = juce::Decibels::decibelsToGain(db_mult);
+}
+
+void WaveGenerator::set_gain(const double gain) { volume_ = gain; }
+void WaveGenerator::set_cross_mod(const float cross_mod) {
+  cross_mod_ = static_cast<double>(cross_mod);
+}
+juce::Array<float> WaveGenerator::history() { return history_; }
+
 void WaveGenerator::PrepareToPlay(double new_sample_rate) {
   sample_rate_ = new_sample_rate;
 
   // BUILD the appropriate BLEP step ....
   blep_generator_.BuildBlep();
-}
-void WaveGenerator::set_blep_size(float newOverSample) {
-  jassertfalse;  // need to rebuild, no ?
-
-  blep_generator_.over_sampling_ratio_ = static_cast<double>(newOverSample);
 }
 
 void WaveGenerator::clear() {
@@ -145,13 +335,15 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   //  is because the minblep can cause overshoots.
   //  but we shouldn't apply it to the lfo...
   //  athis is not really efficient way to do this.
-  // this fixed amount helps to prevent clipping at this stage caused by minblep-induced overshoots
+  // this fixed amount helps to prevent clipping at this stage caused by
+  // minblep-induced overshoots
   // + the combination of the 2 oscillators.
-  // It is quite a large attenuation because the worst case is about a F0 saw note,
+  // It is quite a large attenuation because the worst case is about a F0 saw
+  // note,
   //  which produces a very loud blep
   const auto gain_stage = mode_ == ANTIALIAS ? .2f : 1.f;
   outputBuffer.addFromWithRamp(0, startSample, wave.getRawDataPointer(),
-                               numSamples,gain_stage, gain_stage);
+                               numSamples, gain_stage, gain_stage);
 
   // todo: we aren't using gain_last_ / volume right now
   gain_last_[0] = volume_;
@@ -211,14 +403,16 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
 
     // CHANGE the PITCH BEND (linear ramping)
     // TODO: manual pitch bend disabled currently
-    //pitch_bend_actual_ += freqDelta;
+    // pitch_bend_actual_ += freqDelta;
     // TODO: account better for oversampling - this hardcoded amount isn't good
     double mod = 0;
     if (pitch_bend_lfo_mod_ != 0.) {
-      mod = static_cast<double>(lfo_data[i / kOversample]) * pitch_bend_lfo_mod_;
+      mod =
+          static_cast<double>(lfo_data[i / kOversample]) * pitch_bend_lfo_mod_;
     }
     if (pitch_bend_env1_mod_ != 0.) {
-      mod += static_cast<double>(env1_data[i / kOversample]) * pitch_bend_env1_mod_;
+      mod += static_cast<double>(env1_data[i / kOversample]) *
+             pitch_bend_env1_mod_;
     }
     if (cross_mod_ > 0.001) {
       // unlike the other modulation buffers, the modulator is oversampled.
@@ -244,8 +438,7 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
     // HARD SYNCING ::::::
     // TODO: seemingly the pitch offset is being ignored completely unless hard
     // sync is true...
-    if (hard_sync_ &&
-        (fabs(hard_sync_delta_base_ - delta_base_) > DELTA)) {
+    if (hard_sync_ && (fabs(hard_sync_delta_base_ - delta_base_) > DELTA)) {
       // primary OSC DOES use pitch bending and phase shifting ...
       const double actual_current_primary_delta =
           hard_sync_delta_base_ * pitch_bend_actual_ + phaseShiftPerSample;
@@ -349,19 +542,23 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
           switch (pulse_width_mod_type_) {
             case env2Plus:
               pulse_width_actual_ =
-                  static_cast<double>(env2_data[i / kOversample]) * pulse_width_mod_;
+                  static_cast<double>(env2_data[i / kOversample]) *
+                  pulse_width_mod_;
               break;
             case env2Minus:
               pulse_width_actual_ =
-                  static_cast<double>(env2_data[i / kOversample]) * -pulse_width_mod_;
+                  static_cast<double>(env2_data[i / kOversample]) *
+                  -pulse_width_mod_;
               break;
             case env1Plus:
               pulse_width_actual_ =
-                  static_cast<double>(env1_data[i / kOversample]) * pulse_width_mod_;
+                  static_cast<double>(env1_data[i / kOversample]) *
+                  pulse_width_mod_;
               break;
             case env1Minus:
               pulse_width_actual_ =
-                  static_cast<double>(env1_data[i / kOversample]) * -pulse_width_mod_;
+                  static_cast<double>(env1_data[i / kOversample]) *
+                  -pulse_width_mod_;
               break;
             case lfo:
               pulse_width_actual_ =
@@ -553,6 +750,7 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
   jassert(wave.size() >= numSamples);
 }
 
+// todo: use this for PWM instead of the other stuff I used...or remove this
 double WaveGenerator::skew_angle(const double angle) const {
   // APPLY PWM to angle ...
 
@@ -647,5 +845,33 @@ void WaveGenerator::MoveAngleForwardTo(double newAngle) {
   double numSamples = delta / delta_base_;
 
   MoveAngleForward(static_cast<int>(numSamples));
+}
+
+
+double WaveGenerator::GetAngleAfter(const double samples_since_rollover) {
+  // CALCULATE the WAVEFORM'S ANGULAR OFFSET
+  // GIVEN a certain number of samples (since rollover) ....
+
+  // since this is only done in LFO mode ....
+  // reset phase so there is no changing ...
+  phase_angle_actual_ = phase_angle_target_;
+
+  return delta_base_ * samples_since_rollover + phase_angle_actual_;
+}
+
+
+inline double WaveGenerator::GetRandom([[maybe_unused]] double angle) {
+  double r = static_cast<double>(juce::Random::getSystemRandom().nextFloat());
+
+  r = 2 * (r - 0.5);  // scale to -1 .. 1
+  r = juce::jlimit(-10 * delta_base_, 10 * delta_base_,
+                   r);
+
+  last_sample_ += r;
+
+  // limit it based on the F ...
+  last_sample_ = juce::jlimit(-1.0, 1.0, last_sample_);
+
+  return last_sample_;
 }
 }  // namespace audio_plugin
