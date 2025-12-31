@@ -34,10 +34,25 @@ constexpr auto kBlepOvertoneDepth = 128;
 class WaveGenerator {
   MinBlepGenerator blep_generator_;
 
-  // PRIMARY - HARD SYNC ::::
-  double primary_delta_base_ = 0;    // for hard syncing
-  double primary_pitch_offset_ = 1;  // relative offset ....
-  double primary_angle_ = 0;
+  /**
+   * Base phase increment (radians per sample) for this oscillator.
+   * This is the oscillator that actually produces the output sound regardless
+   * of whether hard sync is enabled.
+   */
+  double delta_base_ = 0;
+
+  /**
+   * Relative pitch offset multiplier for this oscillator.
+   */
+  double pitch_offset_ = 1;
+
+  /**
+   * Current phase angle (0 to 2*PI) of this oscillator.
+   * This is the angle used to generate the waveform samples.
+   */
+  double current_angle_ = 0;
+  double current_angle_skewed_ = 0;
+  double last_angle_skewed_ = 0;
 
   PulseWidthModType pulse_width_mod_type_ = manual;
   // different effects depending on mod type, but range should be 0. to 1.f
@@ -45,12 +60,28 @@ class WaveGenerator {
   // actual current pwm for cur sample
   double pulse_width_actual_ = 0.5;
 
-  // secondary - HARD SYNC ::::
-  double secondary_delta_base_ = 0;
-  double secondary_pitch_offset_ = 1;  // relative offset ....
-  double current_angle_ = 0;
-  double current_angle_skewed_ = 0;
-  double last_angle_skewed_ = 0;
+  double cross_mod_ = 0;
+
+  bool hard_sync_;
+
+  /**
+   * Only used when hard sync enabled.
+   * Base phase increment (radians per sample) for the primary.
+   * This oscillator is used as the sync source for hard synchronization -
+   * the one controlling when the secondary should reset.
+   */
+  double hard_sync_delta_base_ = 0;
+
+  /**
+   * Only used for hard sync.
+   * Relative pitch offset multiplier for the primary oscillator.
+   */
+  double hard_sync_pitch_offset_ = 1;
+
+  /**
+   * Current phase angle (0 to 2*PI) of the primary oscillator.
+   */
+  double hard_sync_angle_ = 0;
 
   // ACTUAL OUTPUT (pre-AA)
   double last_sample_ = 0;
@@ -73,9 +104,10 @@ class WaveGenerator {
   // - takes into account pitch bend and phase shift ...
   double actual_current_angle_delta_ = 0;  // ACTUAL CURRENT DELTA (pitch)
 
+  // todo: not used currently
   double volume_ = 1;
-  double cross_mod_ = 0;
   double gain_last_[2] = {0, 0};  // for ramping ..
+  
   double skew_ = 0;               // [-1, 1]
   double sample_rate_ = 0;
 
@@ -87,8 +119,6 @@ class WaveGenerator {
   double phase_angle_target_ = 0;
   double phase_angle_actual_ =
       0;  // the target angle to get to (used for phase shifting)
-
-  bool hard_sync_;
 
   const juce::AudioBuffer<float>& lfo_buffer_;
   const juce::AudioBuffer<float>& env1_buffer_;
@@ -168,13 +198,13 @@ class WaveGenerator {
     pulse_width_mod_ = pulse_width;
   }
 
-  double secondary_delta_base() const { return secondary_delta_base_; }
-  double primary_delta_base() const { return primary_delta_base_; }
+  double secondary_delta_base() const { return delta_base_; }
+  double primary_delta_base() const { return hard_sync_delta_base_; }
   double getAngleDeltaActual() const { return actual_current_angle_delta_; }
 
   void set_primary_delta(double newAngleDelta) {
-    primary_delta_base_ = primary_pitch_offset_ * newAngleDelta;
-    secondary_delta_base_ = secondary_pitch_offset_ * newAngleDelta;
+    hard_sync_delta_base_ = hard_sync_pitch_offset_ * newAngleDelta;
+    delta_base_ = pitch_offset_ * newAngleDelta;
   }
   double current_angle() const { return current_angle_; }
 
@@ -223,11 +253,11 @@ class WaveGenerator {
     double secondary_tone_offset = tone_offset_in_semis();
 
     // Convert from semitones to * factor
-    primary_pitch_offset_ = (pow(2, pitch_offset_in_semitones / 12.));
+    hard_sync_pitch_offset_ = (pow(2, pitch_offset_in_semitones / 12.));
 
     // UPDATE the secondary freq
     double newToneOffset = pitch_offset_in_semitones + secondary_tone_offset;
-    secondary_pitch_offset_ = (pow(2, newToneOffset / 12));
+    pitch_offset_ = (pow(2, newToneOffset / 12));
   }
 
   void set_pitch_offset_hz(const double pitch_offset_in_hz) {
@@ -236,7 +266,7 @@ class WaveGenerator {
     // double secondary_tone_offset = tone_offset_in_semis();
 
     // todo: the scaling here is totally not right
-    primary_pitch_offset_ = 1 + pitch_offset_in_hz * .1;
+    hard_sync_pitch_offset_ = 1 + pitch_offset_in_hz * .1;
 
     // todo: idk what this should do
     // // UPDATE the secondary freq
@@ -246,7 +276,7 @@ class WaveGenerator {
 
   double pitch_offset_in_semis() const {
     // return the Log pitch offset ....
-    double pitchOffsetInSemis = 12 * log2(primary_pitch_offset_);
+    double pitchOffsetInSemis = 12 * log2(hard_sync_pitch_offset_);
     return pitchOffsetInSemis;
   }
 
@@ -256,11 +286,11 @@ class WaveGenerator {
 
     // TONE is ALWAYS higher than primary center (or has no effect)
     const double newToneOffset = primary_semis + new_tone_offset_in_semis;
-    secondary_pitch_offset_ = (pow(2, newToneOffset / 12.));
+    pitch_offset_ = (pow(2, newToneOffset / 12.));
   }
   double tone_offset_in_semis() const {
     // return the Log pitch offset ....
-    const double toneOffsetInSemis = 12 * log2(secondary_pitch_offset_);
+    const double toneOffsetInSemis = 12 * log2(pitch_offset_);
 
     // RELATIVE to primary ...
     const double primary_semis = pitch_offset_in_semis();
@@ -318,7 +348,7 @@ class WaveGenerator {
     // reset phase so there is no changing ...
     phase_angle_actual_ = phase_angle_target_;
 
-    return secondary_delta_base_ * samplesSinceRollover + phase_angle_actual_;
+    return delta_base_ * samplesSinceRollover + phase_angle_actual_;
   }
   double skew_angle(double angle) const;
 
@@ -388,7 +418,7 @@ class WaveGenerator {
     double r = static_cast<double>(juce::Random::getSystemRandom().nextFloat());
 
     r = 2 * (r - 0.5);  // scale to -1 .. 1
-    r = juce::jlimit(-10 * secondary_delta_base_, 10 * secondary_delta_base_,
+    r = juce::jlimit(-10 * delta_base_, 10 * delta_base_,
                      r);
 
     last_sample_ += r;
