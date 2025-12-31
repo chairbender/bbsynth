@@ -12,7 +12,6 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 
 namespace audio_plugin {
 
-
 inline double GetSine(double angle);
 inline double GetSawRise(double angle);
 inline double GetSawFall(double angle);
@@ -38,9 +37,10 @@ enum PulseWidthModType {
 constexpr auto kBlepOvertoneDepth = 128;
 
 class WaveGenerator {
-  // TODO: refactor to properly keep things private and put logic into separate rather than header.
+  // TODO: refactor to properly keep things private and put logic into separate
+  // rather than header.
 
-public:
+ public:
   enum WaveType {
     sine = 0,
     sawRise = 1,
@@ -49,20 +49,11 @@ public:
     square = 4,
     random = 5
   };
-  enum HardSyncMode {
-    PRIMARY = 0,
-    SECONDARY = 1,
-    DISABLED = 2
-  };
+  enum HardSyncMode { PRIMARY = 0, SECONDARY = 1, DISABLED = 2 };
 
-  enum WaveMode {
-    ANTIALIAS,
-    BUILD_AA,
-    NO_ANTIALIAS
-  };
+  enum WaveMode { ANTIALIAS, BUILD_AA, NO_ANTIALIAS };
 
-private:
-
+ private:
   MinBlepGenerator blep_generator_;
 
   /**
@@ -94,10 +85,12 @@ private:
   double cross_mod_ = 0;
 
   // TODO: all these hard sync values need to be kept in sync with the real
-  //  primary wave generator's values. Otherwise the hard sync feature doesn't work right.
-  //  There is no direct communication between the wave generators - these values
-  //  have to be managed externally for this to have the desired effect.
-  //  TODO: It seems better to just have the secondary reference the primary WaveGen
+  //  primary wave generator's values. Otherwise the hard sync feature doesn't
+  //  work right. There is no direct communication between the wave generators -
+  //  these values have to be managed externally for this to have the desired
+  //  effect.
+  //  TODO: It seems better to just have the secondary reference the primary
+  //  WaveGen
   //   instead of having to keep them in sync and thus duplicate the values.
   /**
    * Only used when hard sync enabled.
@@ -142,8 +135,8 @@ private:
   // todo: not used currently
   double volume_ = 1;
   double gain_last_[2] = {0, 0};  // for ramping ..
-  
-  double skew_ = 0;               // [-1, 1]
+
+  double skew_ = 0;  // [-1, 1]
   double sample_rate_ = 0;
 
   juce::Array<float> wave;  // hmmm ... faster to make this a pointer I bet ....
@@ -160,7 +153,6 @@ private:
   const juce::AudioBuffer<float>& env2_buffer_;
   const juce::AudioBuffer<float>& modulator_buffer_;
 
-
   // what role is this oscillator serving in hard sync?
   HardSyncMode hard_sync_mode_ = DISABLED;
   // meaning depends on hard sync mode.
@@ -174,7 +166,6 @@ private:
   WaveMode mode_;
 
  public:
-
   WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
                 const juce::AudioBuffer<float>& env1_buffer,
                 const juce::AudioBuffer<float>& env2_buffer,
