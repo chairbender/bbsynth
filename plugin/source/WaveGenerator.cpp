@@ -49,9 +49,6 @@ WaveGenerator::WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
   for (int i = 0; i < history_length_; i++) history_.add(0);
 
   phase_angle_target_ = phase_angle_actual_ = 0;  // expressed 0 - 2*PI
-
-  // configure the blep multiple
-  blep_overtone_depth_ = 128;  // high default ... buzzy
 }
 
 void WaveGenerator::PrepareToPlay(double new_sample_rate) {
@@ -66,13 +63,6 @@ void WaveGenerator::set_blep_size(float newOverSample) {
   blep_generator_.over_sampling_ratio_ = static_cast<double>(newOverSample);
 }
 
-void WaveGenerator::set_blep_overtone_depth(double mult) {
-  // SET the allowed depth of overtones
-  // ** NOTE **
-  // this is relative to the fundamental F
-  // so each factor of 2 is an octave
-  blep_overtone_depth_ = mult;
-}
 void WaveGenerator::clear() {
   current_angle_ = phase_angle_target_;  // + phase !!!
   primary_angle_ = phase_angle_target_;
@@ -105,7 +95,7 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     // TUNE the blep ....
     double freq = current_pitch_hz();               // Current, playing, Freq
     double relativeFreq = 2 * freq / sample_rate_;  // 2 for Nyquist ...
-    relativeFreq *= blep_overtone_depth_;  // ie - up to the 3nd harmonic (2*2*2
+    relativeFreq *= kBlepOvertoneDepth;  // ie - up to the 3nd harmonic (2*2*2
     // -> 8x fundamental)
 
     blep_generator_.set_limiting_freq(
