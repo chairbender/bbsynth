@@ -16,7 +16,6 @@ namespace audio_plugin {
 
 constexpr double DELTA{.0000001};
 
-
 inline double GetSine(const double angle) {
   const double sample = sin(angle);
   return sample;
@@ -35,8 +34,8 @@ inline double GetSawRise(const double angle) {
 inline double GetSawFall(double angle) {
   angle = fmod(angle + juce::MathConstants<double>::twoPi,
                2 * juce::MathConstants<double>::twoPi);  // shift x
-  const double sample = angle / juce::MathConstants<double>::twoPi -
-                        1;  // computer as remainder
+  const double sample =
+      angle / juce::MathConstants<double>::twoPi - 1;  // computer as remainder
 
   return sample;
 }
@@ -67,7 +66,6 @@ inline double GetSquare(const double angle, const double pulse_width) {
   if (angle >= juce::MathConstants<double>::twoPi * pulse_width) return -1;
   return 1;
 }
-
 
 WaveGenerator::WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
                              const juce::AudioBuffer<float>& env1_buffer,
@@ -847,7 +845,6 @@ void WaveGenerator::MoveAngleForwardTo(double newAngle) {
   MoveAngleForward(static_cast<int>(numSamples));
 }
 
-
 double WaveGenerator::GetAngleAfter(const double samples_since_rollover) {
   // CALCULATE the WAVEFORM'S ANGULAR OFFSET
   // GIVEN a certain number of samples (since rollover) ....
@@ -859,13 +856,11 @@ double WaveGenerator::GetAngleAfter(const double samples_since_rollover) {
   return delta_base_ * samples_since_rollover + phase_angle_actual_;
 }
 
-
 inline double WaveGenerator::GetRandom([[maybe_unused]] double angle) {
   double r = static_cast<double>(juce::Random::getSystemRandom().nextFloat());
 
   r = 2 * (r - 0.5);  // scale to -1 .. 1
-  r = juce::jlimit(-10 * delta_base_, 10 * delta_base_,
-                   r);
+  r = juce::jlimit(-10 * delta_base_, 10 * delta_base_, r);
 
   last_sample_ += r;
 
