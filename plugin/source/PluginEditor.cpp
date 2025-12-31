@@ -120,9 +120,10 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
       });
   filter_env_source_attachment_->sendInitialUpdate();
 
-  // Make sure that before the constructor has finished, you've set the
-  // editor's size to whatever you need it to be.
   setSize(1600, 600);
+  // TODO: this doesn't seem to do what I want (center the window on the actual screen)
+  //  but it at least prevents it getting cut off
+  centreWithSize(1600, 600);
 }
 
 void AudioPluginAudioProcessorEditor::GetNextAudioBlock(
@@ -145,6 +146,7 @@ void AudioPluginAudioProcessorEditor::parameterChanged(
 }
 
 void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
+
   // (Our component is opaque, so we must completely fill the background with a
   // solid colour)
   g.fillAll(
@@ -541,6 +543,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 }
 
 void AudioPluginAudioProcessorEditor::resized() {
+
   // Layout
   auto area = getLocalBounds();
 
@@ -552,16 +555,15 @@ void AudioPluginAudioProcessorEditor::resized() {
   auto topRow = area;  // remaining area after removing bottom components
 
   juce::Grid grid;
-  // todod probably dont need both auto + template
   grid.alignContent = juce::Grid::AlignContent::center;
   grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                        juce::Grid::TrackInfo(juce::Grid::Fr(7))};
   grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(3)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(3)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(5)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(3)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(2)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(2))};
 
@@ -582,7 +584,20 @@ void AudioPluginAudioProcessorEditor::resized() {
                 juce::GridItem{},
                 juce::GridItem{}};
 
+
   grid.performLayout(topRow);
+
+  {
+    auto label_bounds = vcf_label_.getBounds();
+    vcf_label_.setBounds(label_bounds.removeFromLeft(label_bounds.getWidth() / 2));
+    filter_bypass_button_.setBounds(label_bounds);
+  }
+
+  {
+    auto label_bounds = vco2_label_.getBounds();
+    vco2_label_.setBounds(label_bounds.removeFromLeft(label_bounds.getWidth() / 2));
+    vco2_sync_button_.setBounds(label_bounds);
+  }
 
   auto item_idx = grid.items.size() / 2;
 
@@ -688,7 +703,6 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                    juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
@@ -696,7 +710,6 @@ void AudioPluginAudioProcessorEditor::resized() {
         juce::GridItem{cross_mod_slider_},
         juce::GridItem{},
         juce::GridItem{fine_tune_slider_},
-        juce::GridItem{vco2_sync_button_},
         juce::GridItem{vco2_level_slider_},
         juce::GridItem{cross_mod_label_},
         juce::GridItem{wave2_type_label_},
@@ -727,13 +740,11 @@ void AudioPluginAudioProcessorEditor::resized() {
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                    juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.items = {juce::GridItem{filter_hpf_slider_},
                           juce::GridItem{filter_cutoff_slider_},
-                          juce::GridItem{filter_bypass_button_},
                           juce::GridItem{filter_resonance_slider_},
                           juce::GridItem{filter_drive_slider_},
                           juce::GridItem{},
@@ -753,7 +764,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
     // filter slope layout
     {
-      auto radio_area = section_grid.items[5].currentBounds.toNearestInt();
+      auto radio_area = section_grid.items[4].currentBounds.toNearestInt();
       const auto button_height = radio_area.getHeight() / static_cast<int>(filter_slope_buttons_.size());
 
       for (auto& btn : filter_slope_buttons_) {
@@ -763,7 +774,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
     // filter env source layout
     {
-      auto radio_area = section_grid.items[8].currentBounds.toNearestInt();
+      auto radio_area = section_grid.items[7].currentBounds.toNearestInt();
       const auto button_height = radio_area.getHeight() / static_cast<int>(filter_env_source_buttons_.size());
 
       for (auto& btn : filter_env_source_buttons_) {
