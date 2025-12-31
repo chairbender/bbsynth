@@ -22,11 +22,17 @@ enum PulseWidthModType {
   manual = 5
 };
 
+/**
+*  SET the allowed depth of overtones
+   ** NOTE **
+   this is relative to the fundamental F
+   so each factor of 2 is an octave.
+   This default of 128 seems fairly high.
+ */
+constexpr auto kBlepOvertoneDepth = 128;
+
 class WaveGenerator {
   MinBlepGenerator blep_generator_;
-
-  double blep_overtone_depth_ = 1;  // tweak the "resolution" of the blep ...
-                                    // (multiple of highest harmonics allowed)
 
   // PRIMARY - HARD SYNC ::::
   double primary_delta_base_ = 0;    // for hard syncing
@@ -278,10 +284,10 @@ class WaveGenerator {
       volume_ = juce::Decibels::decibelsToGain(db_mult);
   }
 
-  void set_gain(const double gain) {
-    volume_ = gain;
+  void set_gain(const double gain) { volume_ = gain; }
+  void set_cross_mod(const float cross_mod) {
+    cross_mod_ = static_cast<double>(cross_mod);
   }
-  void set_cross_mod(const float cross_mod) { cross_mod_ = static_cast<double>(cross_mod); }
   float cross_mod() const { return static_cast<float>(cross_mod_); }
   const juce::AudioBuffer<float>& lfo_buffer() const { return lfo_buffer_; }
   void set_hardsync(const bool shouldHardSync) { hard_sync_ = shouldHardSync; }
