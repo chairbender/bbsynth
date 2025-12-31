@@ -31,15 +31,15 @@ WaveGenerator::WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
   mode_ = NO_ANTIALIAS;
   wave_type_ = square;
 
-  secondary_delta_base_ = 0;
+  delta_base_ = 0;
   actual_current_angle_delta_ = 0;
 
   current_angle_ = 0.01;  // needed
   current_angle_skewed_ = last_angle_skewed_ = 0;
   pitch_bend_target_ = pitch_bend_actual_ = 1.0;
 
-  primary_pitch_offset_ = 1;
-  secondary_pitch_offset_ = 1;
+  hard_sync_pitch_offset_ = 1;
+  pitch_offset_ = 1;
 
   volume_ = 1;
   gain_last_[0] = gain_last_[1] = 0;
@@ -65,10 +65,10 @@ void WaveGenerator::set_blep_size(float newOverSample) {
 
 void WaveGenerator::clear() {
   current_angle_ = phase_angle_target_;  // + phase !!!
-  primary_angle_ = phase_angle_target_;
+  hard_sync_angle_ = phase_angle_target_;
 
   pitch_bend_target_ = pitch_bend_actual_ = 1.0;
-  secondary_delta_base_ = 0.0;
+  delta_base_ = 0.0;
   gain_last_[0] = gain_last_[1] = 0;
 }
 
@@ -78,7 +78,7 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                     const int numSamples) {
   jassert(sample_rate_ != 0.);
 
-  if (secondary_delta_base_ == 0.0) return;
+  if (delta_base_ == 0.0) return;
 
   // todo FIX !!!!
   if (volume_ == 0. && gain_last_[0] == 0. && gain_last_[1] == 0. &&
@@ -175,7 +175,7 @@ void WaveGenerator::RenderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 #endif
 }
 inline void WaveGenerator::BuildWave(const int numSamples) {
-  if (secondary_delta_base_ == 0.0) return;
+  if (delta_base_ == 0.0) return;
 
   if (numSamples == 0) return;
   jassert(numSamples > 0);
@@ -239,26 +239,26 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
     // note the current, actual delta (base pitch modified by pitch bends and
     // phase shifting)
     actual_current_angle_delta_ =
-        secondary_delta_base_ * pitch_bend_actual_ + phaseShiftPerSample;
+        delta_base_ * pitch_bend_actual_ + phaseShiftPerSample;
 
     // HARD SYNCING ::::::
     // TODO: seemingly the pitch offset is being ignored completely unless hard
     // sync is true...
     if (hard_sync_ &&
-        (fabs(primary_delta_base_ - secondary_delta_base_) > DELTA)) {
+        (fabs(hard_sync_delta_base_ - delta_base_) > DELTA)) {
       // primary OSC DOES use pitch bending and phase shifting ...
       const double actual_current_primary_delta =
-          primary_delta_base_ * pitch_bend_actual_ + phaseShiftPerSample;
-      primary_angle_ += actual_current_primary_delta;
+          hard_sync_delta_base_ * pitch_bend_actual_ + phaseShiftPerSample;
+      hard_sync_angle_ += actual_current_primary_delta;
 
       // ADD A BLEP ::::
-      primary_angle_ =
-          fmod(primary_angle_,
+      hard_sync_angle_ =
+          fmod(hard_sync_angle_,
                static_cast<double>(2 * juce::MathConstants<double>::twoPi));
 
       // primary (unskewed) rollover
-      if (primary_angle_ < actual_current_primary_delta) {
-        double percAfterRoll = primary_angle_ / actual_current_primary_delta;
+      if (hard_sync_angle_ < actual_current_primary_delta) {
+        double percAfterRoll = hard_sync_angle_ / actual_current_primary_delta;
         double percBeforeRoll = 1 - percAfterRoll;
 
         // ADD the blep ...
@@ -603,13 +603,13 @@ void WaveGenerator::set_pitch_bend_env1_mod(const float mod) {
 // SLOW RENDER (LFO) ::::::
 void WaveGenerator::MoveAngleForward(int numSamples) {
   // Not moving ...
-  if (numSamples == 0 || (fabs(secondary_delta_base_) < DELTA)) return;
+  if (numSamples == 0 || (fabs(delta_base_) < DELTA)) return;
 
   double angle = current_angle_;
   const int historyPoints = numSamples / 20;
 
   // calculate MOD in the angle delta ...
-  double modAngleDelta = secondary_delta_base_;
+  double modAngleDelta = delta_base_;
 
   // DISREGARDING any PITCH SHIFTING (for now, it's just not done anywhere on
   // LFOs)
@@ -644,7 +644,7 @@ void WaveGenerator::MoveAngleForwardTo(double newAngle) {
   double delta = newAngle - current_angle_;
   if (delta < 0) delta = delta + 2 * juce::MathConstants<double>::twoPi;
 
-  double numSamples = delta / secondary_delta_base_;
+  double numSamples = delta / delta_base_;
 
   MoveAngleForward(static_cast<int>(numSamples));
 }
