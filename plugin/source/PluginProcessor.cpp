@@ -391,7 +391,7 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
 
   // VCO Mod
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "vcoModLfoFreq", "LFO Freq Mod", juce::NormalisableRange(-1.f, 1.f, .01f),
+      "vcoModLfoFreq", "LFO Freq Mod", juce::NormalisableRange(-.1f, .1f, .001f),
       0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
     "vcoModEnv1Freq", "Env 1 Freq Mod", juce::NormalisableRange(-1.f, 1.f, .01f),
@@ -426,7 +426,7 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   "vco2Level", "VCO 2 Level", juce::NormalisableRange(0.f, .5f, 0.01f),
   0.5f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "fineTune", "Fine Tune", juce::NormalisableRange(-10.f, 10.f, 0.01f), 0.f));
+      "fineTune", "Fine Tune", juce::NormalisableRange(-1.f, 1.f, 0.01f), 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
       "vco2Sync", "Sync (VCO1->VCO2)", false));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(

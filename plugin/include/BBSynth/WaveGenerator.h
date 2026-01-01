@@ -84,7 +84,6 @@ class WaveGenerator {
 
   // PITCH MOD ::: shifts the primary angleDelta up/down in semitones ...
   void set_pitch_offset_semis(double pitch_offset_in_semitones);
-  void set_pitch_offset_hz(double pitch_offset_in_hz);
   double pitch_offset_in_semis() const;
   void set_tone_offset(double new_tone_offset_in_semis);
   double tone_offset_in_semis() const;
