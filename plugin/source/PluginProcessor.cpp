@@ -18,7 +18,11 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 #endif
               ),
       apvts_(*this, nullptr, "ParameterTree", CreateParameterLayout()),
-      lfo_generator_{std::nullopt, std::nullopt,std::nullopt,std::nullopt,std::nullopt} {
+      lfo_samples_until_start_{0},
+      lfo_ramp_{0},
+      lfo_ramp_step_{0},
+      lfo_delay_time_s_{0},
+      lfo_rate_{0} {
   for (auto i = 0; i < 1; ++i) {
     synth.addVoice(new OscillatorVoice(lfo_buffer_));
   }
@@ -93,19 +97,19 @@ void AudioPluginAudioProcessor::ConfigureLFO() {
   switch (
       static_cast<int>(apvts_.getRawParameterValue("lfoWaveType")->load())) {
     case 0:
-      lfo_generator_.set_wave_type(WaveGenerator::sine);
+      lfo_generator_.set_wave_type(sine);
       break;
     case 1:
-      lfo_generator_.set_wave_type(WaveGenerator::sawFall);
+      lfo_generator_.set_wave_type(sawFall);
       break;
     case 2:
-      lfo_generator_.set_wave_type(WaveGenerator::triangle);
+      lfo_generator_.set_wave_type(triangle);
       break;
     case 3:
-      lfo_generator_.set_wave_type(WaveGenerator::square);
+      lfo_generator_.set_wave_type(square);
       break;
     case 4:
-      lfo_generator_.set_wave_type(WaveGenerator::random);
+      lfo_generator_.set_wave_type(random);
       break;
     default:
       break;
@@ -121,7 +125,7 @@ void AudioPluginAudioProcessor::prepareToPlay(const double sampleRate,
   main_limiter_.setThreshold(0.f);
   synth.setCurrentPlaybackSampleRate(sampleRate);
   lfo_buffer_.setSize(1, samplesPerBlock, false, true);
-  lfo_generator_.set_mode(WaveGenerator::NO_ANTIALIAS);
+  lfo_generator_.set_mode(NO_ANTIALIAS);
   lfo_generator_.set_dc_blocker_enabled(false);
   lfo_generator_.set_volume(0);
   lfo_samples_until_start_ = -1;
