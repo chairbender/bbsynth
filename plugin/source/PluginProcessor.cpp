@@ -294,8 +294,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // TODO: with multiple voices active, this will likely clip
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 
-    DetectClip(buffer, "synth output");
-
     // todo: may be a more efficient way to allocate this instead of per block
     auto audio_block = juce::dsp::AudioBlock<float>{buffer.getArrayOfWritePointers(),
       1, static_cast<size_t>(buffer.getNumSamples())};
@@ -332,8 +330,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         lfo_samples_until_start_ = -1;
       }
     }
-
-    DetectClip(buffer, "final output");
 
     // apply safety limiter
     main_limiter_.process(process_context);

@@ -261,17 +261,12 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   filter_.Process(oversample_buffer_, *filter_env_buffer_, lfo_buffer_,
                   oversample_start_sample, oversample_samples);
 
-  DetectClip(oversample_buffer_, "post filter");
-
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
   auto* data = oversample_buffer_.getWritePointer(0);
   auto* env1_data = env1_buffer_.getReadPointer(0);
   for (int i = oversample_start_sample; i < oversample_samples; ++i) {
     data[i] *= env1_data[i / kOversample];
   }
-
-  // clipping check
-  DetectClip(oversample_buffer_, "post VCA env");
 
   if (!envelope_.IsActive()) {
     // todo: might need this or no?
@@ -282,8 +277,5 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 
   downsampler_.process(oversample_buffer_, outputBuffer,
                        oversample_start_sample, oversample_samples);
-
-  // post-downsample clipping check
-  DetectClip(outputBuffer, "post downsample");
 }
 }  // namespace audio_plugin
