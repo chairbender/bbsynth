@@ -526,8 +526,9 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
         if (next_hard_sync_reset_sample > -2.f && static_cast<float>(i) >= next_hard_sync_reset_sample) {
           // we will hard sync and generate a blep this sample
 
+          // TODO: I'm not sure the hard sync bleps are anti-aliasing exactly right.
+          //   Need to check more closely by making AA and oversampling toggle-able, and comparing behavior.
           // ADD the blep ...
-
           MinBlepGenerator::BlepOffset blep;
           blep.offset = static_cast<double>(-next_hard_sync_reset_sample);
 
