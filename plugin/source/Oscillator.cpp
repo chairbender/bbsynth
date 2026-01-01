@@ -17,8 +17,11 @@ bool OscillatorSound::appliesToChannel([[maybe_unused]] int midiChannelIndex) {
 }
 
 OscillatorVoice::OscillatorVoice(const juce::AudioBuffer<float>& lfo_buffer)
-    : waveGenerator_{lfo_buffer, env1_buffer_, env2_buffer_, wave2_buffer_},
-      wave2Generator_{lfo_buffer, env1_buffer_, env2_buffer_, wave2_buffer_} {
+    : lfo_buffer_{lfo_buffer},
+      waveGenerator_{lfo_buffer_, env1_buffer_, env2_buffer_, wave2_buffer_,
+                     hard_sync_reset_sample_indices_},
+      wave2Generator_{lfo_buffer_, env1_buffer_, env2_buffer_, wave2_buffer_,
+                      hard_sync_reset_sample_indices_} {
   waveGenerator_.PrepareToPlay(getSampleRate() * kOversample);
   wave2Generator_.PrepareToPlay(getSampleRate() * kOversample);
   waveGenerator_.set_mode(WaveGenerator::ANTIALIAS);
@@ -102,11 +105,11 @@ void OscillatorVoice::Configure(
   const auto hard_sync = apvts.getRawParameterValue("vco2Sync")->load() > 0.5f;
   const float fine_tune = apvts.getRawParameterValue("fineTune")->load();
   if (hard_sync) {
-    wave2Generator_.set_hardsync(true);
-    waveGenerator_.set_hardsync(false);
+    waveGenerator_.set_hard_sync_mode(WaveGenerator::PRIMARY);
+    wave2Generator_.set_hard_sync_mode(WaveGenerator::SECONDARY);
   } else {
-    wave2Generator_.set_hardsync(false);
-    waveGenerator_.set_hardsync(false);
+    waveGenerator_.set_hard_sync_mode(WaveGenerator::DISABLED);
+    wave2Generator_.set_hard_sync_mode(WaveGenerator::DISABLED);
   }
   // todo: fine tune not working correctly when hardsync off
   wave2Generator_.set_pitch_offset_hz(static_cast<double>(fine_tune));
@@ -209,7 +212,8 @@ void OscillatorVoice::controllerMoved([[maybe_unused]] int controllerNumber,
 void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                       [[maybe_unused]] int startSample,
                                       const int numSamples) {
-  const auto oversample_samples = numSamples * kOversample;;
+  const auto oversample_samples = numSamples * kOversample;
+  ;
   const auto oversample_start_sample = startSample * kOversample;
 
   // TODO: how does this interact with note on? Does this mean envelope always
@@ -224,21 +228,36 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   // we need wave2 first so we can use it for cross-mod (FM)
   // TODO: should the envelope actually affect the cross-mod behavior?
   // todo: add ability to tell RenderNextBlock to OVERWRITE instead of add
-  //    I think we need this clear since wave generator will ADD so we can avoid the clearing
-  wave2_buffer_.clear(oversample_start_sample, oversample_samples);
-  wave2Generator_.RenderNextBlock(wave2_buffer_, oversample_start_sample, oversample_samples);
-  oversample_buffer_.clear( oversample_start_sample, oversample_samples);
-  // todo: Do we even need this intermediate wave2_buffer? What if we cross-mod
-  // from the oversample_buffer_ directly? if we're doing FM, we only use wave 2
-  // for FM, we don't output it directly todo: this should be a bool set in
-  // Configure, not doing this check every block...
-   if (waveGenerator_.cross_mod() <= 0.0001f) {
-    oversample_buffer_.addFrom(0, oversample_start_sample, wave2_buffer_, 0, oversample_start_sample, oversample_samples);
-  }
-  waveGenerator_.RenderNextBlock(oversample_buffer_, oversample_start_sample, oversample_samples);
+  //    I think we need this clear since wave generator will ADD so we can avoid
+  //    the clearing
 
-  filter_.Process(oversample_buffer_, *filter_env_buffer_,
-                  waveGenerator_.lfo_buffer(), oversample_start_sample, oversample_samples);
+  // todo: when cross mod, we should disable hard sync for now. When hard sync,
+  //  we need to evaluate generator 1 first as gen2 depends on it (knowing the
+  //  reset sample indices).
+
+  if (waveGenerator_.cross_mod() > 0) {
+    // cross mod - need to run vco2 first so it can modulate vco1
+    wave2_buffer_.clear(oversample_start_sample, oversample_samples);
+    wave2Generator_.RenderNextBlock(wave2_buffer_, oversample_start_sample,
+                                    oversample_samples);
+    oversample_buffer_.clear(oversample_start_sample, oversample_samples);
+    // todo: Do we even need this intermediate wave2_buffer? What if we
+    //  cross-mod from the oversample_buffer_ directly? if we're doing FM, we
+    //  only use wave 2 for FM, we don't output it directly
+    waveGenerator_.RenderNextBlock(oversample_buffer_, oversample_start_sample,
+                                   oversample_samples);
+  } else {
+    // no cross mod or hard sync, need to run generator 1 first as it
+    // sets the reset points for generator 2
+    oversample_buffer_.clear(oversample_start_sample, oversample_samples);
+    waveGenerator_.RenderNextBlock(oversample_buffer_, oversample_start_sample,
+                                   oversample_samples);
+    wave2Generator_.RenderNextBlock(oversample_buffer_, oversample_start_sample,
+                                    oversample_samples);
+  }
+
+  filter_.Process(oversample_buffer_, *filter_env_buffer_, lfo_buffer_,
+                  oversample_start_sample, oversample_samples);
 
   DetectClip(oversample_buffer_, "post filter");
 
@@ -254,12 +273,13 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 
   if (!envelope_.IsActive()) {
     // todo: might need this or no?
-    //waveGenerator_.set_volume(-120);
-    //wave2Generator_.set_volume(-120);
+    // waveGenerator_.set_volume(-120);
+    // wave2Generator_.set_volume(-120);
     clearCurrentNote();
   }
 
-  downsampler_.process(oversample_buffer_, outputBuffer, oversample_start_sample, oversample_samples);
+  downsampler_.process(oversample_buffer_, outputBuffer,
+                       oversample_start_sample, oversample_samples);
 
   // post-downsample clipping check
   DetectClip(outputBuffer, "post downsample");

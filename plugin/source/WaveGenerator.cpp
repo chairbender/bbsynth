@@ -13,7 +13,6 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 #include "BBSynth/Constants.h"
 
 namespace audio_plugin {
-
 constexpr double DELTA{.0000001};
 
 inline double GetSine(const double angle) {
@@ -67,14 +66,17 @@ inline double GetSquare(const double angle, const double pulse_width) {
   return 1;
 }
 
-WaveGenerator::WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
-                             const juce::AudioBuffer<float>& env1_buffer,
-                             const juce::AudioBuffer<float>& env2_buffer,
-                             const juce::AudioBuffer<float>& modulator_buffer)
+WaveGenerator::WaveGenerator(
+    const juce::AudioBuffer<float>& lfo_buffer,
+    const juce::AudioBuffer<float>& env1_buffer,
+    const juce::AudioBuffer<float>& env2_buffer,
+    const juce::AudioBuffer<float>& modulator_buffer,
+    juce::Array<float, juce::CriticalSection>& hard_sync_reset_sample_indices)
     : lfo_buffer_(lfo_buffer),
       env1_buffer_(env1_buffer),
       env2_buffer_(env2_buffer),
-      modulator_buffer_{modulator_buffer} {
+      modulator_buffer_{modulator_buffer},
+      hard_sync_reset_sample_indices_{hard_sync_reset_sample_indices} {
   history_length_ = 500;
   sample_rate_ = 0;
 
@@ -88,7 +90,6 @@ WaveGenerator::WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
   current_angle_skewed_ = last_angle_skewed_ = 0;
   pitch_bend_target_ = pitch_bend_actual_ = 1.0;
 
-  hard_sync_pitch_offset_ = 1;
   pitch_offset_ = 1;
 
   volume_ = 1;
@@ -137,8 +138,7 @@ void WaveGenerator::set_pulse_width_mod(const double pulse_width) {
   pulse_width_mod_ = pulse_width;
 }
 
-void WaveGenerator::set_delta_bases(const double radians) {
-  hard_sync_delta_base_ = hard_sync_pitch_offset_ * radians;
+void WaveGenerator::set_delta_base(const double radians) {
   delta_base_ = pitch_offset_ * radians;
 }
 
@@ -149,14 +149,14 @@ void WaveGenerator::set_pitch_semitone(const int midi_note_value,
   const float angleDelta = static_cast<float>(
       cyclesPerSample * 2.0 * juce::MathConstants<double>::twoPi);
 
-  set_delta_bases(static_cast<double>(angleDelta));
+  set_delta_base(static_cast<double>(angleDelta));
 }
 
 void WaveGenerator::set_pitch_hz(const double freq) {
   const double cyclesPerSample = freq / sample_rate_;
   const float angleDelta = static_cast<float>(
       cyclesPerSample * 2.0 * juce::MathConstants<double>::twoPi);
-  set_delta_bases(static_cast<double>(angleDelta));
+  set_delta_base(static_cast<double>(angleDelta));
 }
 
 double WaveGenerator::current_pitch_hz() const {
@@ -168,14 +168,10 @@ double WaveGenerator::current_pitch_hz() const {
   return freq;
 }
 
-// PITCH MOD ::: shifts the primary angleDelta up/down in semitones ...
 void WaveGenerator::set_pitch_offset_semis(
     const double pitch_offset_in_semitones) {
   // TONE is ALWAYS higher than primary center (or has no effect)
   double secondary_tone_offset = tone_offset_in_semis();
-
-  // Convert from semitones to * factor
-  hard_sync_pitch_offset_ = (pow(2, pitch_offset_in_semitones / 12.));
 
   // UPDATE the secondary freq
   double newToneOffset = pitch_offset_in_semitones + secondary_tone_offset;
@@ -183,22 +179,13 @@ void WaveGenerator::set_pitch_offset_semis(
 }
 
 void WaveGenerator::set_pitch_offset_hz(const double pitch_offset_in_hz) {
-  // todo: idk what this should do
-  // TONE is ALWAYS higher than primary center (or has no effect)
-  // double secondary_tone_offset = tone_offset_in_semis();
-
-  // todo: the scaling here is totally not right
-  hard_sync_pitch_offset_ = 1 + pitch_offset_in_hz * .1;
-
-  // todo: idk what this should do
-  // // UPDATE the secondary freq
-  // double newToneOffset = pitch_offset_in_semitones + secondary_tone_offset;
-  // secondary_pitch_offset_ = (pow(2, newToneOffset / 12));
+  // todo: is pitch_offset_ really in hz or should we scale this?
+  pitch_offset_ = pitch_offset_in_hz;
 }
 
 double WaveGenerator::pitch_offset_in_semis() const {
   // return the Log pitch offset ....
-  double pitchOffsetInSemis = 12 * log2(hard_sync_pitch_offset_);
+  double pitchOffsetInSemis = 12 * log2(pitch_offset_);
   return pitchOffsetInSemis;
 }
 
@@ -250,10 +237,13 @@ void WaveGenerator::PrepareToPlay(double new_sample_rate) {
   // BUILD the appropriate BLEP step ....
   blep_generator_.BuildBlep();
 }
+double WaveGenerator::cross_mod() { return cross_mod_; }
+void WaveGenerator::set_hard_sync_mode(const HardSyncMode mode) {
+  hard_sync_mode_ = mode;
+}
 
 void WaveGenerator::clear() {
   current_angle_ = phase_angle_target_;  // + phase !!!
-  hard_sync_angle_ = phase_angle_target_;
 
   pitch_bend_target_ = pitch_bend_actual_ = 1.0;
   delta_base_ = 0.0;
@@ -396,8 +386,22 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
   const auto env1_data = env1_buffer_.getReadPointer(0);
   const auto env2_data = env2_buffer_.getReadPointer(0);
   const auto modulator_data = modulator_buffer_.getReadPointer(0);
+  float next_hard_sync_reset_sample = -2.f;
+  int hard_sync_reset_array_idx = -1;
+  // todo: when cross mod is also happening, we need to think about what
+  // should happen with hard sync (probably just disable it for now...)
+  if (hard_sync_mode_ == PRIMARY) {
+    hard_sync_reset_sample_indices_.clearQuick();
+  } else if (hard_sync_mode_ == SECONDARY) {
+    if (!hard_sync_reset_sample_indices_.isEmpty()) {
+      hard_sync_reset_array_idx = 0;
+      next_hard_sync_reset_sample = hard_sync_reset_sample_indices_[0];
+    }
+  }
+
   for (int i = 0; i < numSamples; i++) {
-    bool primary_blep_occurred = false;
+    // this seems to be used to prevent adding 2 bleps for one sample
+    bool hard_sync_blep_occurred = false;
 
     // CHANGE the PITCH BEND (linear ramping)
     // TODO: manual pitch bend disabled currently
@@ -433,85 +437,92 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
     actual_current_angle_delta_ =
         delta_base_ * pitch_bend_actual_ + phaseShiftPerSample;
 
-    // HARD SYNCING ::::::
-    // TODO: seemingly the pitch offset is being ignored completely unless hard
-    // sync is true...
-    if (hard_sync_ && (fabs(hard_sync_delta_base_ - delta_base_) > DELTA)) {
+    if (hard_sync_mode_ == SECONDARY) {
+      // perform the reset if we just blepped
       // primary OSC DOES use pitch bending and phase shifting ...
-      const double actual_current_primary_delta =
-          hard_sync_delta_base_ * pitch_bend_actual_ + phaseShiftPerSample;
-      hard_sync_angle_ += actual_current_primary_delta;
-
-      // ADD A BLEP ::::
-      hard_sync_angle_ =
-          fmod(hard_sync_angle_,
-               static_cast<double>(2 * juce::MathConstants<double>::twoPi));
+      // const double actual_current_primary_delta =
+      //     hard_sync_delta_base_ * pitch_bend_actual_ + phaseShiftPerSample;
+      // hard_sync_angle_ += actual_current_primary_delta;
+      //
+      // // ADD A BLEP ::::
+      // hard_sync_angle_ =
+      //     fmod(hard_sync_angle_,
+      //          static_cast<double>(2 * juce::MathConstants<double>::twoPi));
 
       // primary (unskewed) rollover
-      if (hard_sync_angle_ < actual_current_primary_delta) {
-        double percAfterRoll = hard_sync_angle_ / actual_current_primary_delta;
-        double percBeforeRoll = 1 - percAfterRoll;
+      // todo: currently ignoring what happens between start of this block
+      //  and end of previous block
+      if (next_hard_sync_reset_sample >= static_cast<float>(i)) {
+        // we will hard sync and generate a blep this sample
 
         // ADD the blep ...
-        {
-          MinBlepGenerator::BlepOffset blep;
-          blep.offset = percAfterRoll - static_cast<double>(i + 1);
 
-          // CALCULATE the MAGNITUDE of ths 2nd ORDER (VEL) discontinuity
-          // TRIG :: calculate the angle (rise/run) before and after the
-          // rollover
-          double delta = .0000001;  // MIN
+        MinBlepGenerator::BlepOffset blep;
+        blep.offset = static_cast<double>(-next_hard_sync_reset_sample);
 
-          double angleAtRoll = fmod(
-              current_angle_ + percBeforeRoll * actual_current_angle_delta_,
-              2 * juce::MathConstants<double>::twoPi);
-          double angleBeforeRoll =
-              fmod(angleAtRoll - delta, 2 * juce::MathConstants<double>::twoPi);
+        // CALCULATE the MAGNITUDE of ths 2nd ORDER (VEL) discontinuity
+        // TRIG :: calculate the angle (rise/run) before and after the
+        // rollover
+        double delta = .0000001;  // MIN
 
-          // SKEW ALL ANGLES !
-          double valueBeforeRoll = GetValueAt(skew_angle(angleBeforeRoll));
-          double valueAtRoll = GetValueAt(skew_angle(angleAtRoll));
+        // what percent (0 to 1) into the sample did the reset occur at?
+        // todo: at least I think that's what this was calculating
+        const auto perc_before_roll = static_cast<double>(i) - static_cast<double>(next_hard_sync_reset_sample);
 
-          double valueAtZero = GetValueAt(skew_angle(0));
-          double valueAfterZero = GetValueAt(skew_angle(delta));
+        const double angle_at_roll = fmod(
+            current_angle_ + perc_before_roll * actual_current_angle_delta_,
+            2 * juce::MathConstants<double>::twoPi);
+        const double angle_before_roll =
+            fmod(angle_at_roll - delta, 2 * juce::MathConstants<double>::twoPi);
 
-          // CALCULATE the MAGNITUDE of ths 1st ORDER (POS) discontinuity
-          blep.pos_change_magnitude = valueAtRoll - GetValueAt(skew_angle(0));
+        // SKEW ALL ANGLES !
+        const double value_before_roll = GetValueAt(skew_angle(angle_before_roll));
+        const double value_at_roll = GetValueAt(skew_angle(angle_at_roll));
 
-          // CALCULATE the skewed angular change AFTER the rollover
-          double angle_delta_after_roll =
-              valueAfterZero - valueAtZero;  // MODs based on the PITCH BEND ...
-          double angle_delta_before_roll =
-              valueAtRoll -
-              valueBeforeRoll;  // MODs based on the PITCH BEND ...
+        const double value_at_zero = GetValueAt(skew_angle(0));
+        const double value_after_zero = GetValueAt(skew_angle(delta));
 
-          double change_in_delta =
-              (angle_delta_after_roll - angle_delta_before_roll) *
-              (1 / (2 * delta));
-          double depthLimited =
-              blep_generator_
-                  .proportional_blep_freq_;  // jlimit<double>(.1, .5,
-                                             // myBlepGenerator.proportionalBlepFreq);
+        // CALCULATE the MAGNITUDE of ths 1st ORDER (POS) discontinuity
+        blep.pos_change_magnitude = value_at_roll - GetValueAt(skew_angle(0));
 
-          // actualCurrentAngleDelta below is added to compensate for higher
-          // order nonlinearities 66 here was experimentally determined ...
-          blep.vel_change_magnitude = 66 * change_in_delta *
-                                      (1 / depthLimited) *
-                                      actual_current_angle_delta_;
+        // CALCULATE the skewed angular change AFTER the rollover
+        const double angle_delta_after_roll =
+            value_after_zero - value_at_zero;  // MODs based on the PITCH BEND ...
+        const double angle_delta_before_roll =
+            value_at_roll -
+            value_before_roll;  // MODs based on the PITCH BEND ...
 
-          // ADD
-          blep_generator_.AddBlep(blep);
-        }
+        const double change_in_delta =
+            (angle_delta_after_roll - angle_delta_before_roll) *
+            (1 / (2 * delta));
+        const double depth_limited =
+            blep_generator_
+                .proportional_blep_freq_;
+
+        // actualCurrentAngleDelta below is added to compensate for higher
+        // order nonlinearities 66 here was experimentally determined ...
+        blep.vel_change_magnitude = 66 * change_in_delta *
+                                    (1 / depth_limited) *
+                                    actual_current_angle_delta_;
+
+        // ADD
+        blep_generator_.AddBlep(blep);
 
         // MOVE the UNSKEWED ANGLE
         // so that it will actually roll over at this sub-sample ...
         // ESTIMATE !!!!! ERROR - this should be better, but we can't unskew (x
         // = x/cos(x) is not solvable)
         current_angle_ = 2 * juce::MathConstants<double>::twoPi -
-                         percBeforeRoll * actual_current_angle_delta_;
+                         perc_before_roll * actual_current_angle_delta_;
 
-        //
-        primary_blep_occurred = true;
+        hard_sync_blep_occurred = true;
+
+        if (hard_sync_reset_array_idx < (hard_sync_reset_sample_indices_.size() - 1)) {
+          next_hard_sync_reset_sample = hard_sync_reset_sample_indices_[hard_sync_reset_array_idx++];
+        } else {
+          next_hard_sync_reset_sample = -2.f;
+          hard_sync_reset_array_idx = -1;
+        }
       }
     }
 
@@ -524,10 +535,36 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
                  2 * juce::MathConstants<double>::twoPi));  // ROLLOVER :::
 
     // APPLY SKEWING :::::
+    // todo: what is the skewing actually used for
     current_angle_skewed_ = skew_angle(current_angle_);
 
+    if (hard_sync_mode_ == PRIMARY) {
+      // if we rolled over, write the subsample-accurate index of when that
+      // happened
+      if (current_angle_skewed_ < last_angle_skewed_) {
+        // we rolled over - what's the exact sub-sample?
+        // todo: probably a more efficient way to calculate this
+        const auto actual_current_angle_delta_skewed =
+            current_angle_skewed_ - last_angle_skewed_;
+        // this will be a value between 0 and actual_current_angle_delta_skewed,
+        // telling us at how many radians into the sample the reset occurred
+        // todo: maybe we should stick with floats here instead of doubles
+        const auto reset_radians =
+            actual_current_angle_delta_skewed - current_angle_skewed_;
+        // scaling above value to 0 - 1 tells us exactly where in the subsample
+        // the reset occurred in terms of samples rather than radians
+        const auto reset_subsample =
+            reset_radians / actual_current_angle_delta_skewed;
+        // todo: we are going to have a problem here when the reset occurs
+        //  across block boundaries = i = 0 means this will actually give a
+        //  negative value.
+        const auto reset_sample = i - 1 + reset_subsample;
+        hard_sync_reset_sample_indices_.add(static_cast<float>(reset_sample));
+      }
+    }
+
     // BUILD the antialiasing ....
-    if (mode_ != NO_ANTIALIAS && primary_blep_occurred == false &&
+    if (mode_ != NO_ANTIALIAS && hard_sync_blep_occurred == false &&
         wave_type_ != sine) {
       double actualCurrentAngleDeltaSkewed =
           current_angle_skewed_ - last_angle_skewed_;

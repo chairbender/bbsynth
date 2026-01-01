@@ -54,6 +54,15 @@ struct OscillatorVoice : juce::SynthesiserVoice {
  private:
   juce::AudioBuffer<float> env1_buffer_;
   juce::AudioBuffer<float> env2_buffer_;
+  const juce::AudioBuffer<float>& lfo_buffer_;
+  // sub-sample accurate sample indices for the current block of when the
+  // secondary's resets should occur.
+  // Be warned - This can contain a negative value
+  // if the reset occurred between the last sample of the previous block and
+  // the first sample of the current block.
+  // todo: do we actually need CriticalSection?
+  //   I don't think it's written concurrently...
+  juce::Array<float, juce::CriticalSection> hard_sync_reset_sample_indices_;
   WaveGenerator waveGenerator_;
   WaveGenerator wave2Generator_;
   OTAFilter filter_;
