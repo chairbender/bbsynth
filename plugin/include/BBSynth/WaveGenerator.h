@@ -10,6 +10,9 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
 
+#include <functional>
+#include <optional>
+
 namespace audio_plugin {
 
 inline double GetSine(double angle);
@@ -120,12 +123,18 @@ class WaveGenerator {
   double phase_angle_actual_ =
       0;  // the target angle to get to (used for phase shifting)
 
-  const juce::AudioBuffer<float>& lfo_buffer_;
-  const juce::AudioBuffer<float>& env1_buffer_;
-  const juce::AudioBuffer<float>& env2_buffer_;
-  const juce::AudioBuffer<float>& modulator_buffer_;
+  const std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
+      lfo_buffer_;
+  const std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
+      env1_buffer_;
+  const std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
+      env2_buffer_;
+  const std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
+      modulator_buffer_;
   // see same field name on Oscillator
-  juce::Array<float, juce::CriticalSection>& hard_sync_reset_sample_indices_;
+  const std::optional<
+      std::reference_wrapper<juce::Array<float, juce::CriticalSection>>>
+      hard_sync_reset_sample_indices_;
 
   // what role is this oscillator serving in hard sync?
   HardSyncMode hard_sync_mode_ = DISABLED;
@@ -134,12 +143,18 @@ class WaveGenerator {
   WaveMode mode_;
 
  public:
-  WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
-                const juce::AudioBuffer<float>& env1_buffer,
-                const juce::AudioBuffer<float>& env2_buffer,
-                const juce::AudioBuffer<float>& modulator_buffer,
-                juce::Array<float, juce::CriticalSection>&
-                    hard_sync_reset_sample_indices);
+  WaveGenerator(
+      std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
+          lfo_buffer = std::nullopt,
+      std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
+          env1_buffer = std::nullopt,
+      std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
+          env2_buffer = std::nullopt,
+      std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
+          modulator_buffer = std::nullopt,
+      std::optional<
+          std::reference_wrapper<juce::Array<float, juce::CriticalSection>>>
+          hard_sync_reset_sample_indices = std::nullopt);
 
   void PrepareToPlay(double new_sample_rate);
 
