@@ -49,7 +49,7 @@ struct OscillatorVoice : juce::SynthesiserVoice {
   // Test-only accessor to inspect internal generator state
   // todo below comment needed?
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
-  WaveGenerator& getWaveGeneratorForTest() { return waveGenerator_; }
+  WaveGenerator<false>& getWaveGeneratorForTest() { return waveGenerator_; }
 
  private:
   juce::AudioBuffer<float> env1_buffer_;
@@ -62,15 +62,15 @@ struct OscillatorVoice : juce::SynthesiserVoice {
   // the first sample of the current block.
   // todo: do we actually need CriticalSection?
   //   I don't think it's written concurrently...
-  juce::Array<float, juce::CriticalSection> hard_sync_reset_sample_indices_;
-  WaveGenerator waveGenerator_;
-  WaveGenerator wave2Generator_;
-  OTAFilter filter_;
-  const juce::AudioBuffer<float>* filter_env_buffer_ = nullptr;
+  juce::Array<float> hard_sync_reset_sample_indices_;
   // modulator buffer
   // todo do we actually need this if we already hae oversample buffer?
   juce::AudioBuffer<float> wave2_buffer_;
   juce::AudioBuffer<float> oversample_buffer_;
+  WaveGenerator<false> waveGenerator_;
+  WaveGenerator<false> wave2Generator_;
+  OTAFilter filter_;
+  const juce::AudioBuffer<float>* filter_env_buffer_ = nullptr;
   Downsampler downsampler_;
   AnalogADSR envelope_;
   AnalogADSR envelope2_;

@@ -10,9 +10,6 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
 
-#include <functional>
-#include <optional>
-
 namespace audio_plugin {
 
 inline double GetSine(double angle);
@@ -39,24 +36,89 @@ enum PulseWidthModType {
  */
 constexpr auto kBlepOvertoneDepth = 128;
 
+enum WaveType {
+  sine = 0,
+  sawRise = 1,
+  sawFall = 2,
+  triangle = 3,
+  square = 4,
+  random = 5
+};
+enum HardSyncMode { PRIMARY = 0, SECONDARY = 1, DISABLED = 2 };
+
+enum WaveMode { ANTIALIAS, BUILD_AA, NO_ANTIALIAS };
+
+template <bool IsLFO>
 class WaveGenerator {
-  // TODO: refactor to properly keep things private and put logic into separate
-  // rather than header.
 
- public:
-  enum WaveType {
-    sine = 0,
-    sawRise = 1,
-    sawFall = 2,
-    triangle = 3,
-    square = 4,
-    random = 5
-  };
-  enum HardSyncMode { PRIMARY = 0, SECONDARY = 1, DISABLED = 2 };
+  public:
+  WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
+                const juce::AudioBuffer<float>& env1_buffer,
+                const juce::AudioBuffer<float>& env2_buffer,
+                const juce::AudioBuffer<float>& modulator_buffer,
+                juce::Array<float>& hard_sync_reset_sample_indices) requires (!IsLFO);
 
-  enum WaveMode { ANTIALIAS, BUILD_AA, NO_ANTIALIAS };
+  WaveGenerator() requires IsLFO;
 
- private:
+  void PrepareToPlay(double new_sample_rate);
+
+  double cross_mod() const;
+  void set_hard_sync_mode(HardSyncMode mode);
+  // Enable/disable the post-BLEP DC blocker (1st-order high-pass) used in
+  // ANTIALIAS mode
+  void set_dc_blocker_enabled(bool enabled);
+  void set_wave_type(WaveType wave_type);
+  void set_mode(WaveMode mode);
+  MinBlepGenerator* blep_generator();
+  void set_pulse_width_mod_type(PulseWidthModType type);
+  void set_pulse_width_mod(double pulse_width);
+
+  /**
+   * Set the delta base (phase increment in radians per sample)
+   * for this oscillator
+   */
+  void set_delta_base(double radians);
+  void set_pitch_semitone(int midi_note_value, double sample_rate);
+  void set_pitch_hz(double freq);
+  double current_pitch_hz() const;
+
+  // PITCH MOD ::: shifts the primary angleDelta up/down in semitones ...
+  void set_pitch_offset_semis(double pitch_offset_in_semitones);
+  void set_pitch_offset_hz(double pitch_offset_in_hz);
+  double pitch_offset_in_semis() const;
+  void set_tone_offset(double new_tone_offset_in_semis);
+  double tone_offset_in_semis() const;
+  void set_pitch_bend(double newBendInSemiTones);
+  double get_pitch_bend_semis() const;
+
+  void set_volume(double db_mult);
+  void set_gain(double gain);
+  void set_cross_mod(float cross_mod);
+
+  juce::Array<float> history();
+
+  void clear();
+
+  // FAST RENDER (AP) :::::
+  /**
+   * Fill the first channel of the buffer up to numSamples.
+   */
+  // todo: passing LFO like this is stupid, let's find a better way
+  void RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample,
+                       int numSamples);
+  void BuildWave(int numSamples);
+
+  void MoveAngleForward(int numSamples);
+  void MoveAngleForwardTo(double newAngle);
+  double GetAngleAfter(double samples_since_rollover);
+  double skew_angle(double angle) const;
+
+  double GetValueAt(double angle);
+  void set_pitch_bend_lfo_mod(float mod);
+  void set_pitch_bend_env1_mod(float mod);
+  double GetRandom([[maybe_unused]] double angle);
+
+private:
   MinBlepGenerator blep_generator_;
 
   /**
@@ -123,18 +185,12 @@ class WaveGenerator {
   double phase_angle_actual_ =
       0;  // the target angle to get to (used for phase shifting)
 
-  const std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
-      lfo_buffer_;
-  const std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
-      env1_buffer_;
-  const std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
-      env2_buffer_;
-  const std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
-      modulator_buffer_;
+  [[no_unique_address]] std::conditional_t<IsLFO, std::monostate,const juce::AudioBuffer<float>&> lfo_buffer_;
+  [[no_unique_address]] std::conditional_t<IsLFO, std::monostate,const juce::AudioBuffer<float>&> env1_buffer_;
+  [[no_unique_address]] std::conditional_t<IsLFO, std::monostate,const juce::AudioBuffer<float>&> env2_buffer_;
+  [[no_unique_address]] std::conditional_t<IsLFO, std::monostate,const juce::AudioBuffer<float>&> modulator_buffer_;
   // see same field name on Oscillator
-  const std::optional<
-      std::reference_wrapper<juce::Array<float, juce::CriticalSection>>>
-      hard_sync_reset_sample_indices_;
+  [[no_unique_address]] std::conditional_t<IsLFO, std::monostate,juce::Array<float>&> hard_sync_reset_sample_indices_;
 
   // what role is this oscillator serving in hard sync?
   HardSyncMode hard_sync_mode_ = DISABLED;
@@ -142,77 +198,6 @@ class WaveGenerator {
   WaveType wave_type_;
   WaveMode mode_;
 
- public:
-  WaveGenerator(
-      std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
-          lfo_buffer = std::nullopt,
-      std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
-          env1_buffer = std::nullopt,
-      std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
-          env2_buffer = std::nullopt,
-      std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
-          modulator_buffer = std::nullopt,
-      std::optional<
-          std::reference_wrapper<juce::Array<float, juce::CriticalSection>>>
-          hard_sync_reset_sample_indices = std::nullopt);
 
-  void PrepareToPlay(double new_sample_rate);
-
-  double cross_mod();
-  void set_hard_sync_mode(HardSyncMode mode);
-  // Enable/disable the post-BLEP DC blocker (1st-order high-pass) used in
-  // ANTIALIAS mode
-  void set_dc_blocker_enabled(bool enabled);
-  void set_wave_type(WaveType wave_type);
-  void set_mode(WaveMode mode);
-  MinBlepGenerator* blep_generator();
-  void set_pulse_width_mod_type(PulseWidthModType type);
-  void set_pulse_width_mod(double pulse_width);
-
-  /**
-   * Set the delta base (phase increment in radians per sample)
-   * for this oscillator
-   */
-  void set_delta_base(double radians);
-  void set_pitch_semitone(int midi_note_value, double sample_rate);
-  void set_pitch_hz(double freq);
-  double current_pitch_hz() const;
-
-  // PITCH MOD ::: shifts the primary angleDelta up/down in semitones ...
-  void set_pitch_offset_semis(const double pitch_offset_in_semitones);
-  void set_pitch_offset_hz(const double pitch_offset_in_hz);
-  double pitch_offset_in_semis() const;
-  void set_tone_offset(double new_tone_offset_in_semis);
-  double tone_offset_in_semis() const;
-  void set_pitch_bend(double newBendInSemiTones);
-  double get_pitch_bend_semis() const;
-
-  void set_volume(double db_mult);
-  void set_gain(double gain);
-  void set_cross_mod(float cross_mod);
-
-  juce::Array<float> history();
-
-  void clear();
-
-  // FAST RENDER (AP) :::::
-  /**
-   * Fill the first channel of the buffer up to numSamples.
-   */
-  // todo: passing LFO like this is stupid, let's find a better way
-  void RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample,
-                       int numSamples);
-  inline void BuildWave(int numSamples);
-
-  void MoveAngleForward(int numSamples);
-  void MoveAngleForwardTo(double newAngle);
-  double GetAngleAfter(double samples_since_rollover);
-  double skew_angle(double angle) const;
-
-  double GetValueAt(double angle);
-  void set_pitch_bend_lfo_mod(float mod);
-  void set_pitch_bend_env1_mod(float mod);
-
-  inline double GetRandom([[maybe_unused]] double angle);
 };
 }  // namespace audio_plugin

@@ -52,7 +52,7 @@ private:
   // todo: passing this around is a stupid way to do it. Let's find a better way...
   juce::AudioBuffer<float> lfo_buffer_;
   juce::Synthesiser synth;
-  WaveGenerator lfo_generator_;
+  WaveGenerator<true> lfo_generator_;
   juce::dsp::IIR::Filter<float> hpf_;
   ToneFilter tone_filter_;
   juce::dsp::Limiter<float> main_limiter_;

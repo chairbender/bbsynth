@@ -24,8 +24,8 @@ OscillatorVoice::OscillatorVoice(const juce::AudioBuffer<float>& lfo_buffer)
                       hard_sync_reset_sample_indices_} {
   waveGenerator_.PrepareToPlay(getSampleRate() * kOversample);
   wave2Generator_.PrepareToPlay(getSampleRate() * kOversample);
-  waveGenerator_.set_mode(WaveGenerator::ANTIALIAS);
-  wave2Generator_.set_mode(WaveGenerator::ANTIALIAS);
+  waveGenerator_.set_mode(ANTIALIAS);
+  wave2Generator_.set_mode(ANTIALIAS);
   filter_.set_sample_rate(getSampleRate() * kOversample);
 }
 
@@ -65,19 +65,19 @@ void OscillatorVoice::Configure(
 
   switch (static_cast<int>(apvts.getRawParameterValue("waveType")->load())) {
     case 0:
-      waveGenerator_.set_wave_type(WaveGenerator::sine);
+      waveGenerator_.set_wave_type(sine);
       break;
     case 1:
-      waveGenerator_.set_wave_type(WaveGenerator::sawFall);
+      waveGenerator_.set_wave_type(sawFall);
       break;
     case 2:
-      waveGenerator_.set_wave_type(WaveGenerator::triangle);
+      waveGenerator_.set_wave_type(triangle);
       break;
     case 3:
-      waveGenerator_.set_wave_type(WaveGenerator::square);
+      waveGenerator_.set_wave_type(square);
       break;
     case 4:
-      waveGenerator_.set_wave_type(WaveGenerator::random);
+      waveGenerator_.set_wave_type(random);
       break;
     default:
       break;
@@ -85,31 +85,33 @@ void OscillatorVoice::Configure(
 
   switch (static_cast<int>(apvts.getRawParameterValue("wave2Type")->load())) {
     case 0:
-      wave2Generator_.set_wave_type(WaveGenerator::sine);
+      wave2Generator_.set_wave_type(sine);
       break;
     case 1:
-      wave2Generator_.set_wave_type(WaveGenerator::sawFall);
+      wave2Generator_.set_wave_type(sawFall);
       break;
     case 2:
-      wave2Generator_.set_wave_type(WaveGenerator::triangle);
+      wave2Generator_.set_wave_type(triangle);
       break;
     case 3:
-      wave2Generator_.set_wave_type(WaveGenerator::square);
+      wave2Generator_.set_wave_type(square);
       break;
     case 4:
-      wave2Generator_.set_wave_type(WaveGenerator::random);
+      wave2Generator_.set_wave_type(random);
       break;
     default:
       break;
   }
   const auto hard_sync = apvts.getRawParameterValue("vco2Sync")->load() > 0.5f;
   const float fine_tune = apvts.getRawParameterValue("fineTune")->load();
-  if (hard_sync) {
-    waveGenerator_.set_hard_sync_mode(WaveGenerator::PRIMARY);
-    wave2Generator_.set_hard_sync_mode(WaveGenerator::SECONDARY);
+  const float crossMod = apvts.getRawParameterValue("crossMod")->load();
+  // cross mod and hard sync can't be used together - cross mod disables hard sync
+  if (hard_sync && crossMod <= 0.f) {
+    waveGenerator_.set_hard_sync_mode(PRIMARY);
+    wave2Generator_.set_hard_sync_mode(SECONDARY);
   } else {
-    waveGenerator_.set_hard_sync_mode(WaveGenerator::DISABLED);
-    wave2Generator_.set_hard_sync_mode(WaveGenerator::DISABLED);
+    waveGenerator_.set_hard_sync_mode(DISABLED);
+    wave2Generator_.set_hard_sync_mode(DISABLED);
   }
   // todo: fine tune not working correctly when hardsync off
   wave2Generator_.set_pitch_offset_hz(static_cast<double>(fine_tune));
@@ -147,17 +149,17 @@ void OscillatorVoice::Configure(
   waveGenerator_.set_pulse_width_mod(pulseWidth);
   wave2Generator_.set_pulse_width_mod(pulseWidth);
 
-  const float crossMod = apvts.getRawParameterValue("crossMod")->load();
+
   waveGenerator_.set_cross_mod(crossMod);
   if (crossMod > 0.f) {
     // todo: when turning crossmod back down the pitch mod gets "stuck"
     // minblep AA is not compatible with FM
     // todo: is this really true? I think there is some other issue...
-    waveGenerator_.set_mode(WaveGenerator::NO_ANTIALIAS);
-    wave2Generator_.set_mode(WaveGenerator::NO_ANTIALIAS);
+    waveGenerator_.set_mode(NO_ANTIALIAS);
+    wave2Generator_.set_mode(NO_ANTIALIAS);
   } else {
-    waveGenerator_.set_mode(WaveGenerator::ANTIALIAS);
-    wave2Generator_.set_mode(WaveGenerator::ANTIALIAS);
+    waveGenerator_.set_mode(ANTIALIAS);
+    wave2Generator_.set_mode(ANTIALIAS);
   }
 
   const double vco1Level =
