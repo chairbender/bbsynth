@@ -67,11 +67,17 @@ inline double GetSquare(const double angle, const double pulse_width) {
 }
 
 WaveGenerator::WaveGenerator(
-    const juce::AudioBuffer<float>& lfo_buffer,
-    const juce::AudioBuffer<float>& env1_buffer,
-    const juce::AudioBuffer<float>& env2_buffer,
-    const juce::AudioBuffer<float>& modulator_buffer,
-    juce::Array<float, juce::CriticalSection>& hard_sync_reset_sample_indices)
+    const std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
+        lfo_buffer,
+    const std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
+        env1_buffer,
+    const std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
+        env2_buffer,
+    const std::optional<std::reference_wrapper<const juce::AudioBuffer<float>>>
+        modulator_buffer,
+    const std::optional<
+        std::reference_wrapper<juce::Array<float, juce::CriticalSection>>>
+        hard_sync_reset_sample_indices)
     : lfo_buffer_(lfo_buffer),
       env1_buffer_(env1_buffer),
       env2_buffer_(env2_buffer),
@@ -382,20 +388,37 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
   }
 
   // BUILD ::::
-  const auto lfo_data = lfo_buffer_.getReadPointer(0);
-  const auto env1_data = env1_buffer_.getReadPointer(0);
-  const auto env2_data = env2_buffer_.getReadPointer(0);
-  const auto modulator_data = modulator_buffer_.getReadPointer(0);
+  const float* lfo_data = nullptr;
+  if (lfo_buffer_.has_value()) {
+    lfo_data = lfo_buffer_->get().getReadPointer(0);
+  }
+
+  const float* env1_data = nullptr;
+  if (env1_buffer_.has_value()) {
+    env1_data = env1_buffer_->get().getReadPointer(0);
+  }
+
+  const float* env2_data = nullptr;
+  if (env2_buffer_.has_value()) {
+    env2_data = env2_buffer_->get().getReadPointer(0);
+  }
+
+  const float* modulator_data = nullptr;
+  if (modulator_buffer_.has_value()) {
+    modulator_data = modulator_buffer_->get().getReadPointer(0);
+  }
+
   float next_hard_sync_reset_sample = -2.f;
   int hard_sync_reset_array_idx = -1;
   // todo: when cross mod is also happening, we need to think about what
   // should happen with hard sync (probably just disable it for now...)
-  if (hard_sync_mode_ == PRIMARY) {
-    hard_sync_reset_sample_indices_.clearQuick();
-  } else if (hard_sync_mode_ == SECONDARY) {
-    if (!hard_sync_reset_sample_indices_.isEmpty()) {
+  if (hard_sync_mode_ == PRIMARY && hard_sync_reset_sample_indices_.has_value()) {
+    hard_sync_reset_sample_indices_->get().clearQuick();
+  } else if (hard_sync_mode_ == SECONDARY &&
+             hard_sync_reset_sample_indices_.has_value()) {
+    if (!hard_sync_reset_sample_indices_->get().isEmpty()) {
       hard_sync_reset_array_idx = 0;
-      next_hard_sync_reset_sample = hard_sync_reset_sample_indices_[0];
+      next_hard_sync_reset_sample = hard_sync_reset_sample_indices_->get()[0];
     }
   }
 
@@ -517,8 +540,11 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
 
         hard_sync_blep_occurred = true;
 
-        if (hard_sync_reset_array_idx < (hard_sync_reset_sample_indices_.size() - 1)) {
-          next_hard_sync_reset_sample = hard_sync_reset_sample_indices_[hard_sync_reset_array_idx++];
+        if (hard_sync_reset_array_idx <
+            (hard_sync_reset_sample_indices_->get().size() - 1)) {
+          next_hard_sync_reset_sample =
+              hard_sync_reset_sample_indices_->get()
+                  [hard_sync_reset_array_idx++];
         } else {
           next_hard_sync_reset_sample = -2.f;
           hard_sync_reset_array_idx = -1;
@@ -559,7 +585,10 @@ inline void WaveGenerator::BuildWave(const int numSamples) {
         //  across block boundaries = i = 0 means this will actually give a
         //  negative value.
         const auto reset_sample = i - 1 + reset_subsample;
-        hard_sync_reset_sample_indices_.add(static_cast<float>(reset_sample));
+        if (hard_sync_reset_sample_indices_.has_value()) {
+          hard_sync_reset_sample_indices_->get().add(
+              static_cast<float>(reset_sample));
+        }
       }
     }
 
