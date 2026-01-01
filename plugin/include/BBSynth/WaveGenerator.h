@@ -58,8 +58,6 @@ class WaveGenerator {
 
   /**
    * Base phase increment (radians per sample) for this oscillator.
-   * This is the oscillator that actually produces the output sound regardless
-   * of whether hard sync is enabled.
    */
   double delta_base_ = 0;
 
@@ -84,33 +82,6 @@ class WaveGenerator {
 
   double cross_mod_ = 0;
 
-  // TODO: all these hard sync values need to be kept in sync with the real
-  //  primary wave generator's values. Otherwise the hard sync feature doesn't
-  //  work right. There is no direct communication between the wave generators -
-  //  these values have to be managed externally for this to have the desired
-  //  effect.
-  //  TODO: It seems better to just have the secondary reference the primary
-  //  WaveGen
-  //   instead of having to keep them in sync and thus duplicate the values.
-  /**
-   * Only used when hard sync enabled.
-   * Base phase increment (radians per sample) for the primary.
-   * This oscillator is used as the sync source for hard synchronization -
-   * the one controlling when the secondary should reset.
-   */
-  double hard_sync_delta_base_ = 0;
-
-  /**
-   * Only used for hard sync.
-   * Relative pitch offset multiplier for the primary oscillator.
-   */
-  double hard_sync_pitch_offset_ = 1;
-
-  /**
-   * Current phase angle (0 to 2*PI) of the primary oscillator.
-   */
-  double hard_sync_angle_ = 0;
-
   // ACTUAL OUTPUT (pre-AA)
   double last_sample_ = 0;
   double last_sample_delta_ = 0;
@@ -130,6 +101,7 @@ class WaveGenerator {
 
   // ACTUAL delta
   // - takes into account pitch bend and phase shift ...
+  // todo: what's the point of this though? It doesn't factor in skew
   double actual_current_angle_delta_ = 0;  // ACTUAL CURRENT DELTA (pitch)
 
   // todo: not used currently
@@ -152,15 +124,11 @@ class WaveGenerator {
   const juce::AudioBuffer<float>& env1_buffer_;
   const juce::AudioBuffer<float>& env2_buffer_;
   const juce::AudioBuffer<float>& modulator_buffer_;
+  // see same field name on Oscillator
+  juce::Array<float, juce::CriticalSection>& hard_sync_reset_sample_indices_;
 
   // what role is this oscillator serving in hard sync?
   HardSyncMode hard_sync_mode_ = DISABLED;
-  // meaning depends on hard sync mode.
-  // When mode is PRIMARY, this points to the secondary oscillator.
-  // When mode is SECONDARY, this points to the primary oscillator.
-  // When mode is DISABLED, this is irrelevant;
-  // todo: use unique ptr instead?
-  WaveGenerator& hard_sync_other_;
 
   WaveType wave_type_;
   WaveMode mode_;
@@ -169,10 +137,14 @@ class WaveGenerator {
   WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
                 const juce::AudioBuffer<float>& env1_buffer,
                 const juce::AudioBuffer<float>& env2_buffer,
-                const juce::AudioBuffer<float>& modulator_buffer);
+                const juce::AudioBuffer<float>& modulator_buffer,
+                juce::Array<float, juce::CriticalSection>&
+                    hard_sync_reset_sample_indices);
 
   void PrepareToPlay(double new_sample_rate);
 
+  double cross_mod();
+  void set_hard_sync_mode(HardSyncMode mode);
   // Enable/disable the post-BLEP DC blocker (1st-order high-pass) used in
   // ANTIALIAS mode
   void set_dc_blocker_enabled(bool enabled);
@@ -184,15 +156,9 @@ class WaveGenerator {
 
   /**
    * Set the delta base (phase increment in radians per sample)
-   * for this oscillator and the primary oscillator.
-   * TODO: For this to have the desired effect, this oscillator
-   *   needs to have the hard sync pitch offset set to match the real
-   *   primary oscillator's pitch offset.
-   *   This goes for ALL of the pitch-setting methods, and is why I've struggled
-   *   getting hard sync to behave until now, as I was not keeping these values
-   * in sync.
+   * for this oscillator
    */
-  void set_delta_bases(double radians);
+  void set_delta_base(double radians);
   void set_pitch_semitone(int midi_note_value, double sample_rate);
   void set_pitch_hz(double freq);
   double current_pitch_hz() const;
