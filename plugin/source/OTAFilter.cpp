@@ -44,12 +44,7 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
   for (auto i = start_sample; i < numSamples; ++i) {
     const auto sample = buf[i];
     // modulation - envelope and LFO affects cutoff frequency
-    // todo: decide on a reasonable modulation range/curve
-    // for now, let's say env_mod is -1 to 1, and it can shift cutoff by some amount
-    // cutoff_freq_ is 20 to 8000
-    // let's try adding env_mod_ * env_data[i] * range + lfo_mod_ * lfo_data[i] * range
-    // prevent exceeding the nyquist
-    const float modulated_cutoff = juce::jlimit(kMinCutoff, static_cast<float>(sample_rate_) * 0.49f, cutoff_freq_ + env_mod_ * env_data[i / kOversample] * 4000.f + lfo_mod_ * lfo_data[i / kOversample] * 4000.f);
+    const float modulated_cutoff = juce::jlimit(kMinCutoff, kMaxCutoff, cutoff_freq_ + env_mod_ * env_data[i / kOversample] * kMaxCutoff + lfo_mod_ * lfo_data[i / kOversample] * kMaxCutoff);
 
     // this was my original "naive" approach which can exceed 1 in some cases and blow the filter up.
     // It seems to work fine now that I've addressed other issues with the filter.

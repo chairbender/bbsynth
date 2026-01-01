@@ -54,6 +54,9 @@ void OscillatorVoice::Configure(
         apvts.getRawParameterValue("vcoModLfoFreq")->load());
     waveGenerator_.set_pitch_bend_env1_mod(
         apvts.getRawParameterValue("vcoModEnv1Freq")->load());
+  } else {
+    waveGenerator_.set_pitch_bend_lfo_mod(0);
+    waveGenerator_.set_pitch_bend_env1_mod(0);
   }
 
   if (apvts.getRawParameterValue("vcoModOsc2")->load() > 0) {
@@ -61,6 +64,9 @@ void OscillatorVoice::Configure(
         apvts.getRawParameterValue("vcoModLfoFreq")->load());
     wave2Generator_.set_pitch_bend_env1_mod(
         apvts.getRawParameterValue("vcoModEnv1Freq")->load());
+  } else {
+    wave2Generator_.set_pitch_bend_lfo_mod(0);
+    wave2Generator_.set_pitch_bend_env1_mod(0);
   }
 
   switch (static_cast<int>(apvts.getRawParameterValue("waveType")->load())) {
