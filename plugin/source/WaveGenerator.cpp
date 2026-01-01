@@ -523,7 +523,7 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
         // primary (unskewed) rollover
         // todo: currently ignoring what happens between start of this block
         //  and end of previous block
-        if (next_hard_sync_reset_sample >= static_cast<float>(i)) {
+        if (next_hard_sync_reset_sample > -2.f && static_cast<float>(i) >= next_hard_sync_reset_sample) {
           // we will hard sync and generate a blep this sample
 
           // ADD the blep ...
