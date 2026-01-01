@@ -489,6 +489,8 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
       if (pitch_bend_lfo_mod_ != 0.) {
         mod = static_cast<double>(lfo_data[i / kOversample]) *
               pitch_bend_lfo_mod_;
+      } else {
+        mod = 0;
       }
       if (pitch_bend_env1_mod_ != 0.) {
         mod += static_cast<double>(env1_data[i / kOversample]) *
@@ -503,9 +505,7 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
         // todo: this is not producing the expected sound...
         mod += static_cast<double>(modulator_data[i]) * cross_mod_;
       }
-      if (mod != 0.) {
-        pitch_bend_actual_ = 1 + mod;
-      }
+      pitch_bend_actual_ = 1 + mod;
     }
 
     if (fabs(pitch_bend_actual_ - 1) < .00001) pitch_bend_actual_ = 1;

@@ -157,6 +157,7 @@ private:
 
   // PITCH BEND
   double pitch_bend_target_ = 0;
+  // todo: why is this a field persisted between blocks? Same question with some of these other fields.
   double pitch_bend_actual_ = 0;
   // amount of effect the LFO has on the pitch
   double pitch_bend_lfo_mod_ = 0;
