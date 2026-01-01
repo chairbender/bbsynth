@@ -114,7 +114,7 @@ void OscillatorVoice::Configure(
     wave2Generator_.set_hard_sync_mode(DISABLED);
   }
   // todo: fine tune not working correctly when hardsync off
-  wave2Generator_.set_pitch_offset_hz(static_cast<double>(fine_tune));
+  wave2Generator_.set_pitch_offset_semis(static_cast<double>(fine_tune));
 
   const int pulseWidthSource =
       static_cast<int>(apvts.getRawParameterValue("pulseWidthSource")->load());

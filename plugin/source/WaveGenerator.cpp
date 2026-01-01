@@ -224,13 +224,6 @@ void WaveGenerator<IsLFO>::set_pitch_offset_semis(
 }
 
 template <bool IsLFO>
-void WaveGenerator<IsLFO>::set_pitch_offset_hz(
-    const double pitch_offset_in_hz) {
-  // todo: is pitch_offset_ really in hz or should we scale this?
-  pitch_offset_ = pitch_offset_in_hz;
-}
-
-template <bool IsLFO>
 double WaveGenerator<IsLFO>::pitch_offset_in_semis() const {
   // return the Log pitch offset ....
   double pitchOffsetInSemis = 12 * log2(pitch_offset_);
