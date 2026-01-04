@@ -145,12 +145,48 @@ void AudioPluginAudioProcessorEditor::parameterChanged(
   juce::ignoreUnused(parameterID, newValue);
 }
 
+juce::Grid AudioPluginAudioProcessorEditor::MakeMainGrid() {
+  juce::Grid grid;
+  grid.alignContent = juce::Grid::AlignContent::center;
+  grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                       juce::Grid::TrackInfo(juce::Grid::Fr(7))};
+  grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(3)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(3)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(5)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                          juce::Grid::TrackInfo(juce::Grid::Fr(2))};
+  return grid;
+}
+
 void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 
-  // (Our component is opaque, so we must completely fill the background with a
-  // solid colour)
-  g.fillAll(
-      getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
+
+  // Layout for backgrounds
+  const auto area = getLocalBounds()  ;
+
+  auto grid = MakeMainGrid();
+
+  // We only need the items for layout calculation
+  for (auto i = 0; i < 16; ++i)
+    grid.items.add(juce::GridItem());
+
+  grid.performLayout(area);
+
+  const auto backgroundColor = getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId);
+  const auto colorA = backgroundColor.brighter(0.05f);
+  const auto colorB = backgroundColor.darker(0.05f);
+
+  for (auto i = 0; i < 8; ++i) {
+    const auto sectionBounds = grid.items[i].currentBounds;
+    // The section covers both the label (row 0) and the controls (row 1)
+    const auto fullSectionBounds = sectionBounds.withHeight(grid.items[i + 8].currentBounds.getBottom() - sectionBounds.getY());
+
+    g.setColour(i % 2 == 0 ? colorA : colorB);
+    g.fillRect(fullSectionBounds);
+  }
 
   g.setColour(juce::Colours::white);
   g.setFont(15.0f);
@@ -554,18 +590,7 @@ void AudioPluginAudioProcessorEditor::resized() {
   // Use a Grid to place the three sections (VCO1, VCF, ENV1) in a single row
   auto topRow = area;  // remaining area after removing bottom components
 
-  juce::Grid grid;
-  grid.alignContent = juce::Grid::AlignContent::center;
-  grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                       juce::Grid::TrackInfo(juce::Grid::Fr(7))};
-  grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(3)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(3)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(5)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                          juce::Grid::TrackInfo(juce::Grid::Fr(2))};
+  auto grid = MakeMainGrid();
 
   grid.items = {juce::GridItem(lfo_label_),
                 juce::GridItem(vco_mod_label_),
