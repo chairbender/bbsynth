@@ -56,6 +56,9 @@ void OTAFilterTPTNewtonRaphson::Reset() {
   for (auto& t : tanh_stages_) {
     t.reset();
   }
+  for (auto& t : state_tanh_stages_) {
+    t.reset();
+  }
 }
 
 float OTAFilterTPTNewtonRaphson::Saturate(const float x) const {
@@ -74,29 +77,35 @@ float OTAFilterTPTNewtonRaphson::EvaluateFilter(
   // Input with feedback
   const float u = in - k * out_guess;
 
-  // TODO: refactor dupe
-  // TODO: This is seemingly only saturating on the input and not the output, unlike our other
-  //  filter which has 2 tanh calls per filter. We should consider adding it to both places,
-  //  even making it possible to tweak so we can hear what effect it has. Would also need to update
-  //  the jacobian computation if we do this.
+  // Each stage: y = s + G * (sat(x) - sat(s))
+  // where x is the input to the stage
+
   const float v1_sat = use_adaa ? tanh_stages_[0].process(u / drive_) * drive_
                                 : Saturate(u);
-  const float y1 = s1_ + G * (v1_sat - s1_);
+  const float s1_sat = use_adaa ? state_tanh_stages_[0].process(s1_ / drive_) * drive_
+                                : Saturate(s1_);
+  const float y1 = s1_ + G * (v1_sat - s1_sat);
   v1_out = y1;
 
   const float v2_sat = use_adaa ? tanh_stages_[1].process(y1 / drive_) * drive_
                                 : Saturate(y1);
-  const float y2 = s2_ + G * (v2_sat - s2_);
+  const float s2_sat = use_adaa ? state_tanh_stages_[1].process(s2_ / drive_) * drive_
+                                : Saturate(s2_);
+  const float y2 = s2_ + G * (v2_sat - s2_sat);
   v2_out = y2;
 
   const float v3_sat = use_adaa ? tanh_stages_[2].process(y2 / drive_) * drive_
                                 : Saturate(y2);
-  const float y3 = s3_ + G * (v3_sat - s3_);
+  const float s3_sat = use_adaa ? state_tanh_stages_[2].process(s3_ / drive_) * drive_
+                                : Saturate(s3_);
+  const float y3 = s3_ + G * (v3_sat - s3_sat);
   v3_out = y3;
 
   const float v4_sat = use_adaa ? tanh_stages_[3].process(y3 / drive_) * drive_
                                 : Saturate(y3);
-  const float y4 = s4_ + G * (v4_sat - s4_);
+  const float s4_sat = use_adaa ? state_tanh_stages_[3].process(s4_ / drive_) * drive_
+                                : Saturate(s4_);
+  const float y4 = s4_ + G * (v4_sat - s4_sat);
   v4_out = y4;
 
   return y4;
@@ -112,28 +121,31 @@ float OTAFilterTPTNewtonRaphson::ComputeJacobian(const float in,
   float deriv = -k;
 
   // Chain through each stage
-  // Each stage: y = s + G * (sat(x) - s)
+  // Each stage: y = s + G * (sat(x) - sat(s))
   // dy/dx = G * d(sat(x))/dx
+  // (Note: s is constant with respect to out_guess, so d(sat(s))/dx = 0)
 
   const float u = in - k * out_guess;
 
-  // TODO: refactor dupe
   const float d_sat1 = SaturateDerivative(u);
   deriv = deriv * d_sat1;
   const float v1_sat = Saturate(u);
-  const float y1 = s1_ + G * (v1_sat - s1_);
+  const float s1_sat = Saturate(s1_);
+  const float y1 = s1_ + G * (v1_sat - s1_sat);
   deriv = G * deriv;
 
   const float d_sat2 = SaturateDerivative(y1);
   deriv = deriv * d_sat2;
   const float v2_sat = Saturate(y1);
-  const float y2 = s2_ + G * (v2_sat - s2_);
+  const float s2_sat = Saturate(s2_);
+  const float y2 = s2_ + G * (v2_sat - s2_sat);
   deriv = G * deriv;
 
   const float d_sat3 = SaturateDerivative(y2);
   deriv = deriv * d_sat3;
   const float v3_sat = Saturate(y2);
-  const float y3 = s3_ + G * (v3_sat - s3_);
+  const float s3_sat = Saturate(s3_);
+  const float y3 = s3_ + G * (v3_sat - s3_sat);
   deriv = G * deriv;
 
   const float d_sat4 = SaturateDerivative(y3);
@@ -209,19 +221,23 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in, const int index) 
 
   // Update states using the converged solution
   // State update: s_new = 2*y - s_old
-  // TODO: reduce dupe
+  // In TPT with sat: s_new = s_old + 2 * G * (sat(x) - sat(s_old))
   const float u = in - k * final_out;
   const float v1_sat = Saturate(u);
-  s1_ += 2.0f * G * (v1_sat - s1_);
+  const float s1_sat = Saturate(s1_);
+  s1_ += 2.0f * G * (v1_sat - s1_sat);
 
   const float v2_sat = Saturate(v1);
-  s2_ += 2.0f * G * (v2_sat - s2_);
+  const float s2_sat = Saturate(s2_);
+  s2_ += 2.0f * G * (v2_sat - s2_sat);
 
   const float v3_sat = Saturate(v2);
-  s3_ += 2.0f * G * (v3_sat - s3_);
+  const float s3_sat = Saturate(s3_);
+  s3_ += 2.0f * G * (v3_sat - s3_sat);
 
   const float v4_sat = Saturate(v3);
-  s4_ += 2.0f * G * (v4_sat - s4_);
+  const float s4_sat = Saturate(s4_);
+  s4_ += 2.0f * G * (v4_sat - s4_sat);
 
   return final_out;
 }

@@ -71,8 +71,10 @@ class OTAFilterTPTNewtonRaphson {
   float sample_rate_;
   // state vars for each stage
   float s1_, s2_, s3_, s4_;
-  // Tanh ADAA for each stage
+  // Tanh ADAA for each stage's input
   mutable std::array<TanhADAA, 4> tanh_stages_;
+  // Tanh ADAA for each stage's state
+  mutable std::array<TanhADAA, 4> state_tanh_stages_;
   // dc blocker
   // todo: convert all my DC blockers to juse use juce builtin filters
   //todo float dc_out_x1_, dc_out_y1_;
