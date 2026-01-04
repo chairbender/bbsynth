@@ -1,29 +1,32 @@
 #pragma once
 
-#include "TanhADAA.h"
-#include <array>
-
 #include <juce_audio_processors/juce_audio_processors.h>
+
+#include <array>
 #include <vector>
+
+#include "TanhADAA.h"
 
 namespace audio_plugin {
 
 /**
  * 4 pole, mono, OTA filter emulation with adjustable drive.
- * This has a one-sample delay for the feedback as it does not use a TPT approach, thus it
- * is not quite as analog accurate.
+ * This has a one-sample delay for the feedback as it does not use a TPT
+ * approach, thus it is not quite as analog accurate.
  */
 class OTAFilterDelayedFeedback {
-public:
+ public:
   OTAFilterDelayedFeedback();
   /**
    * Perform in place filtering on the left channel only,
    * for numSamples samples.
    */
-  void Process(juce::AudioBuffer<float>& buffers,
-               const juce::AudioBuffer<float>& env_buffer,
-               const juce::AudioBuffer<float>& lfo_buffer, int start_sample,
-               int numSamples);
+  void Process(
+      juce::AudioBuffer<float>& buffers,
+      // todo : buffers should be part of Configure, not passed with each block
+      const juce::AudioBuffer<float>& env_buffer,
+      const juce::AudioBuffer<float>& lfo_buffer, int start_sample,
+      int numSamples);
 
   /**
    * Update params based on current state
@@ -45,8 +48,9 @@ public:
   int num_stages_;
   bool bypass_;
 
-private:
-  void FilterStage(float in, float& out, TanhADAA& tanh_in, TanhADAA& tanh_state, float g, float scale) const;
+ private:
+  void FilterStage(float in, float& out, TanhADAA& tanh_in,
+                   TanhADAA& tanh_state, float g, float scale) const;
 
   float sample_rate_;
   // integrator states
@@ -60,4 +64,4 @@ private:
   TanhADAA tanh_feedback_;
 };
 
-}
+}  // namespace audio_plugin
