@@ -52,7 +52,7 @@ class OTAFilterTPTNewtonRaphson {
   int num_stages_;
 
  private:
-  float ProcessSample(float in, int index);
+  float ProcessSample(float in, float env_val, float lfo_val);
 
   //Saturation function
   float Saturate(float x) const;

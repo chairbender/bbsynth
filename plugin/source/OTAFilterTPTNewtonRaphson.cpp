@@ -129,13 +129,13 @@ float OTAFilterTPTNewtonRaphson::ComputeJacobian(const float in,
   return deriv;
 }
 
-float OTAFilterTPTNewtonRaphson::ProcessSample(const float in, const int index) {
-  const auto env_data = env_buffer_->getReadPointer(0);
-  const auto lfo_data = lfo_buffer_.getReadPointer(0);
+float OTAFilterTPTNewtonRaphson::ProcessSample(const float in,
+                                               const float env_val,
+                                               const float lfo_val) {
   const float modulated_cutoff = juce::jlimit(
       kMinCutoff, kMaxCutoff,
-      cutoff_freq_ + env_mod_ * env_data[index / kOversample] * kMaxCutoff +
-          lfo_mod_ * lfo_data[index / kOversample] * kMaxCutoff);
+      cutoff_freq_ + env_mod_ * env_val * kMaxCutoff +
+          lfo_mod_ * lfo_val * kMaxCutoff);
 
   // Calculate TPT coefficient
   const float g = std::tanf(juce::MathConstants<float>::pi * modulated_cutoff /
@@ -215,8 +215,11 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in, const int index) 
 void OTAFilterTPTNewtonRaphson::Process(juce::AudioBuffer<float>& buffers,
                                        int start_sample, int numSamples) {
   const auto data = buffers.getWritePointer(0);
+  const auto env_data = env_buffer_->getReadPointer(0);
+  const auto lfo_data = lfo_buffer_.getReadPointer(0);
   for (auto i = start_sample; i < start_sample + numSamples; ++i) {
-    data[i] = ProcessSample(data[i], i);
+    data[i] = ProcessSample(data[i], env_data[i / kOversample],
+                            lfo_data[i / kOversample]);
   }
 }
 

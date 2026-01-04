@@ -46,7 +46,7 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
   const auto env_data = env_buffer_->getReadPointer(0);
   const auto lfo_data = lfo_buffer_.getReadPointer(0);
 
-  for (auto i = start_sample; i < numSamples; ++i) {
+  for (auto i = start_sample; i < start_sample + numSamples; ++i) {
     const auto sample = buf[i];
     // modulation - envelope and LFO affects cutoff frequency
     const float modulated_cutoff = juce::jlimit(kMinCutoff, kMaxCutoff, cutoff_freq_ + env_mod_ * env_data[i / kOversample] * kMaxCutoff + lfo_mod_ * lfo_data[i / kOversample] * kMaxCutoff);
