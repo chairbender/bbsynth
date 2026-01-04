@@ -18,17 +18,18 @@ namespace audio_plugin {
  */
 class OTAFilterTPTNewtonRaphson {
  public:
-  OTAFilterTPTNewtonRaphson();
+  OTAFilterTPTNewtonRaphson(const juce::AudioBuffer<float>& env_buffer,
+                            const juce::AudioBuffer<float>& lfo_buffer);
   /**
    * Perform in place filtering on the left channel only,
    * for numSamples samples.
    */
-  void Process(
-      juce::AudioBuffer<float>& buffers,
-      // todo : buffers should be part of Configure, not passed with each block
-      const juce::AudioBuffer<float>& env_buffer,
-      const juce::AudioBuffer<float>& lfo_buffer, int start_sample,
-      int numSamples);
+  void Process(juce::AudioBuffer<float>& buffers, int start_sample,
+               int numSamples);
+
+  void set_env_buffer(const juce::AudioBuffer<float>& env_buffer) {
+    env_buffer_ = &env_buffer;
+  }
 
   /**
    * Update params based on current state
@@ -51,7 +52,7 @@ class OTAFilterTPTNewtonRaphson {
   int num_stages_;
 
  private:
-  float ProcessSample(float in);
+  float ProcessSample(float in, int index);
 
   //Saturation function
   float Saturate(float x) const;
@@ -65,6 +66,8 @@ class OTAFilterTPTNewtonRaphson {
   // d(output)/d(out_guess) = how much does changing our guess change the predicted output?
   float ComputeJacobian(float in, float out_guess, float G, float k) const;
 
+  const juce::AudioBuffer<float>* env_buffer_;
+  const juce::AudioBuffer<float>& lfo_buffer_;
   float sample_rate_;
   // state vars for each stage
   float s1_, s2_, s3_, s4_;

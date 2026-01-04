@@ -7,13 +7,17 @@
 #include "BBSynth/Constants.h"
 
 namespace audio_plugin {
-OTAFilterTPTNewtonRaphson::OTAFilterTPTNewtonRaphson()
+OTAFilterTPTNewtonRaphson::OTAFilterTPTNewtonRaphson(
+    const juce::AudioBuffer<float>& env_buffer,
+    const juce::AudioBuffer<float>& lfo_buffer)
     : cutoff_freq_{0.f},
       resonance_{0.f},
       drive_{0.f},
       env_mod_{0.f},
       lfo_mod_{0.f},
       num_stages_{4},
+      env_buffer_{&env_buffer},
+      lfo_buffer_{lfo_buffer},
       sample_rate_{0},
       s1_{0},
       s2_{0},
@@ -125,10 +129,17 @@ float OTAFilterTPTNewtonRaphson::ComputeJacobian(const float in,
   return deriv;
 }
 
-float OTAFilterTPTNewtonRaphson::ProcessSample(const float in) {
+float OTAFilterTPTNewtonRaphson::ProcessSample(const float in, const int index) {
+  const auto env_data = env_buffer_->getReadPointer(0);
+  const auto lfo_data = lfo_buffer_.getReadPointer(0);
+  const float modulated_cutoff = juce::jlimit(
+      kMinCutoff, kMaxCutoff,
+      cutoff_freq_ + env_mod_ * env_data[index / kOversample] * kMaxCutoff +
+          lfo_mod_ * lfo_data[index / kOversample] * kMaxCutoff);
+
   // Calculate TPT coefficient
-  const float g =
-      std::tanf(juce::MathConstants<float>::pi * cutoff_freq_ / sample_rate_);
+  const float g = std::tanf(juce::MathConstants<float>::pi * modulated_cutoff /
+                            sample_rate_);
   const float g_clamped = std::min(g, 0.9f);
   const float G = g_clamped / (1.0f + g_clamped);
 
@@ -201,14 +212,11 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in) {
   return final_out;
 }
 
-void OTAFilterTPTNewtonRaphson::Process(
-    juce::AudioBuffer<float>& buffers,
-    [[maybe_unused]] const juce::AudioBuffer<float>& env_buffer,
-    [[maybe_unused]] const juce::AudioBuffer<float>& lfo_buffer, int start_sample,
-    int numSamples) {
+void OTAFilterTPTNewtonRaphson::Process(juce::AudioBuffer<float>& buffers,
+                                       int start_sample, int numSamples) {
   const auto data = buffers.getWritePointer(0);
   for (auto i = start_sample; i < start_sample + numSamples; ++i) {
-    data[i] = ProcessSample(data[i]);
+    data[i] = ProcessSample(data[i], i);
   }
 }
 
