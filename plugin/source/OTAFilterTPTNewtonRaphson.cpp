@@ -51,7 +51,12 @@ void OTAFilterTPTNewtonRaphson::set_sample_rate(const double rate) {
   sample_rate_ = static_cast<float>(rate);
 }
 
-void OTAFilterTPTNewtonRaphson::Reset() { s1_ = s2_ = s3_ = s4_ = 0; }
+void OTAFilterTPTNewtonRaphson::Reset() {
+  s1_ = s2_ = s3_ = s4_ = 0;
+  for (auto& t : tanh_stages_) {
+    t.reset();
+  }
+}
 
 float OTAFilterTPTNewtonRaphson::Saturate(const float x) const {
   return std::tanh(x / drive_) * drive_;
@@ -64,24 +69,33 @@ float OTAFilterTPTNewtonRaphson::SaturateDerivative(const float x) const {
 
 float OTAFilterTPTNewtonRaphson::EvaluateFilter(
     const float in, const float out_guess, const float G, const float k,
-    float& v1_out, float& v2_out, float& v3_out, float& v4_out) const {
+    float& v1_out, float& v2_out, float& v3_out, float& v4_out,
+    const bool use_adaa) const {
   // Input with feedback
   const float u = in - k * out_guess;
 
   // TODO: refactor dupe
-  const float v1_sat = Saturate(u);
+  // TODO: This is seemingly only saturating on the input and not the output, unlike our other
+  //  filter which has 2 tanh calls per filter. We should consider adding it to both places,
+  //  even making it possible to tweak so we can hear what effect it has. Would also need to update
+  //  the jacobian computation if we do this.
+  const float v1_sat = use_adaa ? tanh_stages_[0].process(u / drive_) * drive_
+                                : Saturate(u);
   const float y1 = s1_ + G * (v1_sat - s1_);
   v1_out = y1;
 
-  const float v2_sat = Saturate(y1);
+  const float v2_sat = use_adaa ? tanh_stages_[1].process(y1 / drive_) * drive_
+                                : Saturate(y1);
   const float y2 = s2_ + G * (v2_sat - s2_);
   v2_out = y2;
 
-  const float v3_sat = Saturate(y2);
+  const float v3_sat = use_adaa ? tanh_stages_[2].process(y2 / drive_) * drive_
+                                : Saturate(y2);
   const float y3 = s3_ + G * (v3_sat - s3_);
   v3_out = y3;
 
-  const float v4_sat = Saturate(y3);
+  const float v4_sat = use_adaa ? tanh_stages_[3].process(y3 / drive_) * drive_
+                                : Saturate(y3);
   const float y4 = s4_ + G * (v4_sat - s4_);
   v4_out = y4;
 
@@ -129,13 +143,13 @@ float OTAFilterTPTNewtonRaphson::ComputeJacobian(const float in,
   return deriv;
 }
 
-float OTAFilterTPTNewtonRaphson::ProcessSample(const float in,
-                                               const float env_val,
-                                               const float lfo_val) {
+float OTAFilterTPTNewtonRaphson::ProcessSample(const float in, const int index) {
+  const auto env_data = env_buffer_->getReadPointer(0);
+  const auto lfo_data = lfo_buffer_.getReadPointer(0);
   const float modulated_cutoff = juce::jlimit(
       kMinCutoff, kMaxCutoff,
-      cutoff_freq_ + env_mod_ * env_val * kMaxCutoff +
-          lfo_mod_ * lfo_val * kMaxCutoff);
+      cutoff_freq_ + env_mod_ * env_data[index / kOversample] * kMaxCutoff +
+          lfo_mod_ * lfo_data[index / kOversample] * kMaxCutoff);
 
   // Calculate TPT coefficient
   const float g = std::tanf(juce::MathConstants<float>::pi * modulated_cutoff /
@@ -191,7 +205,7 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in,
 
   // Final evaluation with converged output
   const float final_out =
-      EvaluateFilter(in, out_guess, G, k, v1, v2, v3, v4);
+      EvaluateFilter(in, out_guess, G, k, v1, v2, v3, v4, true);
 
   // Update states using the converged solution
   // State update: s_new = 2*y - s_old
@@ -215,11 +229,8 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in,
 void OTAFilterTPTNewtonRaphson::Process(juce::AudioBuffer<float>& buffers,
                                        int start_sample, int numSamples) {
   const auto data = buffers.getWritePointer(0);
-  const auto env_data = env_buffer_->getReadPointer(0);
-  const auto lfo_data = lfo_buffer_.getReadPointer(0);
   for (auto i = start_sample; i < start_sample + numSamples; ++i) {
-    data[i] = ProcessSample(data[i], env_data[i / kOversample],
-                            lfo_data[i / kOversample]);
+    data[i] = ProcessSample(data[i], i);
   }
 }
 
