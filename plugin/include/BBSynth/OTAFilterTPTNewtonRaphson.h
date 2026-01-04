@@ -52,7 +52,7 @@ class OTAFilterTPTNewtonRaphson {
   int num_stages_;
 
  private:
-  float ProcessSample(float in, float env_val, float lfo_val);
+  float ProcessSample(float in, int index);
 
   //Saturation function
   float Saturate(float x) const;
@@ -61,7 +61,7 @@ class OTAFilterTPTNewtonRaphson {
   // Evaluate filter for a given output guess.
   // Returns what the output would be if the actual output were 'out_guess'
   float EvaluateFilter(float in, float out_guess, float G, float k,
-    float& v1_out, float& v2_out, float& v3_out, float& v4_out) const;
+    float& v1_out, float& v2_out, float& v3_out, float& v4_out, bool use_adaa = false) const;
   // Compute derivative for newton raphson
   // d(output)/d(out_guess) = how much does changing our guess change the predicted output?
   float ComputeJacobian(float in, float out_guess, float G, float k) const;
@@ -71,6 +71,8 @@ class OTAFilterTPTNewtonRaphson {
   float sample_rate_;
   // state vars for each stage
   float s1_, s2_, s3_, s4_;
+  // Tanh ADAA for each stage
+  mutable std::array<TanhADAA, 4> tanh_stages_;
   // dc blocker
   // todo: convert all my DC blockers to juse use juce builtin filters
   //todo float dc_out_x1_, dc_out_y1_;
