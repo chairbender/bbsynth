@@ -147,6 +147,7 @@ void AudioPluginAudioProcessorEditor::parameterChanged(
 
 juce::Grid AudioPluginAudioProcessorEditor::MakeMainGrid() {
   juce::Grid grid;
+  grid.columnGap = juce::Grid::Px(4);
   grid.alignContent = juce::Grid::AlignContent::center;
   grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                        juce::Grid::TrackInfo(juce::Grid::Fr(7))};
@@ -179,6 +180,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   const auto colorA = backgroundColor.brighter(0.05f);
   const auto colorB = backgroundColor.darker(0.05f);
 
+  const auto outlineColor = backgroundColor.brighter(0.2f);
+
   for (auto i = 0; i < 8; ++i) {
     const auto sectionBounds = grid.items[i].currentBounds;
     // The section covers both the label (row 0) and the controls (row 1)
@@ -186,6 +189,9 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 
     g.setColour(i % 2 == 0 ? colorA : colorB);
     g.fillRect(fullSectionBounds);
+
+    g.setColour(outlineColor);
+    g.drawRect(fullSectionBounds, 2.0f);
   }
 
   g.setColour(juce::Colours::white);
@@ -612,14 +618,20 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   grid.performLayout(topRow);
 
+  // Apply margin to labels in the top row
+  for (int i = 0; i < 8; ++i) {
+    auto b = grid.items[i].currentBounds.reduced(4);
+    grid.items[i].associatedComponent->setBounds(b.toNearestInt());
+  }
+
   {
-    auto label_bounds = vcf_label_.getBounds();
+    auto label_bounds = vcf_label_.getBounds().reduced(4, 0);
     vcf_label_.setBounds(label_bounds.removeFromLeft(label_bounds.getWidth() / 2));
     filter_bypass_button_.setBounds(label_bounds);
   }
 
   {
-    auto label_bounds = vco2_label_.getBounds();
+    auto label_bounds = vco2_label_.getBounds().reduced(4, 0);
     vco2_label_.setBounds(label_bounds.removeFromLeft(label_bounds.getWidth() / 2));
     vco2_sync_button_.setBounds(label_bounds);
   }
@@ -628,7 +640,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   // LFO section
   {
-    const auto section_bounds = grid.items[item_idx++].currentBounds;
+    const auto section_bounds = grid.items[item_idx++].currentBounds.reduced(4);
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(2)),
@@ -658,7 +670,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   // VCO mod
   {
-    const auto section_bounds = grid.items[item_idx++].currentBounds;
+    const auto section_bounds = grid.items[item_idx++].currentBounds.reduced(4);
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(2)),
@@ -697,7 +709,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   // VCO1 section
   {
-    const auto section_bounds = grid.items[item_idx++].currentBounds;
+    const auto section_bounds = grid.items[item_idx++].currentBounds.reduced(4);
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
@@ -722,7 +734,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   // VCO2 section
   {
-    const auto section_bounds = grid.items[item_idx++].currentBounds;
+    const auto section_bounds = grid.items[item_idx++].currentBounds.reduced(4);
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
@@ -755,7 +767,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   // VCF section
   {
-    const auto section_bounds = grid.items[item_idx++].currentBounds;
+    const auto section_bounds = grid.items[item_idx++].currentBounds.reduced(4);
     juce::Grid section_grid;
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
@@ -809,7 +821,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   // VCA section
   {
-    const auto section_bounds = grid.items[item_idx++].currentBounds;
+    const auto section_bounds = grid.items[item_idx++].currentBounds.reduced(4);
     juce::Grid section_grid;
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
@@ -828,7 +840,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   // ENV1 section
   {
-    const auto section_bounds = grid.items[item_idx++].currentBounds;
+    const auto section_bounds = grid.items[item_idx++].currentBounds.reduced(4);
     juce::Grid section_grid;
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1)),
@@ -850,7 +862,7 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   // ENV2 section
   {
-    const auto section_bounds = grid.items[item_idx++].currentBounds;
+    const auto section_bounds = grid.items[item_idx++].currentBounds.reduced(4);
     juce::Grid section_grid;
     section_grid.alignContent = juce::Grid::AlignContent::center;
     section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
