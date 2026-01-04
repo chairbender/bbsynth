@@ -1,13 +1,12 @@
-#include "BBSynth/OTAFilter.h"
-
 #include <juce_dsp/juce_dsp.h>
 
 #include <cmath>
 
 #include "BBSynth/Constants.h"
+#include "BBSynth/OTAFilterDelayedFeedback.h"
 
 namespace audio_plugin {
-OTAFilter::OTAFilter() : cutoff_freq_{0.f}, resonance_{0.f},
+OTAFilterDelayedFeedback::OTAFilterDelayedFeedback() : cutoff_freq_{0.f}, resonance_{0.f},
                          drive_{0.f}, env_mod_{0.f}, lfo_mod_{0.f}, num_stages_{4}, bypass_{false}, sample_rate_{0}, s1_{0},
                          s2_{0}, s3_{0},
                          s4_{0},
@@ -15,7 +14,7 @@ OTAFilter::OTAFilter() : cutoff_freq_{0.f}, resonance_{0.f},
                          dc_out_y1_{0} {
 }
 
-inline void OTAFilter::FilterStage(const float in, float& out,
+inline void OTAFilterDelayedFeedback::FilterStage(const float in, float& out,
                                    TanhADAA& tanh_in, TanhADAA& tanh_state,
                                    const float g, const float scale) const {
   constexpr auto kLeak = 0.99995f;
@@ -25,7 +24,7 @@ inline void OTAFilter::FilterStage(const float in, float& out,
   out = kLeak * out + g * (v - tanh_state_val * drive_);
 }
 
-void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
+void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
                         const juce::AudioBuffer<float>& env_buffer,
                         const juce::AudioBuffer<float>& lfo_buffer,
                         const int start_sample,
@@ -102,7 +101,7 @@ void OTAFilter::Process(juce::AudioBuffer<float>& buffers,
   }
 }
 
-void OTAFilter::Configure(const juce::AudioProcessorValueTreeState& state) {
+void OTAFilterDelayedFeedback::Configure(const juce::AudioProcessorValueTreeState& state) {
   cutoff_freq_ = state.getRawParameterValue("filterCutoffFreq")->load();
   resonance_ = state.getRawParameterValue("filterResonance")->load();
   drive_ = state.getRawParameterValue("filterDrive")->load();
@@ -118,7 +117,7 @@ void OTAFilter::Configure(const juce::AudioProcessorValueTreeState& state) {
   }
 }
 
-void OTAFilter::Reset() {
+void OTAFilterDelayedFeedback::Reset() {
   s1_ = s2_ = s3_ = s4_ = 0;
   dc_out_x1_ = dc_out_y1_ = 0;
   tanh_final_out_.reset();
@@ -127,7 +126,7 @@ void OTAFilter::Reset() {
   for (auto& tanh : tanh_in_) tanh.reset();
 }
 
-void OTAFilter::set_sample_rate(const double rate) {
+void OTAFilterDelayedFeedback::set_sample_rate(const double rate) {
   sample_rate_ = static_cast<float>(rate);
 }
 }
