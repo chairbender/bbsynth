@@ -6,13 +6,24 @@
 #include "BBSynth/OTAFilterDelayedFeedback.h"
 
 namespace audio_plugin {
-OTAFilterDelayedFeedback::OTAFilterDelayedFeedback() : cutoff_freq_{0.f}, resonance_{0.f},
-                         drive_{0.f}, env_mod_{0.f}, lfo_mod_{0.f}, num_stages_{4}, sample_rate_{0}, s1_{0},
-                         s2_{0}, s3_{0},
-                         s4_{0},
-                         dc_out_x1_{0},
-                         dc_out_y1_{0} {
-}
+OTAFilterDelayedFeedback::OTAFilterDelayedFeedback(
+    const juce::AudioBuffer<float>& env_buffer,
+    const juce::AudioBuffer<float>& lfo_buffer)
+    : cutoff_freq_{0.f},
+      resonance_{0.f},
+      drive_{0.f},
+      env_mod_{0.f},
+      lfo_mod_{0.f},
+      num_stages_{4},
+      env_buffer_{&env_buffer},
+      lfo_buffer_{lfo_buffer},
+      sample_rate_{0},
+      s1_{0},
+      s2_{0},
+      s3_{0},
+      s4_{0},
+      dc_out_x1_{0},
+      dc_out_y1_{0} {}
 
 inline void OTAFilterDelayedFeedback::FilterStage(const float in, float& out,
                                    TanhADAA& tanh_in, TanhADAA& tanh_state,
@@ -25,17 +36,15 @@ inline void OTAFilterDelayedFeedback::FilterStage(const float in, float& out,
 }
 
 void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
-                        const juce::AudioBuffer<float>& env_buffer,
-                        const juce::AudioBuffer<float>& lfo_buffer,
-                        const int start_sample,
-                        const int numSamples) {
+                                       const int start_sample,
+                                       const int numSamples) {
   jassert(sample_rate_ > 0);
 
   // todo vectorize
   const auto scale = 1.f / drive_;
   const auto buf = buffers.getWritePointer(0);
-  const auto env_data = env_buffer.getReadPointer(0);
-  const auto lfo_data = lfo_buffer.getReadPointer(0);
+  const auto env_data = env_buffer_->getReadPointer(0);
+  const auto lfo_data = lfo_buffer_.getReadPointer(0);
 
   for (auto i = start_sample; i < numSamples; ++i) {
     const auto sample = buf[i];
