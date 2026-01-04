@@ -49,7 +49,6 @@ class OTAFilterTPTNewtonRaphson {
   float lfo_mod_;
   // TODO: not used yet
   int num_stages_;
-  bool bypass_;
 
  private:
   float ProcessSample(float in);

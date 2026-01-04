@@ -26,7 +26,8 @@ OscillatorVoice::OscillatorVoice(const juce::AudioBuffer<float>& lfo_buffer)
   wave2Generator_.PrepareToPlay(getSampleRate() * kOversample);
   waveGenerator_.set_mode(ANTIALIAS);
   wave2Generator_.set_mode(ANTIALIAS);
-  filter_.set_sample_rate(getSampleRate() * kOversample);
+  filter_tpt_.set_sample_rate(getSampleRate() * kOversample);
+  filter_dfb_.set_sample_rate(getSampleRate() * kOversample);
 }
 
 bool OscillatorVoice::canPlaySound(juce::SynthesiserSound* sound) {
@@ -35,7 +36,9 @@ bool OscillatorVoice::canPlaySound(juce::SynthesiserSound* sound) {
 
 void OscillatorVoice::Configure(
     const juce::AudioProcessorValueTreeState& apvts) {
-  filter_.Configure(apvts);
+  filter_type_ = static_cast<int>(apvts.getRawParameterValue("vcfFilterType")->load());
+  filter_tpt_.Configure(apvts);
+  filter_dfb_.Configure(apvts);
 
   // Configure ADSR envelope from parameters
   envelope_.Prepare(getSampleRate());
@@ -264,8 +267,13 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                     oversample_samples);
   }
 
-  filter_.Process(oversample_buffer_, *filter_env_buffer_, lfo_buffer_,
-                  oversample_start_sample, oversample_samples);
+  if (filter_type_ == 0) {
+    filter_dfb_.Process(oversample_buffer_, *filter_env_buffer_, lfo_buffer_,
+                        oversample_start_sample, oversample_samples);
+  } else if (filter_type_ == 1) {
+    filter_tpt_.Process(oversample_buffer_, *filter_env_buffer_, lfo_buffer_,
+                        oversample_start_sample, oversample_samples);
+  }
 
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
   auto* data = oversample_buffer_.getWritePointer(0);

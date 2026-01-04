@@ -46,7 +46,6 @@ class OTAFilterDelayedFeedback {
   float env_mod_;
   float lfo_mod_;
   int num_stages_;
-  bool bypass_;
 
  private:
   void FilterStage(float in, float& out, TanhADAA& tanh_in,

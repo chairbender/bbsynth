@@ -457,12 +457,12 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   filter_env_source_label_.setText("Env Source", juce::dontSendNotification);
   addAndMakeVisible(filter_env_source_label_);
 
-  filter_bypass_button_.setButtonText("Bypass");
-  filter_bypass_button_.setClickingTogglesState(true);
-  addAndMakeVisible(filter_bypass_button_);
-  filter_bypass_attachment_ =
-      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-          processorRef.apvts_, "vcfBypass", filter_bypass_button_);
+  filter_type_combo_.clear(juce::dontSendNotification);
+  filter_type_combo_.addItemList({"Delayed Feedback", "TPT Newton-Raphson", "Disabled"}, 1);
+  addAndMakeVisible(filter_type_combo_);
+  filter_type_attachment_ =
+      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+          processorRef.apvts_, "vcfFilterType", filter_type_combo_);
 
   // VCA section
   vca_label_.setText("VCA", juce::dontSendNotification);
@@ -626,8 +626,8 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   {
     auto label_bounds = vcf_label_.getBounds().reduced(4, 0);
-    vcf_label_.setBounds(label_bounds.removeFromLeft(label_bounds.getWidth() / 2));
-    filter_bypass_button_.setBounds(label_bounds);
+    vcf_label_.setBounds(label_bounds.removeFromLeft(label_bounds.getWidth() / 3));
+    filter_type_combo_.setBounds(label_bounds);
   }
 
   {
