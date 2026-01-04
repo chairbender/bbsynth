@@ -9,11 +9,13 @@
 namespace audio_plugin {
 
 /**
- * 4 pole, mono, OTA filter emulation
+ * 4 pole, mono, OTA filter emulation with adjustable drive.
+ * This has a one-sample delay for the feedback as it does not use a TPT approach, thus it
+ * is not quite as analog accurate.
  */
-class OTAFilter {
+class OTAFilterDelayedFeedback {
 public:
-  OTAFilter();
+  OTAFilterDelayedFeedback();
   /**
    * Perform in place filtering on the left channel only,
    * for numSamples samples.
