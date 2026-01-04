@@ -14,7 +14,6 @@ OTAFilterTPTNewtonRaphson::OTAFilterTPTNewtonRaphson()
       env_mod_{0.f},
       lfo_mod_{0.f},
       num_stages_{4},
-      bypass_{false},
       sample_rate_{0},
       s1_{0},
       s2_{0},
@@ -28,7 +27,6 @@ void OTAFilterTPTNewtonRaphson::Configure(
   drive_ = state.getRawParameterValue("filterDrive")->load();
   env_mod_ = state.getRawParameterValue("filterEnvMod")->load();
   lfo_mod_ = state.getRawParameterValue("filterLfoMod")->load();
-  bypass_ = state.getRawParameterValue("vcfBypass")->load() > 0.5f;
   switch (static_cast<int>(state.getRawParameterValue("filterSlope")->load())) {
     case 0:
       num_stages_ = 4;

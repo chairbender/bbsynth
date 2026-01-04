@@ -70,8 +70,9 @@ struct OscillatorVoice : juce::SynthesiserVoice {
   juce::AudioBuffer<float> oversample_buffer_;
   WaveGenerator<false> waveGenerator_;
   WaveGenerator<false> wave2Generator_;
-  OTAFilterTPTNewtonRaphson filter_;
-  //OTAFilterDelayedFeedback filter_;
+  OTAFilterTPTNewtonRaphson filter_tpt_;
+  OTAFilterDelayedFeedback filter_dfb_;
+  int filter_type_ = 1;  // 0: DFB, 1: TPT, 2: Disabled
   const juce::AudioBuffer<float>* filter_env_buffer_ = nullptr;
   Downsampler downsampler_;
   AnalogADSR envelope_;

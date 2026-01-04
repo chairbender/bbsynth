@@ -147,8 +147,8 @@ private:
   juce::Label filter_env_source_label_;
   std::unique_ptr<juce::ParameterAttachment> filter_env_source_attachment_;
 
-  juce::ToggleButton filter_bypass_button_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> filter_bypass_attachment_;
+  juce::ComboBox filter_type_combo_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> filter_type_attachment_;
 
   // VCA section
   juce::Label vca_label_;
