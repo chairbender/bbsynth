@@ -478,6 +478,18 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       "filterLfoMod", "Filter LFO Mod", juce::NormalisableRange(-1.f, 1.f, 0.01f), 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "filterEnvSource", "Filter Env Source", juce::StringArray{"Env 1", "Env 2"}, 0));
+
+  // Drive Scaling
+  for (int i = 1; i <= 4; ++i) {
+    parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "filterInputDriveScale" + juce::String(i),
+        "Filter Stage " + juce::String(i) + " Input Drive Scale",
+        juce::NormalisableRange(0.0001f, 10.f, 0.0001f, 0.4f), 1.0f));
+    parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "filterStateDriveScale" + juce::String(i),
+        "Filter Stage " + juce::String(i) + " State Drive Scale",
+        juce::NormalisableRange(0.0001f, 10.f, 0.0001f, 0.4f), 1.0f));
+  }
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "vcfFilterType", "VCF Filter Type",
       juce::StringArray{"Delayed Feedback", "TPT Newton-Raphson", "Disabled"},

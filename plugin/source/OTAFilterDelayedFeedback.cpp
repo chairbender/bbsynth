@@ -29,10 +29,12 @@ inline void OTAFilterDelayedFeedback::FilterStage(const float in, float& out,
                                    TanhADAA& tanh_in, TanhADAA& tanh_state,
                                    const float g, const float scale) const {
   constexpr auto kLeak = 0.99995f;
+  const auto stage_index = &tanh_in - &tanh_in_[0];
+  const auto state_scale = 1.f / (drive_ * state_drive_scales_[static_cast<size_t>(stage_index)]);
   const auto tanh_in_val = tanh_in.process(in * scale);
-  const auto tanh_state_val = tanh_state.process(out * scale);
-  const float v = tanh_in_val * drive_;
-  out = kLeak * out + g * (v - tanh_state_val * drive_);
+  const auto tanh_state_val = tanh_state.process(out * state_scale);
+  const float v = tanh_in_val * (1.f / scale);
+  out = kLeak * out + g * (v - tanh_state_val * (1.f / state_scale));
 }
 
 void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
@@ -41,7 +43,6 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
   jassert(sample_rate_ > 0);
 
   // todo vectorize
-  const auto scale = 1.f / drive_;
   const auto buf = buffers.getWritePointer(0);
   const auto env_data = env_buffer_->getReadPointer(0);
   const auto lfo_data = lfo_buffer_.getReadPointer(0);
@@ -84,10 +85,10 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
 
     // todo: different scale / drive amount for each stage as opposed to the same for each.
 
-    FilterStage(u, s1_, tanh_in_[0], tanh_state_[0], g, scale);
-    if (num_stages_ >= 2) FilterStage(s1_, s2_, tanh_in_[1], tanh_state_[1], g, scale);
-    if (num_stages_ >= 3) FilterStage(s2_, s3_, tanh_in_[2], tanh_state_[2], g, scale);
-    if (num_stages_ >= 4) FilterStage(s3_, s4_, tanh_in_[3], tanh_state_[3], g, scale);
+    FilterStage(u, s1_, tanh_in_[0], tanh_state_[0], g, 1.f / (drive_ * input_drive_scales_[0]));
+    if (num_stages_ >= 2) FilterStage(s1_, s2_, tanh_in_[1], tanh_state_[1], g, 1.f / (drive_ * input_drive_scales_[1]));
+    if (num_stages_ >= 3) FilterStage(s2_, s3_, tanh_in_[2], tanh_state_[2], g, 1.f / (drive_ * input_drive_scales_[2]));
+    if (num_stages_ >= 4) FilterStage(s3_, s4_, tanh_in_[3], tanh_state_[3], g, 1.f / (drive_ * input_drive_scales_[3]));
 
     // DC block and soft clip the output
     // try 2.0 - 4.0 range
@@ -113,6 +114,14 @@ void OTAFilterDelayedFeedback::Configure(const juce::AudioProcessorValueTreeStat
   drive_ = state.getRawParameterValue("filterDrive")->load();
   env_mod_ = state.getRawParameterValue("filterEnvMod")->load();
   lfo_mod_ = state.getRawParameterValue("filterLfoMod")->load();
+  for (int i = 0; i < 4; ++i) {
+    input_drive_scales_[static_cast<size_t>(i)] =
+        state.getRawParameterValue("filterInputDriveScale" + juce::String(i + 1))
+            ->load();
+    state_drive_scales_[static_cast<size_t>(i)] =
+        state.getRawParameterValue("filterStateDriveScale" + juce::String(i + 1))
+            ->load();
+  }
   switch (static_cast<int>(
               state.getRawParameterValue("filterSlope")->load())) {
     case 0: num_stages_ = 4; break;
