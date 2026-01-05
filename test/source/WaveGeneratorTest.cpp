@@ -5,15 +5,17 @@
 #include <cmath>
 
 using audio_plugin::WaveGenerator;
+using audio_plugin::WaveType;
+using audio_plugin::WaveMode;
 
 namespace audio_plugin_test {
 constexpr double kSampleRate = 48000.0;
 constexpr double kFreq = 440.0;
 constexpr int kNumSamples = 1024;
 
-inline void PrepareAndRender(WaveGenerator& gen,
+inline void PrepareAndRender(WaveGenerator<false>& gen,
                              juce::AudioSampleBuffer& raw_buf,
-                             const WaveGenerator::WaveType type) {
+                             const WaveType type) {
   gen.PrepareToPlay(kSampleRate);
   gen.set_wave_type(type);
   gen.set_pitch_hz(kFreq);
@@ -22,7 +24,7 @@ inline void PrepareAndRender(WaveGenerator& gen,
   gen.set_dc_blocker_enabled(false);
   // build with BUILD_AA to populate BLEP offsets without consuming them
   // (so no AA filtering is going on)
-  gen.set_mode(WaveGenerator::BUILD_AA);
+  gen.set_mode(audio_plugin::BUILD_AA);
 
   raw_buf.clear();
   // Warm up gain ramp so second call uses constant gain
@@ -33,7 +35,7 @@ inline void PrepareAndRender(WaveGenerator& gen,
 }
 
 struct SawCase {
-  WaveGenerator::WaveType type_;
+  WaveType type_;
   double expected_pos_change_; // +2 or -2
   bool ramp_up_; // true for sawFall ramp segments
   float reset_level_; // +-0.69
@@ -46,7 +48,8 @@ TEST_P(WaveGeneratorSawTest, RendersAndReportsBleps) {
   const auto [type, expected_pos_change, ramp_up, reset_level] = GetParam();
 
   juce::AudioBuffer<float> dummy;
-  WaveGenerator gen(dummy, dummy, dummy, dummy);
+  juce::Array<float> dummy_indices;
+  WaveGenerator<false> gen(dummy, dummy, dummy, dummy, dummy_indices);
   juce::AudioSampleBuffer raw_buf(2, kNumSamples);
   PrepareAndRender(gen, raw_buf, type);
 
@@ -91,16 +94,17 @@ INSTANTIATE_TEST_SUITE_P(
     WaveGenerator,
     WaveGeneratorSawTest,
     ::testing::Values(
-      SawCase{WaveGenerator::sawFall, +2.0, true, -.69f},
-      SawCase{WaveGenerator::sawRise, -2.0, false, +.69f}
+      SawCase{audio_plugin::sawFall, +2.0, true, -.69f},
+      SawCase{audio_plugin::sawRise, -2.0, false, +.69f}
     ));
 
 
 TEST(WaveGeneratorTriangleTest, RendersAndReportsTriangleBleps) {
   juce::AudioBuffer<float> dummy;
-  WaveGenerator gen(dummy, dummy, dummy, dummy);
+  juce::Array<float> dummy_indices;
+  WaveGenerator<false> gen(dummy, dummy, dummy, dummy, dummy_indices);
   juce::AudioSampleBuffer raw_buf(2, kNumSamples);
-  PrepareAndRender(gen, raw_buf, WaveGenerator::triangle);
+  PrepareAndRender(gen, raw_buf, audio_plugin::triangle);
 
   // Validate BLEPs: triangle has first-derivative discontinuities twice per period
   auto* blep_gen = gen.blep_generator();
@@ -155,9 +159,10 @@ TEST(WaveGeneratorTriangleTest, RendersAndReportsTriangleBleps) {
 
 TEST(WaveGeneratorSquareTest, RendersAndReportsSquareBleps) {
   juce::AudioBuffer<float> dummy;
-  WaveGenerator gen(dummy, dummy, dummy, dummy);
+  juce::Array<float> dummy_indices;
+  WaveGenerator<false> gen(dummy, dummy, dummy, dummy, dummy_indices);
   juce::AudioSampleBuffer raw_buf(2, kNumSamples);
-  PrepareAndRender(gen, raw_buf, WaveGenerator::square);
+  PrepareAndRender(gen, raw_buf, audio_plugin::square);
 
   // BLEPs: square has position discontinuities twice per period
   auto* blep_gen = gen.blep_generator();

@@ -1,5 +1,6 @@
 
 #include "BBSynth/TanhADAA.h"
+#include "BBSynth/Utils.h"
 
 #include <algorithm>
 #include <cmath>
@@ -38,7 +39,7 @@ float TanhADAA::process(const float x0) {
     y = (LogCosh(x0) - LogCosh(x1_)) / dx;
   }
 
-  x1_ = x0;
+  x1_ = Sanitize(x0);
   return y;
 }
 
