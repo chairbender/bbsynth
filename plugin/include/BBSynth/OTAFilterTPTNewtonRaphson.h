@@ -48,7 +48,6 @@ class OTAFilterTPTNewtonRaphson {
   float drive_;
   float env_mod_;
   float lfo_mod_;
-  // TODO: not used yet
   int num_stages_;
   std::array<float, 4> input_drive_scales_;
   std::array<float, 4> state_drive_scales_;

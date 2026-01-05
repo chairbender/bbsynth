@@ -5,6 +5,7 @@
 #include <cmath>
 
 #include "BBSynth/Constants.h"
+#include "BBSynth/Utils.h"
 
 namespace audio_plugin {
 OTAFilterTPTNewtonRaphson::OTAFilterTPTNewtonRaphson(
@@ -87,6 +88,7 @@ float OTAFilterTPTNewtonRaphson::EvaluateFilter(
                                 : std::tanh(s1_ / state_drive1) * state_drive1;
   const float y1 = s1_ + G * (v1_sat - s1_sat);
   v1_out = y1;
+  if (num_stages_ == 1) return y1;
 
   const float drive2 = drive_ * input_drive_scales_[1];
   const float state_drive2 = drive_ * state_drive_scales_[1];
@@ -96,6 +98,7 @@ float OTAFilterTPTNewtonRaphson::EvaluateFilter(
                                 : std::tanh(s2_ / state_drive2) * state_drive2;
   const float y2 = s2_ + G * (v2_sat - s2_sat);
   v2_out = y2;
+  if (num_stages_ == 2) return y2;
 
   const float drive3 = drive_ * input_drive_scales_[2];
   const float state_drive3 = drive_ * state_drive_scales_[2];
@@ -105,6 +108,7 @@ float OTAFilterTPTNewtonRaphson::EvaluateFilter(
                                 : std::tanh(s3_ / state_drive3) * state_drive3;
   const float y3 = s3_ + G * (v3_sat - s3_sat);
   v3_out = y3;
+  if (num_stages_ == 3) return y3;
 
   const float drive4 = drive_ * input_drive_scales_[3];
   const float state_drive4 = drive_ * state_drive_scales_[3];
@@ -143,6 +147,7 @@ float OTAFilterTPTNewtonRaphson::ComputeJacobian(const float in,
   const float s1_sat = std::tanh(s1_ / state_drive1) * state_drive1;
   const float y1 = s1_ + G * (v1_sat - s1_sat);
   deriv = G * deriv;
+  if (num_stages_ == 1) return deriv;
 
   const float drive2 = drive_ * input_drive_scales_[1];
   const float t2 = std::tanh(y1 / drive2);
@@ -153,6 +158,7 @@ float OTAFilterTPTNewtonRaphson::ComputeJacobian(const float in,
   const float s2_sat = std::tanh(s2_ / state_drive2) * state_drive2;
   const float y2 = s2_ + G * (v2_sat - s2_sat);
   deriv = G * deriv;
+  if (num_stages_ == 2) return deriv;
 
   const float drive3 = drive_ * input_drive_scales_[2];
   const float t3 = std::tanh(y2 / drive3);
@@ -163,6 +169,7 @@ float OTAFilterTPTNewtonRaphson::ComputeJacobian(const float in,
   const float s3_sat = std::tanh(s3_ / state_drive3) * state_drive3;
   const float y3 = s3_ + G * (v3_sat - s3_sat);
   deriv = G * deriv;
+  if (num_stages_ == 3) return deriv;
 
   const float drive4 = drive_ * input_drive_scales_[3];
   const float t4 = std::tanh(y3 / drive4);
@@ -194,7 +201,14 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in, const int index) 
   // We're solving: out = F(input, out)
   // Or equivalently: out - F(input, out) = 0
 
-  float out_guess = s4_;             // Initial guess: previous output
+  float out_guess = 0;
+  switch (num_stages_) {
+    case 1: out_guess = s1_; break;
+    case 2: out_guess = s2_; break;
+    case 3: out_guess = s3_; break;
+    case 4: out_guess = s4_; break;
+    default: out_guess = s4_; break;
+  }
   constexpr int max_iterations = 4;  // Usually converges in 2-3 iterations
   constexpr float tolerance = 1e-6f;
 
@@ -235,7 +249,7 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in, const int index) 
 
   // Final evaluation with converged output
   const float final_out =
-      EvaluateFilter(in, out_guess, G, k, v1, v2, v3, v4, true);
+      Sanitize(EvaluateFilter(in, out_guess, G, k, v1, v2, v3, v4, true));
 
   // Update states using the converged solution
   // State update: s_new = 2*y - s_old
@@ -245,25 +259,28 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in, const int index) 
   const float state_drive1 = drive_ * state_drive_scales_[0];
   const float v1_sat = std::tanh(u / drive1) * drive1;
   const float s1_sat = std::tanh(s1_ / state_drive1) * state_drive1;
-  s1_ += 2.0f * G * (v1_sat - s1_sat);
+  s1_ = Sanitize(s1_ + 2.0f * G * (v1_sat - s1_sat));
+  if (num_stages_ == 1) return final_out;
 
   const float drive2 = drive_ * input_drive_scales_[1];
   const float state_drive2 = drive_ * state_drive_scales_[1];
   const float v2_sat = std::tanh(v1 / drive2) * drive2;
   const float s2_sat = std::tanh(s2_ / state_drive2) * state_drive2;
-  s2_ += 2.0f * G * (v2_sat - s2_sat);
+  s2_ = Sanitize(s2_ + 2.0f * G * (v2_sat - s2_sat));
+  if (num_stages_ == 2) return final_out;
 
   const float drive3 = drive_ * input_drive_scales_[2];
   const float state_drive3 = drive_ * state_drive_scales_[2];
   const float v3_sat = std::tanh(v2 / drive3) * drive3;
   const float s3_sat = std::tanh(s3_ / state_drive3) * state_drive3;
-  s3_ += 2.0f * G * (v3_sat - s3_sat);
+  s3_ = Sanitize(s3_ + 2.0f * G * (v3_sat - s3_sat));
+  if (num_stages_ == 3) return final_out;
 
   const float drive4 = drive_ * input_drive_scales_[3];
   const float state_drive4 = drive_ * state_drive_scales_[3];
   const float v4_sat = std::tanh(v3 / drive4) * drive4;
   const float s4_sat = std::tanh(s4_ / state_drive4) * state_drive4;
-  s4_ += 2.0f * G * (v4_sat - s4_sat);
+  s4_ = Sanitize(s4_ + 2.0f * G * (v4_sat - s4_sat));
 
   return final_out;
 }

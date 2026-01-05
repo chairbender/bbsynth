@@ -4,6 +4,7 @@
 
 #include "BBSynth/Constants.h"
 #include "BBSynth/OTAFilterDelayedFeedback.h"
+#include "BBSynth/Utils.h"
 
 namespace audio_plugin {
 OTAFilterDelayedFeedback::OTAFilterDelayedFeedback(
@@ -34,7 +35,7 @@ inline void OTAFilterDelayedFeedback::FilterStage(const float in, float& out,
   const auto tanh_in_val = tanh_in.process(in * scale);
   const auto tanh_state_val = tanh_state.process(out * state_scale);
   const float v = tanh_in_val * (1.f / scale);
-  out = kLeak * out + g * (v - tanh_state_val * (1.f / state_scale));
+  out = Sanitize(kLeak * out + g * (v - tanh_state_val * (1.f / state_scale)));
 }
 
 void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
@@ -99,7 +100,7 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
     // (happens at extreme g, res, drive values)
     const auto tanh_final_out_val = tanh_final_out_.process((last_stage_output) * kOutputScale);
     const auto dc_in = tanh_final_out_val;
-    const auto dc_out = dc_in - dc_out_x1_ + 0.99f * dc_out_y1_;
+    const auto dc_out = Sanitize(dc_in - dc_out_x1_ + 0.99f * dc_out_y1_);
     dc_out_x1_ = dc_in;
     dc_out_y1_ = dc_out;
     // it can very slightly clip, but that's within tolerable levels, so
