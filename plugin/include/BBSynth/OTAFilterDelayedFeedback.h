@@ -47,6 +47,8 @@ class OTAFilterDelayedFeedback {
   float env_mod_;
   float lfo_mod_;
   int num_stages_;
+  std::array<float, 4> input_drive_scales_;
+  std::array<float, 4> state_drive_scales_;
 
  private:
   void FilterStage(float in, float& out, TanhADAA& tanh_in,

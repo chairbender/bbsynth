@@ -31,6 +31,14 @@ void OTAFilterTPTNewtonRaphson::Configure(
   drive_ = state.getRawParameterValue("filterDrive")->load();
   env_mod_ = state.getRawParameterValue("filterEnvMod")->load();
   lfo_mod_ = state.getRawParameterValue("filterLfoMod")->load();
+  for (int i = 0; i < 4; ++i) {
+    input_drive_scales_[static_cast<size_t>(i)] =
+        state.getRawParameterValue("filterInputDriveScale" + juce::String(i + 1))
+            ->load();
+    state_drive_scales_[static_cast<size_t>(i)] =
+        state.getRawParameterValue("filterStateDriveScale" + juce::String(i + 1))
+            ->load();
+  }
   switch (static_cast<int>(state.getRawParameterValue("filterSlope")->load())) {
     case 0:
       num_stages_ = 4;
@@ -61,15 +69,6 @@ void OTAFilterTPTNewtonRaphson::Reset() {
   }
 }
 
-float OTAFilterTPTNewtonRaphson::Saturate(const float x) const {
-  return std::tanh(x / drive_) * drive_;
-}
-
-float OTAFilterTPTNewtonRaphson::SaturateDerivative(const float x) const {
-  const float t = std::tanh(x / drive_);
-  return 1.0f - t * t;  // sech^2 = 1 - tanh^2
-}
-
 float OTAFilterTPTNewtonRaphson::EvaluateFilter(
     const float in, const float out_guess, const float G, const float k,
     float& v1_out, float& v2_out, float& v3_out, float& v4_out,
@@ -80,31 +79,39 @@ float OTAFilterTPTNewtonRaphson::EvaluateFilter(
   // Each stage: y = s + G * (sat(x) - sat(s))
   // where x is the input to the stage
 
-  const float v1_sat = use_adaa ? tanh_stages_[0].process(u / drive_) * drive_
-                                : Saturate(u);
-  const float s1_sat = use_adaa ? state_tanh_stages_[0].process(s1_ / drive_) * drive_
-                                : Saturate(s1_);
+  const float drive1 = drive_ * input_drive_scales_[0];
+  const float state_drive1 = drive_ * state_drive_scales_[0];
+  const float v1_sat = use_adaa ? tanh_stages_[0].process(u / drive1) * drive1
+                                : std::tanh(u / drive1) * drive1;
+  const float s1_sat = use_adaa ? state_tanh_stages_[0].process(s1_ / state_drive1) * state_drive1
+                                : std::tanh(s1_ / state_drive1) * state_drive1;
   const float y1 = s1_ + G * (v1_sat - s1_sat);
   v1_out = y1;
 
-  const float v2_sat = use_adaa ? tanh_stages_[1].process(y1 / drive_) * drive_
-                                : Saturate(y1);
-  const float s2_sat = use_adaa ? state_tanh_stages_[1].process(s2_ / drive_) * drive_
-                                : Saturate(s2_);
+  const float drive2 = drive_ * input_drive_scales_[1];
+  const float state_drive2 = drive_ * state_drive_scales_[1];
+  const float v2_sat = use_adaa ? tanh_stages_[1].process(y1 / drive2) * drive2
+                                : std::tanh(y1 / drive2) * drive2;
+  const float s2_sat = use_adaa ? state_tanh_stages_[1].process(s2_ / state_drive2) * state_drive2
+                                : std::tanh(s2_ / state_drive2) * state_drive2;
   const float y2 = s2_ + G * (v2_sat - s2_sat);
   v2_out = y2;
 
-  const float v3_sat = use_adaa ? tanh_stages_[2].process(y2 / drive_) * drive_
-                                : Saturate(y2);
-  const float s3_sat = use_adaa ? state_tanh_stages_[2].process(s3_ / drive_) * drive_
-                                : Saturate(s3_);
+  const float drive3 = drive_ * input_drive_scales_[2];
+  const float state_drive3 = drive_ * state_drive_scales_[2];
+  const float v3_sat = use_adaa ? tanh_stages_[2].process(y2 / drive3) * drive3
+                                : std::tanh(y2 / drive3) * drive3;
+  const float s3_sat = use_adaa ? state_tanh_stages_[2].process(s3_ / state_drive3) * state_drive3
+                                : std::tanh(s3_ / state_drive3) * state_drive3;
   const float y3 = s3_ + G * (v3_sat - s3_sat);
   v3_out = y3;
 
-  const float v4_sat = use_adaa ? tanh_stages_[3].process(y3 / drive_) * drive_
-                                : Saturate(y3);
-  const float s4_sat = use_adaa ? state_tanh_stages_[3].process(s4_ / drive_) * drive_
-                                : Saturate(s4_);
+  const float drive4 = drive_ * input_drive_scales_[3];
+  const float state_drive4 = drive_ * state_drive_scales_[3];
+  const float v4_sat = use_adaa ? tanh_stages_[3].process(y3 / drive4) * drive4
+                                : std::tanh(y3 / drive4) * drive4;
+  const float s4_sat = use_adaa ? state_tanh_stages_[3].process(s4_ / state_drive4) * state_drive4
+                                : std::tanh(s4_ / state_drive4) * state_drive4;
   const float y4 = s4_ + G * (v4_sat - s4_sat);
   v4_out = y4;
 
@@ -127,28 +134,39 @@ float OTAFilterTPTNewtonRaphson::ComputeJacobian(const float in,
 
   const float u = in - k * out_guess;
 
-  const float d_sat1 = SaturateDerivative(u);
+  const float drive1 = drive_ * input_drive_scales_[0];
+  const float t1 = std::tanh(u / drive1);
+  const float d_sat1 = 1.0f - t1 * t1;
   deriv = deriv * d_sat1;
-  const float v1_sat = Saturate(u);
-  const float s1_sat = Saturate(s1_);
+  const float v1_sat = t1 * drive1;
+  const float state_drive1 = drive_ * state_drive_scales_[0];
+  const float s1_sat = std::tanh(s1_ / state_drive1) * state_drive1;
   const float y1 = s1_ + G * (v1_sat - s1_sat);
   deriv = G * deriv;
 
-  const float d_sat2 = SaturateDerivative(y1);
+  const float drive2 = drive_ * input_drive_scales_[1];
+  const float t2 = std::tanh(y1 / drive2);
+  const float d_sat2 = 1.0f - t2 * t2;
   deriv = deriv * d_sat2;
-  const float v2_sat = Saturate(y1);
-  const float s2_sat = Saturate(s2_);
+  const float v2_sat = t2 * drive2;
+  const float state_drive2 = drive_ * state_drive_scales_[1];
+  const float s2_sat = std::tanh(s2_ / state_drive2) * state_drive2;
   const float y2 = s2_ + G * (v2_sat - s2_sat);
   deriv = G * deriv;
 
-  const float d_sat3 = SaturateDerivative(y2);
+  const float drive3 = drive_ * input_drive_scales_[2];
+  const float t3 = std::tanh(y2 / drive3);
+  const float d_sat3 = 1.0f - t3 * t3;
   deriv = deriv * d_sat3;
-  const float v3_sat = Saturate(y2);
-  const float s3_sat = Saturate(s3_);
+  const float v3_sat = t3 * drive3;
+  const float state_drive3 = drive_ * state_drive_scales_[2];
+  const float s3_sat = std::tanh(s3_ / state_drive3) * state_drive3;
   const float y3 = s3_ + G * (v3_sat - s3_sat);
   deriv = G * deriv;
 
-  const float d_sat4 = SaturateDerivative(y3);
+  const float drive4 = drive_ * input_drive_scales_[3];
+  const float t4 = std::tanh(y3 / drive4);
+  const float d_sat4 = 1.0f - t4 * t4;
   deriv = deriv * d_sat4;
   deriv = G * deriv;
 
@@ -223,20 +241,28 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in, const int index) 
   // State update: s_new = 2*y - s_old
   // In TPT with sat: s_new = s_old + 2 * G * (sat(x) - sat(s_old))
   const float u = in - k * final_out;
-  const float v1_sat = Saturate(u);
-  const float s1_sat = Saturate(s1_);
+  const float drive1 = drive_ * input_drive_scales_[0];
+  const float state_drive1 = drive_ * state_drive_scales_[0];
+  const float v1_sat = std::tanh(u / drive1) * drive1;
+  const float s1_sat = std::tanh(s1_ / state_drive1) * state_drive1;
   s1_ += 2.0f * G * (v1_sat - s1_sat);
 
-  const float v2_sat = Saturate(v1);
-  const float s2_sat = Saturate(s2_);
+  const float drive2 = drive_ * input_drive_scales_[1];
+  const float state_drive2 = drive_ * state_drive_scales_[1];
+  const float v2_sat = std::tanh(v1 / drive2) * drive2;
+  const float s2_sat = std::tanh(s2_ / state_drive2) * state_drive2;
   s2_ += 2.0f * G * (v2_sat - s2_sat);
 
-  const float v3_sat = Saturate(v2);
-  const float s3_sat = Saturate(s3_);
+  const float drive3 = drive_ * input_drive_scales_[2];
+  const float state_drive3 = drive_ * state_drive_scales_[2];
+  const float v3_sat = std::tanh(v2 / drive3) * drive3;
+  const float s3_sat = std::tanh(s3_ / state_drive3) * state_drive3;
   s3_ += 2.0f * G * (v3_sat - s3_sat);
 
-  const float v4_sat = Saturate(v3);
-  const float s4_sat = Saturate(s4_);
+  const float drive4 = drive_ * input_drive_scales_[3];
+  const float state_drive4 = drive_ * state_drive_scales_[3];
+  const float v4_sat = std::tanh(v3 / drive4) * drive4;
+  const float s4_sat = std::tanh(s4_ / state_drive4) * state_drive4;
   s4_ += 2.0f * G * (v4_sat - s4_sat);
 
   return final_out;

@@ -150,6 +150,18 @@ private:
   juce::ComboBox filter_type_combo_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> filter_type_attachment_;
 
+  // VCF Drive Scaling section
+  juce::Label vcf_drive_scaling_label_;
+  std::array<juce::Slider, 4> filter_input_drive_scale_sliders_;
+  std::array<juce::Slider, 4> filter_state_drive_scale_sliders_;
+  std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, 4> filter_input_drive_scale_attachments_;
+  std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, 4> filter_state_drive_scale_attachments_;
+  
+  // Headers for the drive scaling table
+  std::array<juce::Label, 4> filter_stage_header_labels_;
+  juce::Label filter_input_row_label_;
+  juce::Label filter_state_row_label_;
+
   // VCA section
   juce::Label vca_label_;
   juce::Slider vca_level_slider_;

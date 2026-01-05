@@ -120,10 +120,48 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
       });
   filter_env_source_attachment_->sendInitialUpdate();
 
-  setSize(1600, 600);
-  // TODO: this doesn't seem to do what I want (center the window on the actual screen)
-  //  but it at least prevents it getting cut off
-  centreWithSize(1600, 600);
+  // VCF Drive Scaling section
+  vcf_drive_scaling_label_.setText("VCF Drive Scaling", juce::dontSendNotification);
+  vcf_drive_scaling_label_.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+  vcf_drive_scaling_label_.setJustificationType(juce::Justification::centred);
+  addAndMakeVisible(vcf_drive_scaling_label_);
+
+  for (int i = 0; i < 4; ++i) {
+    auto& inSlider = filter_input_drive_scale_sliders_[static_cast<size_t>(i)];
+    inSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    inSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+    addAndMakeVisible(inSlider);
+    filter_input_drive_scale_attachments_[static_cast<size_t>(i)] =
+        std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            processorRef.apvts_, "filterInputDriveScale" + juce::String(i + 1),
+            inSlider);
+
+    auto& stateSlider = filter_state_drive_scale_sliders_[static_cast<size_t>(i)];
+    stateSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    stateSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+    addAndMakeVisible(stateSlider);
+    filter_state_drive_scale_attachments_[static_cast<size_t>(i)] =
+        std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            processorRef.apvts_, "filterStateDriveScale" + juce::String(i + 1),
+            stateSlider);
+
+    auto& stageLabel = filter_stage_header_labels_[static_cast<size_t>(i)];
+    stageLabel.setText(juce::String(i + 1), juce::dontSendNotification);
+    stageLabel.setJustificationType(juce::Justification::centred);
+    stageLabel.setFont(juce::FontOptions(14.0f, juce::Font::bold));
+    addAndMakeVisible(stageLabel);
+  }
+
+  filter_input_row_label_.setText("Input", juce::dontSendNotification);
+  filter_input_row_label_.setJustificationType(juce::Justification::centredRight);
+  addAndMakeVisible(filter_input_row_label_);
+
+  filter_state_row_label_.setText("State", juce::dontSendNotification);
+  filter_state_row_label_.setJustificationType(juce::Justification::centredRight);
+  addAndMakeVisible(filter_state_row_label_);
+
+  setSize(1600, 1200);
+ centreWithSize(1600, 1200);
 }
 
 void AudioPluginAudioProcessorEditor::GetNextAudioBlock(
@@ -148,8 +186,11 @@ void AudioPluginAudioProcessorEditor::parameterChanged(
 juce::Grid AudioPluginAudioProcessorEditor::MakeMainGrid() {
   juce::Grid grid;
   grid.columnGap = juce::Grid::Px(4);
+  grid.rowGap = juce::Grid::Px(4);
   grid.alignContent = juce::Grid::AlignContent::center;
   grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                       juce::Grid::TrackInfo(juce::Grid::Fr(7)),
+                       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                        juce::Grid::TrackInfo(juce::Grid::Fr(7))};
   grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(3)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(4)),
@@ -166,12 +207,15 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 
 
   // Layout for backgrounds
-  const auto area = getLocalBounds()  ;
+  auto area = getLocalBounds();
+  // Match the area used in resized()
+  area.removeFromBottom(100); // keyboard
+  area.removeFromBottom(100); // spectrum analyzer
 
   auto grid = MakeMainGrid();
 
   // We only need the items for layout calculation
-  for (auto i = 0; i < 16; ++i)
+  for (auto i = 0; i < 32; ++i)
     grid.items.add(juce::GridItem());
 
   grid.performLayout(area);
@@ -182,10 +226,33 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 
   const auto outlineColor = backgroundColor.brighter(0.2f);
 
+  // Paint Row 1 (Top Sections)
   for (auto i = 0; i < 8; ++i) {
-    const auto sectionBounds = grid.items[i].currentBounds;
-    // The section covers both the label (row 0) and the controls (row 1)
-    const auto fullSectionBounds = sectionBounds.withHeight(grid.items[i + 8].currentBounds.getBottom() - sectionBounds.getY());
+    const auto labelBounds = grid.items[i].currentBounds;
+    const auto controlBounds = grid.items[i + 8].currentBounds;
+    // Row 1 sections should only span Row 0 (labels) and Row 1 (controls)
+    const auto fullSectionBounds = labelBounds.withHeight(controlBounds.getBottom() - labelBounds.getY());
+
+    g.setColour(i % 2 == 0 ? colorA : colorB);
+    g.fillRect(fullSectionBounds);
+
+    g.setColour(outlineColor);
+    g.drawRect(fullSectionBounds, 2.0f);
+  }
+
+  // Paint Row 2 (Bottom Sections)
+  // Only VCF Drive Scaling at column 4 (index 20)
+  {
+    const auto i = 4;
+    const auto labelIndex = 16 + i;
+    const auto controlIndex = 24 + i;
+    const auto labelBounds = grid.items[labelIndex].currentBounds;
+    const auto controlBounds = grid.items[controlIndex].currentBounds;
+    // Section header is at labelBounds (Row 2). 
+    // The table is at controlBounds (Row 3).
+    // The previous implementation might have had labelBounds spanning too much or overlapping.
+    // Let's ensure it starts at labelBounds and ends at controlBounds.
+    const auto fullSectionBounds = labelBounds.withHeight(controlBounds.getBottom() - labelBounds.getY());
 
     g.setColour(i % 2 == 0 ? colorA : colorB);
     g.fillRect(fullSectionBounds);
@@ -613,15 +680,74 @@ void AudioPluginAudioProcessorEditor::resized() {
                 juce::GridItem{},
                 juce::GridItem{},
                 juce::GridItem{},
+                juce::GridItem{},
+                // Row 2
+                juce::GridItem{},
+                juce::GridItem{},
+                juce::GridItem{},
+                juce::GridItem{},
+                juce::GridItem(vcf_drive_scaling_label_),
+                juce::GridItem{},
+                juce::GridItem{},
+                juce::GridItem{},
+                // Row 3
+                juce::GridItem{},
+                juce::GridItem{},
+                juce::GridItem{},
+                juce::GridItem{},
+                juce::GridItem{},
+                juce::GridItem{},
+                juce::GridItem{},
                 juce::GridItem{}};
 
 
   grid.performLayout(topRow);
 
-  // Apply margin to labels in the top row
-  for (int i = 0; i < 8; ++i) {
-    auto b = grid.items[i].currentBounds.reduced(4);
-    grid.items[i].associatedComponent->setBounds(b.toNearestInt());
+  // Apply margin to labels in the top row and second label row
+  for (int i : {0, 1, 2, 3, 4, 5, 6, 7, 20}) {
+    if (grid.items[i].associatedComponent) {
+      auto b = grid.items[i].currentBounds.reduced(4);
+      grid.items[i].associatedComponent->setBounds(b.toNearestInt());
+    }
+  }
+
+  // VCF Drive Scaling section
+  {
+    const auto section_bounds = grid.items[28].currentBounds.reduced(4);
+    juce::Grid section_grid;
+    section_grid.alignContent = juce::Grid::AlignContent::center;
+    // 5 columns: 1 for row labels, 4 for stages
+    section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                                    juce::Grid::TrackInfo(juce::Grid::Fr(2))};
+    // 3 rows: 1 for headers, 1 for input, 1 for state
+    section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                 juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                                 juce::Grid::TrackInfo(juce::Grid::Fr(4))};
+    section_grid.items = {
+        // Row 0
+        juce::GridItem{},
+        juce::GridItem{filter_stage_header_labels_[0]},
+        juce::GridItem{filter_stage_header_labels_[1]},
+        juce::GridItem{filter_stage_header_labels_[2]},
+        juce::GridItem{filter_stage_header_labels_[3]},
+        // Row 1
+        juce::GridItem{filter_input_row_label_},
+        juce::GridItem{filter_input_drive_scale_sliders_[0]},
+        juce::GridItem{filter_input_drive_scale_sliders_[1]},
+        juce::GridItem{filter_input_drive_scale_sliders_[2]},
+        juce::GridItem{filter_input_drive_scale_sliders_[3]},
+        // Row 2
+        juce::GridItem{filter_state_row_label_},
+        juce::GridItem{filter_state_drive_scale_sliders_[0]},
+        juce::GridItem{filter_state_drive_scale_sliders_[1]},
+        juce::GridItem{filter_state_drive_scale_sliders_[2]},
+        juce::GridItem{filter_state_drive_scale_sliders_[3]}
+    };
+
+    section_grid.performLayout(section_bounds.toNearestInt());
   }
 
   {
@@ -636,7 +762,7 @@ void AudioPluginAudioProcessorEditor::resized() {
     vco2_sync_button_.setBounds(label_bounds);
   }
 
-  auto item_idx = grid.items.size() / 2;
+  auto item_idx = 8;
 
   // LFO section
   {

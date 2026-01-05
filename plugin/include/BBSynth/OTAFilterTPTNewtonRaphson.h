@@ -50,14 +50,12 @@ class OTAFilterTPTNewtonRaphson {
   float lfo_mod_;
   // TODO: not used yet
   int num_stages_;
+  std::array<float, 4> input_drive_scales_;
+  std::array<float, 4> state_drive_scales_;
 
  private:
   float ProcessSample(float in, int index);
 
-  //Saturation function
-  float Saturate(float x) const;
-  // Derivative of saturation function for newton raphson
-  float SaturateDerivative(float x) const;
   // Evaluate filter for a given output guess.
   // Returns what the output would be if the actual output were 'out_guess'
   float EvaluateFilter(float in, float out_guess, float G, float k,
