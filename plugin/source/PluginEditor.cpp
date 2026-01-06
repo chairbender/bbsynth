@@ -26,11 +26,13 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
   wave_type_attachment_ = std::make_unique<juce::ParameterAttachment>(
       *processorRef.apvts_.getParameter("waveType"), [this](const float f) {
         const size_t index = static_cast<size_t>(f);
-        wave_type_buttons_[index]->setToggleState(true, juce::dontSendNotification);
+        wave_type_buttons_[index]->setToggleState(true,
+                                                  juce::dontSendNotification);
       });
   wave_type_attachment_->sendInitialUpdate();
 
-  const juce::StringArray lfoWaveTypeOptions = {"SIN", "SAW", "TRI", "SQR", "RND"};
+  const juce::StringArray lfoWaveTypeOptions = {"SIN", "SAW", "TRI", "SQR",
+                                                "RND"};
   for (int i = 0; i < lfoWaveTypeOptions.size(); ++i) {
     auto btn = std::make_unique<juce::ToggleButton>(lfoWaveTypeOptions[i]);
     btn->setRadioGroupId(1002);
@@ -44,11 +46,13 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
   lfo_wave_type_attachment_ = std::make_unique<juce::ParameterAttachment>(
       *processorRef.apvts_.getParameter("lfoWaveType"), [this](const float f) {
         const size_t index = static_cast<size_t>(f);
-        lfo_wave_type_buttons_[index]->setToggleState(true, juce::dontSendNotification);
+        lfo_wave_type_buttons_[index]->setToggleState(
+            true, juce::dontSendNotification);
       });
   lfo_wave_type_attachment_->sendInitialUpdate();
 
-  const juce::StringArray wave2TypeOptions = {"SIN", "SAW", "TRI", "SQR", "RND"};
+  const juce::StringArray wave2TypeOptions = {"SIN", "SAW", "TRI", "SQR",
+                                              "RND"};
   for (int i = 0; i < wave2TypeOptions.size(); ++i) {
     auto btn = std::make_unique<juce::ToggleButton>(wave2TypeOptions[i]);
     btn->setRadioGroupId(1003);
@@ -62,11 +66,13 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
   wave2_type_attachment_ = std::make_unique<juce::ParameterAttachment>(
       *processorRef.apvts_.getParameter("wave2Type"), [this](const float f) {
         const size_t index = static_cast<size_t>(f);
-        wave2_type_buttons_[index]->setToggleState(true, juce::dontSendNotification);
+        wave2_type_buttons_[index]->setToggleState(true,
+                                                   juce::dontSendNotification);
       });
   wave2_type_attachment_->sendInitialUpdate();
 
-  const juce::StringArray pwSourceOptions = {"E2-", "E2+", "E1-", "E1+", "LFO", "MAN"};
+  const juce::StringArray pwSourceOptions = {"E2-", "E2+", "E1-",
+                                             "E1+", "LFO", "MAN"};
   for (int i = 0; i < pwSourceOptions.size(); ++i) {
     auto btn = std::make_unique<juce::ToggleButton>(pwSourceOptions[i]);
     btn->setRadioGroupId(1004);
@@ -78,9 +84,11 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
     pulse_width_source_buttons_.emplace_back(std::move(btn));
   }
   pulse_width_source_attachment_ = std::make_unique<juce::ParameterAttachment>(
-      *processorRef.apvts_.getParameter("pulseWidthSource"), [this](const float f) {
+      *processorRef.apvts_.getParameter("pulseWidthSource"),
+      [this](const float f) {
         const size_t index = static_cast<size_t>(f);
-        pulse_width_source_buttons_[index]->setToggleState(true, juce::dontSendNotification);
+        pulse_width_source_buttons_[index]->setToggleState(
+            true, juce::dontSendNotification);
       });
   pulse_width_source_attachment_->sendInitialUpdate();
 
@@ -98,7 +106,8 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
   filter_slope_attachment_ = std::make_unique<juce::ParameterAttachment>(
       *processorRef.apvts_.getParameter("filterSlope"), [this](const float f) {
         const size_t index = static_cast<size_t>(f);
-        filter_slope_buttons_[index]->setToggleState(true, juce::dontSendNotification);
+        filter_slope_buttons_[index]->setToggleState(
+            true, juce::dontSendNotification);
       });
   filter_slope_attachment_->sendInitialUpdate();
 
@@ -114,14 +123,17 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
     filter_env_source_buttons_.emplace_back(std::move(btn));
   }
   filter_env_source_attachment_ = std::make_unique<juce::ParameterAttachment>(
-      *processorRef.apvts_.getParameter("filterEnvSource"), [this](const float f) {
+      *processorRef.apvts_.getParameter("filterEnvSource"),
+      [this](const float f) {
         const size_t index = static_cast<size_t>(f);
-        filter_env_source_buttons_[index]->setToggleState(true, juce::dontSendNotification);
+        filter_env_source_buttons_[index]->setToggleState(
+            true, juce::dontSendNotification);
       });
   filter_env_source_attachment_->sendInitialUpdate();
 
   // VCF Drive Scaling section
-  vcf_drive_scaling_label_.setText("VCF Drive Scaling", juce::dontSendNotification);
+  vcf_drive_scaling_label_.setText("VCF Drive Scaling",
+                                   juce::dontSendNotification);
   vcf_drive_scaling_label_.setFont(juce::FontOptions(15.0f, juce::Font::bold));
   vcf_drive_scaling_label_.setJustificationType(juce::Justification::centred);
   addAndMakeVisible(vcf_drive_scaling_label_);
@@ -136,7 +148,8 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
             processorRef.apvts_, "filterInputDriveScale" + juce::String(i + 1),
             inSlider);
 
-    auto& stateSlider = filter_state_drive_scale_sliders_[static_cast<size_t>(i)];
+    auto& stateSlider =
+        filter_state_drive_scale_sliders_[static_cast<size_t>(i)];
     stateSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     stateSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
     addAndMakeVisible(stateSlider);
@@ -153,15 +166,17 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
   }
 
   filter_input_row_label_.setText("Input", juce::dontSendNotification);
-  filter_input_row_label_.setJustificationType(juce::Justification::centredRight);
+  filter_input_row_label_.setJustificationType(
+      juce::Justification::centredRight);
   addAndMakeVisible(filter_input_row_label_);
 
   filter_state_row_label_.setText("State", juce::dontSendNotification);
-  filter_state_row_label_.setJustificationType(juce::Justification::centredRight);
+  filter_state_row_label_.setJustificationType(
+      juce::Justification::centredRight);
   addAndMakeVisible(filter_state_row_label_);
 
-  setSize(1600, 1200);
- centreWithSize(1600, 1200);
+  setSize(1600, 900);
+  centreWithSize(1600, 900);
 }
 
 void AudioPluginAudioProcessorEditor::GetNextAudioBlock(
@@ -203,35 +218,35 @@ juce::Grid AudioPluginAudioProcessorEditor::MakeMainGrid() {
   return grid;
 }
 
-void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
-
-
+void AudioPluginAudioProcessorEditor::PaintBackground(juce::Graphics& g) const {
   // Layout for backgrounds
   auto area = getLocalBounds();
   // Match the area used in resized()
-  area.removeFromBottom(100); // keyboard
-  area.removeFromBottom(100); // spectrum analyzer
+  area.removeFromBottom(100);  // keyboard
+  area.removeFromBottom(100);  // spectrum analyzer
 
   auto grid = MakeMainGrid();
 
   // We only need the items for layout calculation
-  for (auto i = 0; i < 32; ++i)
-    grid.items.add(juce::GridItem());
+  for (auto i = 0; i < 32; ++i) grid.items.add(juce::GridItem());
 
   grid.performLayout(area);
 
-  const auto backgroundColor = getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId);
+  const auto backgroundColor =
+      getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId);
   const auto colorA = backgroundColor.brighter(0.05f);
   const auto colorB = backgroundColor.darker(0.05f);
 
   const auto outlineColor = backgroundColor.brighter(0.2f);
 
+  constexpr auto kNumSections = 8;
   // Paint Row 1 (Top Sections)
-  for (auto i = 0; i < 8; ++i) {
+  for (auto i = 0; i < kNumSections; ++i) {
     const auto labelBounds = grid.items[i].currentBounds;
-    const auto controlBounds = grid.items[i + 8].currentBounds;
+    const auto controlBounds = grid.items[i + kNumSections].currentBounds;
     // Row 1 sections should only span Row 0 (labels) and Row 1 (controls)
-    const auto fullSectionBounds = labelBounds.withHeight(controlBounds.getBottom() - labelBounds.getY());
+    const auto fullSectionBounds =
+        labelBounds.withHeight(controlBounds.getBottom() - labelBounds.getY());
 
     g.setColour(i % 2 == 0 ? colorA : colorB);
     g.fillRect(fullSectionBounds);
@@ -243,28 +258,22 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   // Paint Row 2 (Bottom Sections)
   // Only VCF Drive Scaling at column 4 (index 20)
   {
-    const auto i = 4;
-    const auto labelIndex = 16 + i;
-    const auto controlIndex = 24 + i;
+    constexpr auto kSectionIndex = 4;
+    constexpr auto labelIndex = 16 + kSectionIndex;
+    constexpr auto controlIndex = 24 + kSectionIndex;
     const auto labelBounds = grid.items[labelIndex].currentBounds;
     const auto controlBounds = grid.items[controlIndex].currentBounds;
-    // Section header is at labelBounds (Row 2). 
-    // The table is at controlBounds (Row 3).
-    // The previous implementation might have had labelBounds spanning too much or overlapping.
-    // Let's ensure it starts at labelBounds and ends at controlBounds.
-    const auto fullSectionBounds = labelBounds.withHeight(controlBounds.getBottom() - labelBounds.getY());
+    const auto fullSectionBounds =
+        labelBounds.withHeight(controlBounds.getBottom() - labelBounds.getY());
 
-    g.setColour(i % 2 == 0 ? colorA : colorB);
+    g.setColour(kSectionIndex % 2 == 0 ? colorA : colorB);
     g.fillRect(fullSectionBounds);
 
     g.setColour(outlineColor);
     g.drawRect(fullSectionBounds, 2.0f);
   }
-
-  g.setColour(juce::Colours::white);
-  g.setFont(15.0f);
-
-  // LFO section
+}
+void AudioPluginAudioProcessorEditor::PaintLFOSection() {
   lfo_label_.setText("LFO", juce::dontSendNotification);
   addAndMakeVisible(lfo_label_);
 
@@ -306,8 +315,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   }
 
   processorRef.apvts_.addParameterListener("lfoWaveType", this);
-
-  // VCO Modulator sectiong
+}
+void AudioPluginAudioProcessorEditor::PaintVCOModSection() {
   vco_mod_label_.setText("VCO Modulator", juce::dontSendNotification);
   addAndMakeVisible(vco_mod_label_);
 
@@ -333,7 +342,6 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "vcoModEnv1Freq", vco_mod_env1_freq_slider_);
 
-  // VCO pickers
   vco_mod_osc1_button_.setButtonText("VCO 1");
   vco_mod_osc1_button_.setClickingTogglesState(true);
   addAndMakeVisible(vco_mod_osc1_button_);
@@ -364,8 +372,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
     addAndMakeVisible(*btn);
   }
   processorRef.apvts_.addParameterListener("pulseWidthSource", this);
-
-  // vco1 section
+}
+void AudioPluginAudioProcessorEditor::PaintVCO1Section() {
   vco1_label_.setText("VCO 1", juce::dontSendNotification);
   addAndMakeVisible(vco1_label_);
 
@@ -389,8 +397,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
           processorRef.apvts_, "vco1Level", vco1_level_slider_);
   vco1_level_label_.setText("Level", juce::dontSendNotification);
   addAndMakeVisible(vco1_level_label_);
-
-  // vco2 section
+}
+void AudioPluginAudioProcessorEditor::PaintVCO2Section() {
   vco2_label_.setText("VCO 2", juce::dontSendNotification);
   addAndMakeVisible(vco2_label_);
 
@@ -439,14 +447,13 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   vco2_sync_attachment_ =
       std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
           processorRef.apvts_, "vco2Sync", vco2_sync_button_);
-
-  // vcf section
+}
+void AudioPluginAudioProcessorEditor::PaintVCFSection() {
   vcf_label_.setText("VCF", juce::dontSendNotification);
   addAndMakeVisible(vcf_label_);
 
   filter_hpf_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
-  filter_hpf_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
-                                        20);
+  filter_hpf_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
   addAndMakeVisible(filter_hpf_slider_);
   filter_hpf_attachment_ =
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
@@ -474,8 +481,7 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processorRef.apvts_, "filterResonance", filter_resonance_slider_);
 
-  filter_resonance_label_.setText("Resonance",
-                                  juce::dontSendNotification);
+  filter_resonance_label_.setText("Resonance", juce::dontSendNotification);
   addAndMakeVisible(filter_resonance_label_);
 
   filter_drive_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -525,13 +531,14 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   addAndMakeVisible(filter_env_source_label_);
 
   filter_type_combo_.clear(juce::dontSendNotification);
-  filter_type_combo_.addItemList({"Delayed Feedback", "TPT Newton-Raphson", "Disabled"}, 1);
+  filter_type_combo_.addItemList(
+      {"Delayed Feedback", "TPT Newton-Raphson", "Disabled"}, 1);
   addAndMakeVisible(filter_type_combo_);
   filter_type_attachment_ =
       std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
           processorRef.apvts_, "vcfFilterType", filter_type_combo_);
-
-  // VCA section
+}
+void AudioPluginAudioProcessorEditor::PaintVCASection() {
   vca_label_.setText("VCA", juce::dontSendNotification);
   addAndMakeVisible(vca_label_);
 
@@ -545,7 +552,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   addAndMakeVisible(vca_level_label_);
 
   vca_lfo_mod_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
-  vca_lfo_mod_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
+  vca_lfo_mod_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80,
+                                      20);
   addAndMakeVisible(vca_lfo_mod_slider_);
   vca_lfo_mod_attachment_ =
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
@@ -561,8 +569,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
           processorRef.apvts_, "vcaTone", vca_tone_slider_);
   vca_tone_label_.setText("Tone", juce::dontSendNotification);
   addAndMakeVisible(vca_tone_label_);
-
-  // env1 section
+}
+void AudioPluginAudioProcessorEditor::PaintEnv1Section() {
   env1_label_.setText("ENV1", juce::dontSendNotification);
   addAndMakeVisible(env1_label_);
   env1_attack_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -603,8 +611,8 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
           processorRef.apvts_, "adsrRelease", env1_release_slider_);
   env1_release_label_.setText("R", juce::dontSendNotification);
   addAndMakeVisible(env1_release_label_);
-
-  // env2 section
+}
+void AudioPluginAudioProcessorEditor::PaintEnv2Section() {
   env2_label_.setText("ENV2", juce::dontSendNotification);
   addAndMakeVisible(env2_label_);
   env2_attack_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -645,14 +653,27 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
           processorRef.apvts_, "env2Release", env2_release_slider_);
   env2_release_label_.setText("R", juce::dontSendNotification);
   addAndMakeVisible(env2_release_label_);
+}
+void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
+  PaintBackground(g);
+
+  g.setColour(juce::Colours::white);
+  g.setFont(15.0f);
+
+  PaintLFOSection();
+  PaintVCOModSection();
+  PaintVCO1Section();
+  PaintVCO2Section();
+  PaintVCFSection();
+  PaintVCASection();
+  PaintEnv1Section();
+  PaintEnv2Section();
 
   addAndMakeVisible(spectrum_analyzer_);
-
   addAndMakeVisible(keyboardComponent);
 }
 
 void AudioPluginAudioProcessorEditor::resized() {
-
   // Layout
   auto area = getLocalBounds();
 
@@ -665,41 +686,20 @@ void AudioPluginAudioProcessorEditor::resized() {
 
   auto grid = MakeMainGrid();
 
-  grid.items = {juce::GridItem(lfo_label_),
-                juce::GridItem(vco_mod_label_),
-                juce::GridItem(vco1_label_),
-                juce::GridItem(vco2_label_),
-                juce::GridItem(vcf_label_),
-                juce::GridItem(vca_label_),
-                juce::GridItem(env1_label_),
-                juce::GridItem(env2_label_),
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{},
-                // Row 2
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem(vcf_drive_scaling_label_),
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{},
-                // Row 3
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{},
-                juce::GridItem{}};
-
+  grid.items = {
+      juce::GridItem(lfo_label_), juce::GridItem(vco_mod_label_),
+      juce::GridItem(vco1_label_), juce::GridItem(vco2_label_),
+      juce::GridItem(vcf_label_), juce::GridItem(vca_label_),
+      juce::GridItem(env1_label_), juce::GridItem(env2_label_),
+      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
+      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
+      // Row 2
+      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
+      juce::GridItem(vcf_drive_scaling_label_), juce::GridItem{},
+      juce::GridItem{}, juce::GridItem{},
+      // Row 3
+      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
+      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{}};
 
   grid.performLayout(topRow);
 
@@ -728,8 +728,7 @@ void AudioPluginAudioProcessorEditor::resized() {
                                  juce::Grid::TrackInfo(juce::Grid::Fr(4))};
     section_grid.items = {
         // Row 0
-        juce::GridItem{},
-        juce::GridItem{filter_stage_header_labels_[0]},
+        juce::GridItem{}, juce::GridItem{filter_stage_header_labels_[0]},
         juce::GridItem{filter_stage_header_labels_[1]},
         juce::GridItem{filter_stage_header_labels_[2]},
         juce::GridItem{filter_stage_header_labels_[3]},
@@ -744,21 +743,22 @@ void AudioPluginAudioProcessorEditor::resized() {
         juce::GridItem{filter_state_drive_scale_sliders_[0]},
         juce::GridItem{filter_state_drive_scale_sliders_[1]},
         juce::GridItem{filter_state_drive_scale_sliders_[2]},
-        juce::GridItem{filter_state_drive_scale_sliders_[3]}
-    };
+        juce::GridItem{filter_state_drive_scale_sliders_[3]}};
 
     section_grid.performLayout(section_bounds.toNearestInt());
   }
 
   {
     auto label_bounds = vcf_label_.getBounds().reduced(4, 0);
-    vcf_label_.setBounds(label_bounds.removeFromLeft(label_bounds.getWidth() / 3));
+    vcf_label_.setBounds(
+        label_bounds.removeFromLeft(label_bounds.getWidth() / 3));
     filter_type_combo_.setBounds(label_bounds);
   }
 
   {
     auto label_bounds = vco2_label_.getBounds().reduced(4, 0);
-    vco2_label_.setBounds(label_bounds.removeFromLeft(label_bounds.getWidth() / 2));
+    vco2_label_.setBounds(
+        label_bounds.removeFromLeft(label_bounds.getWidth() / 2));
     vco2_sync_button_.setBounds(label_bounds);
   }
 
@@ -826,7 +826,9 @@ void AudioPluginAudioProcessorEditor::resized() {
     vco_mod_osc2_button_.setBounds(button_area.toNearestInt());
 
     auto radio_area = section_grid.items[4].currentBounds.toNearestInt();
-    const auto button_height = radio_area.getHeight() / 2 / static_cast<int>(pulse_width_source_buttons_.size());
+    const auto button_height =
+        radio_area.getHeight() / 2 /
+        static_cast<int>(pulse_width_source_buttons_.size());
 
     for (auto& btn : pulse_width_source_buttons_) {
       btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
@@ -870,14 +872,10 @@ void AudioPluginAudioProcessorEditor::resized() {
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.items = {
-        juce::GridItem{cross_mod_slider_},
-        juce::GridItem{},
-        juce::GridItem{fine_tune_slider_},
-        juce::GridItem{vco2_level_slider_},
-        juce::GridItem{cross_mod_label_},
-        juce::GridItem{wave2_type_label_},
-        juce::GridItem{fine_tune_label_},
-        juce::GridItem{vco2_level_label_}};
+        juce::GridItem{cross_mod_slider_}, juce::GridItem{},
+        juce::GridItem{fine_tune_slider_}, juce::GridItem{vco2_level_slider_},
+        juce::GridItem{cross_mod_label_},  juce::GridItem{wave2_type_label_},
+        juce::GridItem{fine_tune_label_},  juce::GridItem{vco2_level_label_}};
 
     section_grid.performLayout(section_bounds.toNearestInt());
 
@@ -887,8 +885,6 @@ void AudioPluginAudioProcessorEditor::resized() {
     for (auto& btn : wave2_type_buttons_) {
       btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
     }
-
-
   }
 
   // VCF section
@@ -927,7 +923,8 @@ void AudioPluginAudioProcessorEditor::resized() {
     // filter slope layout
     {
       auto radio_area = section_grid.items[4].currentBounds.toNearestInt();
-      const auto button_height = radio_area.getHeight() / static_cast<int>(filter_slope_buttons_.size());
+      const auto button_height = radio_area.getHeight() /
+                                 static_cast<int>(filter_slope_buttons_.size());
 
       for (auto& btn : filter_slope_buttons_) {
         btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
@@ -937,7 +934,9 @@ void AudioPluginAudioProcessorEditor::resized() {
     // filter env source layout
     {
       auto radio_area = section_grid.items[7].currentBounds.toNearestInt();
-      const auto button_height = radio_area.getHeight() / static_cast<int>(filter_env_source_buttons_.size());
+      const auto button_height =
+          radio_area.getHeight() /
+          static_cast<int>(filter_env_source_buttons_.size());
 
       for (auto& btn : filter_env_source_buttons_) {
         btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
@@ -954,12 +953,10 @@ void AudioPluginAudioProcessorEditor::resized() {
                                     juce::Grid::TrackInfo(juce::Grid::Fr(1))};
     section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-    section_grid.items = {juce::GridItem{vca_level_slider_},
-                          juce::GridItem{vca_lfo_mod_slider_},
-                          juce::GridItem{vca_tone_slider_},
-                          juce::GridItem{vca_level_label_},
-                          juce::GridItem{vca_lfo_mod_label_},
-                          juce::GridItem{vca_tone_label_}};
+    section_grid.items = {
+        juce::GridItem{vca_level_slider_},  juce::GridItem{vca_lfo_mod_slider_},
+        juce::GridItem{vca_tone_slider_},   juce::GridItem{vca_level_label_},
+        juce::GridItem{vca_lfo_mod_label_}, juce::GridItem{vca_tone_label_}};
 
     section_grid.performLayout(section_bounds.toNearestInt());
   }

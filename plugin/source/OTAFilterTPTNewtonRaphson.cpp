@@ -286,7 +286,8 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in, const int index) 
 }
 
 void OTAFilterTPTNewtonRaphson::Process(juce::AudioBuffer<float>& buffers,
-                                       int start_sample, int numSamples) {
+                                        const int start_sample,
+                                        const int numSamples) {
   const auto data = buffers.getWritePointer(0);
   for (auto i = start_sample; i < start_sample + numSamples; ++i) {
     data[i] = ProcessSample(data[i], i);
