@@ -19,6 +19,16 @@ public:
   ~AudioPluginAudioProcessorEditor() override;
 
   void paint(juce::Graphics&) override;
+  void LayoutVCFDriveScalingSection(juce::Grid grid);
+  juce::Grid LayoutMainGrid();
+  void LayoutVCFSection(juce::Grid grid);
+  void LayoutVCO2Section(juce::Grid grid);
+  void LayoutLFOSection(juce::Grid grid);
+  void LayoutVCOModSection(juce::Grid grid);
+  void LayoutVCO1Section(juce::Grid grid);
+  void LayoutVCASection(juce::Grid grid);
+  void LayoutEnv1Section(juce::Grid grid);
+  void LayoutEnv2Section(juce::Grid grid);
   void resized() override;
   void parameterChanged(const juce::String& parameterID, float newValue) override;
   // todo refactor so this can be private
