@@ -27,8 +27,17 @@ public:
 
 private:
   static juce::Grid MakeMainGrid();
+ void PaintBackground(juce::Graphics& g) const;
+  void PaintLFOSection();
+ void PaintVCOModSection();
+  void PaintVCO1Section();
+ void PaintVCO2Section();
+  void PaintVCFSection();
+ void PaintVCASection();
+  void PaintEnv1Section();
+ void PaintEnv2Section();
 
-  juce::MidiKeyboardComponent keyboardComponent;
+ juce::MidiKeyboardComponent keyboardComponent;
 
   // This reference is provided as a quick way for your editor to
   // access the processor object that created it.

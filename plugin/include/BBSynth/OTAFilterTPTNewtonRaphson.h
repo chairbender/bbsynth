@@ -69,6 +69,7 @@ class OTAFilterTPTNewtonRaphson {
   // state vars for each stage
   float s1_, s2_, s3_, s4_;
   // Tanh ADAA for each stage's input
+  // todo: should these really have mutable keyword?
   mutable std::array<TanhADAA, 4> tanh_stages_;
   // Tanh ADAA for each stage's state
   mutable std::array<TanhADAA, 4> state_tanh_stages_;
