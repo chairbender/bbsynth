@@ -8,7 +8,8 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
     : AudioProcessorEditor{&p},
       keyboardComponent{keyboard_state_,
                         juce::MidiKeyboardComponent::horizontalKeyboard},
-      processorRef(p) {
+      processorRef(p),
+      lfo_section_{p} {
   juce::ignoreUnused(processorRef);
 
   // Wave type selectors
@@ -30,26 +31,6 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
                                                   juce::dontSendNotification);
       });
   wave_type_attachment_->sendInitialUpdate();
-
-  const juce::StringArray lfoWaveTypeOptions = {"SIN", "SAW", "TRI", "SQR",
-                                                "RND"};
-  for (int i = 0; i < lfoWaveTypeOptions.size(); ++i) {
-    auto btn = std::make_unique<juce::ToggleButton>(lfoWaveTypeOptions[i]);
-    btn->setRadioGroupId(1002);
-    btn->setClickingTogglesState(false);
-    btn->onClick = [this, i] {
-      auto* param = processorRef.apvts_.getParameter("lfoWaveType");
-      param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(i)));
-    };
-    lfo_wave_type_buttons_.emplace_back(std::move(btn));
-  }
-  lfo_wave_type_attachment_ = std::make_unique<juce::ParameterAttachment>(
-      *processorRef.apvts_.getParameter("lfoWaveType"), [this](const float f) {
-        const size_t index = static_cast<size_t>(f);
-        lfo_wave_type_buttons_[index]->setToggleState(
-            true, juce::dontSendNotification);
-      });
-  lfo_wave_type_attachment_->sendInitialUpdate();
 
   const juce::StringArray wave2TypeOptions = {"SIN", "SAW", "TRI", "SQR",
                                               "RND"};
@@ -193,11 +174,321 @@ AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
   processorRef.apvts_.removeParameterListener("filterEnvSource", this);
 }
 
+void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
+  PaintBackground(g);
+
+  g.setColour(juce::Colours::white);
+  g.setFont(15.0f);
+
+  PaintVCOModSection();
+  PaintVCO1Section();
+  PaintVCO2Section();
+  PaintVCFSection();
+  PaintVCASection();
+  PaintEnv1Section();
+  PaintEnv2Section();
+
+  addAndMakeVisible(spectrum_analyzer_);
+  addAndMakeVisible(keyboardComponent);
+}
+
+void AudioPluginAudioProcessorEditor::LayoutVCFDriveScalingSection(
+    juce::Grid grid) {
+  const auto section_bounds = grid.items[28].currentBounds.reduced(4);
+  juce::Grid section_grid;
+  section_grid.alignContent = juce::Grid::AlignContent::center;
+  // 5 columns: 1 for row labels, 4 for stages
+  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(2))};
+  // 3 rows: 1 for headers, 1 for input, 1 for state
+  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(4))};
+  section_grid.items = {
+      // Row 0
+      juce::GridItem{}, juce::GridItem{filter_stage_header_labels_[0]},
+      juce::GridItem{filter_stage_header_labels_[1]},
+      juce::GridItem{filter_stage_header_labels_[2]},
+      juce::GridItem{filter_stage_header_labels_[3]},
+      // Row 1
+      juce::GridItem{filter_input_row_label_},
+      juce::GridItem{filter_input_drive_scale_sliders_[0]},
+      juce::GridItem{filter_input_drive_scale_sliders_[1]},
+      juce::GridItem{filter_input_drive_scale_sliders_[2]},
+      juce::GridItem{filter_input_drive_scale_sliders_[3]},
+      // Row 2
+      juce::GridItem{filter_state_row_label_},
+      juce::GridItem{filter_state_drive_scale_sliders_[0]},
+      juce::GridItem{filter_state_drive_scale_sliders_[1]},
+      juce::GridItem{filter_state_drive_scale_sliders_[2]},
+      juce::GridItem{filter_state_drive_scale_sliders_[3]}};
+
+  section_grid.performLayout(section_bounds.toNearestInt());
+}
+
+juce::Grid AudioPluginAudioProcessorEditor::LayoutMainGrid() {
+  // Layout
+  auto area = getLocalBounds();
+
+  // Keep spectrum analyzer and keyboard at the bottom as-is
+  keyboardComponent.setBounds(area.removeFromBottom(100));
+  spectrum_analyzer_.setBounds(area.removeFromBottom(100));
+
+  // Use a Grid to place the three sections (VCO1, VCF, ENV1) in a single row
+  auto topRow = area;  // remaining area after removing bottom components
+
+  auto grid = MakeMainGrid();
+
+  grid.items = {
+      juce::GridItem(), juce::GridItem(vco_mod_label_),
+      juce::GridItem(vco1_label_), juce::GridItem(vco2_label_),
+      juce::GridItem(vcf_label_), juce::GridItem(vca_label_),
+      juce::GridItem(env1_label_), juce::GridItem(env2_label_),
+      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
+      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
+      // Row 2
+      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
+      juce::GridItem(vcf_drive_scaling_label_), juce::GridItem{},
+      juce::GridItem{}, juce::GridItem{},
+      // Row 3
+      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
+      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{}};
+
+  grid.performLayout(topRow);
+  return grid;
+}
+void AudioPluginAudioProcessorEditor::LayoutVCFSection(const juce::Grid grid) {
+  auto label_bounds = vcf_label_.getBounds().reduced(4, 0);
+  vcf_label_.setBounds(
+      label_bounds.removeFromLeft(label_bounds.getWidth() / 3));
+  filter_type_combo_.setBounds(label_bounds);
+
+  const auto section_bounds = grid.items[12].currentBounds.reduced(4);
+  juce::Grid section_grid;
+  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+  section_grid.items = {juce::GridItem{filter_hpf_slider_},
+                        juce::GridItem{filter_cutoff_slider_},
+                        juce::GridItem{filter_resonance_slider_},
+                        juce::GridItem{filter_drive_slider_},
+                        juce::GridItem{},
+                        juce::GridItem{filter_env_mod_slider_},
+                        juce::GridItem{filter_lfo_mod_slider_},
+                        juce::GridItem{},
+                        juce::GridItem{filter_hpf_label_},
+                        juce::GridItem{filter_cutoff_label_},
+                        juce::GridItem{filter_resonance_label_},
+                        juce::GridItem{filter_drive_label_},
+                        juce::GridItem{filter_slope_label_},
+                        juce::GridItem{filter_env_mod_label_},
+                        juce::GridItem{filter_lfo_mod_label_},
+                        juce::GridItem{filter_env_source_label_}};
+
+  section_grid.performLayout(section_bounds.toNearestInt());
+
+  // filter slope layout
+  {
+    auto radio_area = section_grid.items[4].currentBounds.toNearestInt();
+    const auto button_height =
+        radio_area.getHeight() / static_cast<int>(filter_slope_buttons_.size());
+
+    for (auto& btn : filter_slope_buttons_) {
+      btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
+    }
+  }
+
+  // filter env source layout
+  {
+    auto radio_area = section_grid.items[7].currentBounds.toNearestInt();
+    const auto button_height =
+        radio_area.getHeight() /
+        static_cast<int>(filter_env_source_buttons_.size());
+
+    for (auto& btn : filter_env_source_buttons_) {
+      btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
+    }
+  }
+}
+void AudioPluginAudioProcessorEditor::LayoutVCO2Section(const juce::Grid grid) {
+  auto label_bounds = vco2_label_.getBounds().reduced(4, 0);
+  vco2_label_.setBounds(
+      label_bounds.removeFromLeft(label_bounds.getWidth() / 2));
+  vco2_sync_button_.setBounds(label_bounds);
+
+  const auto section_bounds = grid.items[11].currentBounds.reduced(4);
+  juce::Grid section_grid;
+  section_grid.alignContent = juce::Grid::AlignContent::center;
+  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+  section_grid.items = {
+      juce::GridItem{cross_mod_slider_}, juce::GridItem{},
+      juce::GridItem{fine_tune_slider_}, juce::GridItem{vco2_level_slider_},
+      juce::GridItem{cross_mod_label_},  juce::GridItem{wave2_type_label_},
+      juce::GridItem{fine_tune_label_},  juce::GridItem{vco2_level_label_}};
+
+  section_grid.performLayout(section_bounds.toNearestInt());
+
+  auto radio_area = section_grid.items[1].currentBounds.toNearestInt();
+  const auto button_height = radio_area.getHeight() / 10;
+
+  for (auto& btn : wave2_type_buttons_) {
+    btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
+  }
+}
+void AudioPluginAudioProcessorEditor::LayoutVCOModSection(
+    const juce::Grid grid) {
+  const auto section_bounds = grid.items[9].currentBounds.reduced(4);
+  juce::Grid section_grid;
+  section_grid.alignContent = juce::Grid::AlignContent::center;
+  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(2)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(4))};
+  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+  section_grid.items = {juce::GridItem{vco_mod_lfo_freq_slider_},
+                        juce::GridItem{vco_mod_env1_freq_slider_},
+                        juce::GridItem{},
+                        juce::GridItem{pulse_width_slider_},
+                        juce::GridItem{},
+                        juce::GridItem{vco_mod_lfo_freq_label_},
+                        juce::GridItem{vco_mod_env1_freq_label_},
+                        juce::GridItem{},
+                        juce::GridItem{pulse_width_label_},
+                        juce::GridItem{pulse_width_source_label_}};
+
+  section_grid.performLayout(section_bounds.toNearestInt());
+
+  auto button_area = section_grid.items[2].currentBounds;
+  button_area.removeFromBottom(button_area.getHeight() / 2);
+  vco_mod_osc1_button_.setBounds(
+      button_area.removeFromTop(button_area.getHeight() / 2).toNearestInt());
+  vco_mod_osc2_button_.setBounds(button_area.toNearestInt());
+
+  auto radio_area = section_grid.items[4].currentBounds.toNearestInt();
+  const auto button_height =
+      radio_area.getHeight() / 2 /
+      static_cast<int>(pulse_width_source_buttons_.size());
+
+  for (auto& btn : pulse_width_source_buttons_) {
+    btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
+  }
+}
+void AudioPluginAudioProcessorEditor::LayoutVCO1Section(const juce::Grid grid) {
+  const auto section_bounds = grid.items[10].currentBounds.reduced(4);
+  juce::Grid section_grid;
+  section_grid.alignContent = juce::Grid::AlignContent::center;
+  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+
+  section_grid.items = {juce::GridItem{},  // placeholder for radio area
+                        juce::GridItem{vco1_level_slider_},
+                        juce::GridItem{wave_type_label_},
+                        juce::GridItem{vco1_level_label_}};
+
+  section_grid.performLayout(section_bounds.toNearestInt());
+
+  auto radio_area = section_grid.items[0].currentBounds.toNearestInt();
+  const auto button_height = radio_area.getHeight() / 10;
+
+  for (auto& btn : wave_type_buttons_) {
+    btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
+  }
+}
+void AudioPluginAudioProcessorEditor::LayoutVCASection(const juce::Grid grid) {
+  const auto section_bounds = grid.items[13].currentBounds.reduced(4);
+  juce::Grid section_grid;
+  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+  section_grid.items = {
+      juce::GridItem{vca_level_slider_},  juce::GridItem{vca_lfo_mod_slider_},
+      juce::GridItem{vca_tone_slider_},   juce::GridItem{vca_level_label_},
+      juce::GridItem{vca_lfo_mod_label_}, juce::GridItem{vca_tone_label_}};
+
+  section_grid.performLayout(section_bounds.toNearestInt());
+}
+void AudioPluginAudioProcessorEditor::LayoutEnv1Section(const juce::Grid grid) {
+  const auto section_bounds = grid.items[14].currentBounds.reduced(4);
+  juce::Grid section_grid;
+  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+  section_grid.items = {juce::GridItem{env1_attack_slider_},
+                        juce::GridItem{env1_decay_slider_},
+                        juce::GridItem{env1_sustain_slider_},
+                        juce::GridItem{env1_release_slider_},
+                        juce::GridItem{env1_attack_label_},
+                        juce::GridItem{env1_decay_label_},
+                        juce::GridItem{env1_sustain_label_},
+                        juce::GridItem{env1_release_label_}};
+
+  section_grid.performLayout(section_bounds.toNearestInt());
+}
+void AudioPluginAudioProcessorEditor::LayoutEnv2Section(const juce::Grid grid) {
+  const auto section_bounds = grid.items[15].currentBounds.reduced(4);
+  juce::Grid section_grid;
+  section_grid.alignContent = juce::Grid::AlignContent::center;
+  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
+  section_grid.items = {juce::GridItem{env2_attack_slider_},
+                        juce::GridItem{env2_decay_slider_},
+                        juce::GridItem{env2_sustain_slider_},
+                        juce::GridItem{env2_release_slider_},
+                        juce::GridItem{env2_attack_label_},
+                        juce::GridItem{env2_decay_label_},
+                        juce::GridItem{env2_sustain_label_},
+                        juce::GridItem{env2_release_label_}};
+
+  section_grid.performLayout(section_bounds.toNearestInt());
+}
+void AudioPluginAudioProcessorEditor::resized() {
+  const auto grid = LayoutMainGrid();
+
+  // row 1 sections
+  LayoutVCOModSection(grid);
+  LayoutVCO1Section(grid);
+  LayoutVCO2Section(grid);
+  LayoutVCFSection(grid);
+  LayoutVCASection(grid);
+  LayoutEnv1Section(grid);
+  LayoutEnv2Section(grid);
+
+  // row 2 sections
+  LayoutVCFDriveScalingSection(grid);
+}
+
 void AudioPluginAudioProcessorEditor::parameterChanged(
     const juce::String& parameterID, float newValue) {
   juce::ignoreUnused(parameterID, newValue);
 }
-
 juce::Grid AudioPluginAudioProcessorEditor::MakeMainGrid() {
   juce::Grid grid;
   grid.columnGap = juce::Grid::Px(4);
@@ -217,7 +508,6 @@ juce::Grid AudioPluginAudioProcessorEditor::MakeMainGrid() {
                           juce::Grid::TrackInfo(juce::Grid::Fr(2))};
   return grid;
 }
-
 void AudioPluginAudioProcessorEditor::PaintBackground(juce::Graphics& g) const {
   // Layout for backgrounds
   auto area = getLocalBounds();
@@ -272,49 +562,6 @@ void AudioPluginAudioProcessorEditor::PaintBackground(juce::Graphics& g) const {
     g.setColour(outlineColor);
     g.drawRect(fullSectionBounds, 2.0f);
   }
-}
-void AudioPluginAudioProcessorEditor::PaintLFOSection() {
-  lfo_label_.setText("LFO", juce::dontSendNotification);
-  addAndMakeVisible(lfo_label_);
-
-  rate_label_.setText("Rate", juce::dontSendNotification);
-  addAndMakeVisible(rate_label_);
-
-  rate_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
-  rate_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
-  addAndMakeVisible(rate_slider_);
-  rate_attachment_ =
-      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-          processorRef.apvts_, "lfoRate", rate_slider_);
-
-  delay_time_label_.setText("Delay Time", juce::dontSendNotification);
-  addAndMakeVisible(delay_time_label_);
-
-  delay_time_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
-  delay_time_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
-  addAndMakeVisible(delay_time_slider_);
-  delay_time_attachment_ =
-      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-          processorRef.apvts_, "lfoDelayTimeSeconds", delay_time_slider_);
-
-  lfo_attack_label_.setText("Attack", juce::dontSendNotification);
-  addAndMakeVisible(lfo_attack_label_);
-
-  lfo_attack_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
-  lfo_attack_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 20);
-  addAndMakeVisible(lfo_attack_slider_);
-  lfo_attack_attachment_ =
-      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-          processorRef.apvts_, "lfoAttack", lfo_attack_slider_);
-
-  lfo_wave_form_label_.setText("Waveform", juce::dontSendNotification);
-  addAndMakeVisible(lfo_wave_form_label_);
-
-  for (auto& btn : lfo_wave_type_buttons_) {
-    addAndMakeVisible(*btn);
-  }
-
-  processorRef.apvts_.addParameterListener("lfoWaveType", this);
 }
 void AudioPluginAudioProcessorEditor::PaintVCOModSection() {
   vco_mod_label_.setText("VCO Modulator", juce::dontSendNotification);
@@ -373,6 +620,7 @@ void AudioPluginAudioProcessorEditor::PaintVCOModSection() {
   }
   processorRef.apvts_.addParameterListener("pulseWidthSource", this);
 }
+
 void AudioPluginAudioProcessorEditor::PaintVCO1Section() {
   vco1_label_.setText("VCO 1", juce::dontSendNotification);
   addAndMakeVisible(vco1_label_);
@@ -653,341 +901,5 @@ void AudioPluginAudioProcessorEditor::PaintEnv2Section() {
           processorRef.apvts_, "env2Release", env2_release_slider_);
   env2_release_label_.setText("R", juce::dontSendNotification);
   addAndMakeVisible(env2_release_label_);
-}
-void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
-  PaintBackground(g);
-
-  g.setColour(juce::Colours::white);
-  g.setFont(15.0f);
-
-  PaintLFOSection();
-  PaintVCOModSection();
-  PaintVCO1Section();
-  PaintVCO2Section();
-  PaintVCFSection();
-  PaintVCASection();
-  PaintEnv1Section();
-  PaintEnv2Section();
-
-  addAndMakeVisible(spectrum_analyzer_);
-  addAndMakeVisible(keyboardComponent);
-}
-
-void AudioPluginAudioProcessorEditor::LayoutVCFDriveScalingSection(
-    juce::Grid grid) {
-  const auto section_bounds = grid.items[28].currentBounds.reduced(4);
-  juce::Grid section_grid;
-  section_grid.alignContent = juce::Grid::AlignContent::center;
-  // 5 columns: 1 for row labels, 4 for stages
-  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(2))};
-  // 3 rows: 1 for headers, 1 for input, 1 for state
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                               juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                               juce::Grid::TrackInfo(juce::Grid::Fr(4))};
-  section_grid.items = {
-      // Row 0
-      juce::GridItem{}, juce::GridItem{filter_stage_header_labels_[0]},
-      juce::GridItem{filter_stage_header_labels_[1]},
-      juce::GridItem{filter_stage_header_labels_[2]},
-      juce::GridItem{filter_stage_header_labels_[3]},
-      // Row 1
-      juce::GridItem{filter_input_row_label_},
-      juce::GridItem{filter_input_drive_scale_sliders_[0]},
-      juce::GridItem{filter_input_drive_scale_sliders_[1]},
-      juce::GridItem{filter_input_drive_scale_sliders_[2]},
-      juce::GridItem{filter_input_drive_scale_sliders_[3]},
-      // Row 2
-      juce::GridItem{filter_state_row_label_},
-      juce::GridItem{filter_state_drive_scale_sliders_[0]},
-      juce::GridItem{filter_state_drive_scale_sliders_[1]},
-      juce::GridItem{filter_state_drive_scale_sliders_[2]},
-      juce::GridItem{filter_state_drive_scale_sliders_[3]}};
-
-  section_grid.performLayout(section_bounds.toNearestInt());
-}
-juce::Grid AudioPluginAudioProcessorEditor::LayoutMainGrid() {
-  // Layout
-  auto area = getLocalBounds();
-
-  // Keep spectrum analyzer and keyboard at the bottom as-is
-  keyboardComponent.setBounds(area.removeFromBottom(100));
-  spectrum_analyzer_.setBounds(area.removeFromBottom(100));
-
-  // Use a Grid to place the three sections (VCO1, VCF, ENV1) in a single row
-  auto topRow = area;  // remaining area after removing bottom components
-
-  auto grid = MakeMainGrid();
-
-  grid.items = {
-      juce::GridItem(lfo_label_), juce::GridItem(vco_mod_label_),
-      juce::GridItem(vco1_label_), juce::GridItem(vco2_label_),
-      juce::GridItem(vcf_label_), juce::GridItem(vca_label_),
-      juce::GridItem(env1_label_), juce::GridItem(env2_label_),
-      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
-      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
-      // Row 2
-      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
-      juce::GridItem(vcf_drive_scaling_label_), juce::GridItem{},
-      juce::GridItem{}, juce::GridItem{},
-      // Row 3
-      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
-      juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{}};
-
-  grid.performLayout(topRow);
-  return grid;
-}
-void AudioPluginAudioProcessorEditor::LayoutVCFSection(const juce::Grid grid) {
-  auto label_bounds = vcf_label_.getBounds().reduced(4, 0);
-  vcf_label_.setBounds(
-      label_bounds.removeFromLeft(label_bounds.getWidth() / 3));
-  filter_type_combo_.setBounds(label_bounds);
-
-  const auto section_bounds = grid.items[12].currentBounds.reduced(4);
-  juce::Grid section_grid;
-  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.items = {juce::GridItem{filter_hpf_slider_},
-                        juce::GridItem{filter_cutoff_slider_},
-                        juce::GridItem{filter_resonance_slider_},
-                        juce::GridItem{filter_drive_slider_},
-                        juce::GridItem{},
-                        juce::GridItem{filter_env_mod_slider_},
-                        juce::GridItem{filter_lfo_mod_slider_},
-                        juce::GridItem{},
-                        juce::GridItem{filter_hpf_label_},
-                        juce::GridItem{filter_cutoff_label_},
-                        juce::GridItem{filter_resonance_label_},
-                        juce::GridItem{filter_drive_label_},
-                        juce::GridItem{filter_slope_label_},
-                        juce::GridItem{filter_env_mod_label_},
-                        juce::GridItem{filter_lfo_mod_label_},
-                        juce::GridItem{filter_env_source_label_}};
-
-  section_grid.performLayout(section_bounds.toNearestInt());
-
-  // filter slope layout
-  {
-    auto radio_area = section_grid.items[4].currentBounds.toNearestInt();
-    const auto button_height =
-        radio_area.getHeight() / static_cast<int>(filter_slope_buttons_.size());
-
-    for (auto& btn : filter_slope_buttons_) {
-      btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
-    }
-  }
-
-  // filter env source layout
-  {
-    auto radio_area = section_grid.items[7].currentBounds.toNearestInt();
-    const auto button_height =
-        radio_area.getHeight() /
-        static_cast<int>(filter_env_source_buttons_.size());
-
-    for (auto& btn : filter_env_source_buttons_) {
-      btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
-    }
-  }
-}
-void AudioPluginAudioProcessorEditor::LayoutVCO2Section(const juce::Grid grid) {
-  auto label_bounds = vco2_label_.getBounds().reduced(4, 0);
-  vco2_label_.setBounds(
-      label_bounds.removeFromLeft(label_bounds.getWidth() / 2));
-  vco2_sync_button_.setBounds(label_bounds);
-
-  const auto section_bounds = grid.items[11].currentBounds.reduced(4);
-  juce::Grid section_grid;
-  section_grid.alignContent = juce::Grid::AlignContent::center;
-  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.items = {
-      juce::GridItem{cross_mod_slider_}, juce::GridItem{},
-      juce::GridItem{fine_tune_slider_}, juce::GridItem{vco2_level_slider_},
-      juce::GridItem{cross_mod_label_},  juce::GridItem{wave2_type_label_},
-      juce::GridItem{fine_tune_label_},  juce::GridItem{vco2_level_label_}};
-
-  section_grid.performLayout(section_bounds.toNearestInt());
-
-  auto radio_area = section_grid.items[1].currentBounds.toNearestInt();
-  const auto button_height = radio_area.getHeight() / 10;
-
-  for (auto& btn : wave2_type_buttons_) {
-    btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
-  }
-}
-void AudioPluginAudioProcessorEditor::LayoutLFOSection(const juce::Grid grid) {
-  const auto section_bounds = grid.items[8].currentBounds.reduced(4);
-  juce::Grid section_grid;
-  section_grid.alignContent = juce::Grid::AlignContent::center;
-  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(3))};
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.items = {
-      juce::GridItem{rate_slider_},       juce::GridItem{delay_time_slider_},
-      juce::GridItem{lfo_attack_slider_}, juce::GridItem{},
-      juce::GridItem{rate_label_},        juce::GridItem{delay_time_label_},
-      juce::GridItem{lfo_attack_label_},  juce::GridItem{lfo_wave_form_label_}};
-
-  section_grid.performLayout(section_bounds.toNearestInt());
-
-  auto radio_area = section_grid.items[3].currentBounds.toNearestInt();
-  const auto button_height = radio_area.getHeight() / 10;
-
-  for (auto& btn : lfo_wave_type_buttons_) {
-    btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
-  }
-}
-void AudioPluginAudioProcessorEditor::LayoutVCOModSection(
-    const juce::Grid grid) {
-  const auto section_bounds = grid.items[9].currentBounds.reduced(4);
-  juce::Grid section_grid;
-  section_grid.alignContent = juce::Grid::AlignContent::center;
-  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(4))};
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.items = {juce::GridItem{vco_mod_lfo_freq_slider_},
-                        juce::GridItem{vco_mod_env1_freq_slider_},
-                        juce::GridItem{},
-                        juce::GridItem{pulse_width_slider_},
-                        juce::GridItem{},
-                        juce::GridItem{vco_mod_lfo_freq_label_},
-                        juce::GridItem{vco_mod_env1_freq_label_},
-                        juce::GridItem{},
-                        juce::GridItem{pulse_width_label_},
-                        juce::GridItem{pulse_width_source_label_}};
-
-  section_grid.performLayout(section_bounds.toNearestInt());
-
-  auto button_area = section_grid.items[2].currentBounds;
-  button_area.removeFromBottom(button_area.getHeight() / 2);
-  vco_mod_osc1_button_.setBounds(
-      button_area.removeFromTop(button_area.getHeight() / 2).toNearestInt());
-  vco_mod_osc2_button_.setBounds(button_area.toNearestInt());
-
-  auto radio_area = section_grid.items[4].currentBounds.toNearestInt();
-  const auto button_height =
-      radio_area.getHeight() / 2 /
-      static_cast<int>(pulse_width_source_buttons_.size());
-
-  for (auto& btn : pulse_width_source_buttons_) {
-    btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
-  }
-}
-void AudioPluginAudioProcessorEditor::LayoutVCO1Section(const juce::Grid grid) {
-  const auto section_bounds = grid.items[10].currentBounds.reduced(4);
-  juce::Grid section_grid;
-  section_grid.alignContent = juce::Grid::AlignContent::center;
-  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-
-  section_grid.items = {juce::GridItem{},  // placeholder for radio area
-                        juce::GridItem{vco1_level_slider_},
-                        juce::GridItem{wave_type_label_},
-                        juce::GridItem{vco1_level_label_}};
-
-  section_grid.performLayout(section_bounds.toNearestInt());
-
-  auto radio_area = section_grid.items[0].currentBounds.toNearestInt();
-  const auto button_height = radio_area.getHeight() / 10;
-
-  for (auto& btn : wave_type_buttons_) {
-    btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
-  }
-}
-void AudioPluginAudioProcessorEditor::LayoutVCASection(const juce::Grid grid) {
-  const auto section_bounds = grid.items[13].currentBounds.reduced(4);
-  juce::Grid section_grid;
-  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.items = {
-      juce::GridItem{vca_level_slider_},  juce::GridItem{vca_lfo_mod_slider_},
-      juce::GridItem{vca_tone_slider_},   juce::GridItem{vca_level_label_},
-      juce::GridItem{vca_lfo_mod_label_}, juce::GridItem{vca_tone_label_}};
-
-  section_grid.performLayout(section_bounds.toNearestInt());
-}
-void AudioPluginAudioProcessorEditor::LayoutEnv1Section(const juce::Grid grid) {
-  const auto section_bounds = grid.items[14].currentBounds.reduced(4);
-  juce::Grid section_grid;
-  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.items = {juce::GridItem{env1_attack_slider_},
-                        juce::GridItem{env1_decay_slider_},
-                        juce::GridItem{env1_sustain_slider_},
-                        juce::GridItem{env1_release_slider_},
-                        juce::GridItem{env1_attack_label_},
-                        juce::GridItem{env1_decay_label_},
-                        juce::GridItem{env1_sustain_label_},
-                        juce::GridItem{env1_release_label_}};
-
-  section_grid.performLayout(section_bounds.toNearestInt());
-}
-void AudioPluginAudioProcessorEditor::LayoutEnv2Section(const juce::Grid grid) {
-  const auto section_bounds = grid.items[15].currentBounds.reduced(4);
-  juce::Grid section_grid;
-  section_grid.alignContent = juce::Grid::AlignContent::center;
-  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.items = {juce::GridItem{env2_attack_slider_},
-                        juce::GridItem{env2_decay_slider_},
-                        juce::GridItem{env2_sustain_slider_},
-                        juce::GridItem{env2_release_slider_},
-                        juce::GridItem{env2_attack_label_},
-                        juce::GridItem{env2_decay_label_},
-                        juce::GridItem{env2_sustain_label_},
-                        juce::GridItem{env2_release_label_}};
-
-  section_grid.performLayout(section_bounds.toNearestInt());
-}
-void AudioPluginAudioProcessorEditor::resized() {
-  const auto grid = LayoutMainGrid();
-
-  // row 1 sections
-  LayoutLFOSection(grid);
-  LayoutVCOModSection(grid);
-  LayoutVCO1Section(grid);
-  LayoutVCO2Section(grid);
-  LayoutVCFSection(grid);
-  LayoutVCASection(grid);
-  LayoutEnv1Section(grid);
-  LayoutEnv2Section(grid);
-
-  // row 2 sections
-  LayoutVCFDriveScalingSection(grid);
 }
 }  // namespace audio_plugin
