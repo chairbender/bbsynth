@@ -1,10 +1,10 @@
-#include "BBSynth/PluginProcessor.h"
+#include "PluginProcessor.h"
 
-#include "BBSynth/Constants.h"
-#include "BBSynth/Oscillator.h"
-#include "BBSynth/PluginEditor.h"
-#include "BBSynth/Utils.h"
-#include "BBSynth/WaveGenerator.h"
+#include "Constants.h"
+#include "Utils.h"
+#include "oscillator/Oscillator.h"
+#include "oscillator/WaveGenerator.h"
+#include "ui/PluginEditor.h"
 
 namespace audio_plugin {
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()

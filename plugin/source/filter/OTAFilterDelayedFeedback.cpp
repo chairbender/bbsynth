@@ -1,10 +1,11 @@
+#include "OTAFilterDelayedFeedback.h"
+
 #include <juce_dsp/juce_dsp.h>
 
 #include <cmath>
 
-#include "BBSynth/Constants.h"
-#include "BBSynth/OTAFilterDelayedFeedback.h"
-#include "BBSynth/Utils.h"
+#include "../Constants.h"
+#include "../Utils.h"
 
 namespace audio_plugin {
 OTAFilterDelayedFeedback::OTAFilterDelayedFeedback(

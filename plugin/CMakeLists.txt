@@ -29,11 +29,11 @@ juce_add_plugin(
   "BBSynth" # change this
 )
 
-# Sets the source files of the plugin project.
-set(SOURCE_FILES source/OTAFilterTPTNewtonRaphson.cpp source/AnalogADSR.cpp source/ToneFilter.cpp source/Downsampler.cpp source/OTAFilterDelayedFeedback.cpp source/TanhADAA.cpp source/SpectrumAnalyzerComponent.cpp source/WaveGenerator.cpp source/MinBlepGenerator.cpp source/Oscillator.cpp source/PluginEditor.cpp source/PluginProcessor.cpp)
-# Optional; includes header files in the project file tree in Visual Studio
-set(HEADER_FILES ${INCLUDE_DIR}/Utils.h ${INCLUDE_DIR}/Constants.h ${INCLUDE_DIR}/AnalogADSR.h ${INCLUDE_DIR}/ToneFilter.h ${INCLUDE_DIR}/Downsampler.h ${INCLUDE_DIR}/OTAFilterDelayedFeedback.h ${INCLUDE_DIR}/OTAFilterTPTNewtonRaphson.h ${INCLUDE_DIR}/TanhADAA.h ${INCLUDE_DIR}/SpectrumAnalyzerComponent.h ${INCLUDE_DIR}/MinBlepGenerator.h ${INCLUDE_DIR}/WaveGenerator.h ${INCLUDE_DIR}/Oscillator.h ${INCLUDE_DIR}/PluginEditor.h ${INCLUDE_DIR}/PluginProcessor.h)
-target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
+file(GLOB_RECURSE SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/source/*.h"
+)
+target_sources(${PROJECT_NAME} PRIVATE ${SOURCES})
 
 # Sets the include directories of the plugin project.
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

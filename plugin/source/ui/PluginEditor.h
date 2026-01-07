@@ -1,10 +1,10 @@
 #pragma once
 
-#include "PluginProcessor.h"
-#include "SpectrumAnalyzerComponent.h"
-
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <juce_dsp/juce_dsp.h>
+
+#include "../PluginProcessor.h"
+#include "SpectrumAnalyzerComponent.h"
 
 namespace audio_plugin {
 

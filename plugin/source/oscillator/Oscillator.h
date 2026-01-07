@@ -3,10 +3,10 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
-#include "AnalogADSR.h"
-#include "Downsampler.h"
-#include "OTAFilterDelayedFeedback.h"
-#include "OTAFilterTPTNewtonRaphson.h"
+#include "../filter/OTAFilterDelayedFeedback.h"
+#include "../dsp/AnalogADSR.h"
+#include "../dsp/Downsampler.h"
+#include "../filter/OTAFilterTPTNewtonRaphson.h"
 #include "WaveGenerator.h"
 
 namespace audio_plugin {

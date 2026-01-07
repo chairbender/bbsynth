@@ -1,7 +1,7 @@
-#include "BBSynth/Oscillator.h"
+#include "Oscillator.h"
 
-#include "BBSynth/Constants.h"
-#include "BBSynth/Utils.h"
+#include "../Constants.h"
+#include "../Utils.h"
 
 namespace audio_plugin {
 

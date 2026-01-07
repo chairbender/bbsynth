@@ -1,6 +1,7 @@
 // Unit test for MinBlepGenerator
-#include <BBSynth/MinBlepGenerator.h>
+#include <../../plugin/source/oscillator/MinBlepGenerator.h>
 #include <gtest/gtest.h>
+
 #include <cmath>
 
 namespace audio_plugin_test {

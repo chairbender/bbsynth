@@ -1,5 +1,5 @@
 // Unit test for WaveGenerator sawFall rendering with BLEP
-#include <BBSynth/WaveGenerator.h>
+#include <../../plugin/source/oscillator/WaveGenerator.h>
 #include <gtest/gtest.h>
 
 #include <cmath>

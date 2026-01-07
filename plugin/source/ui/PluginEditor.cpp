@@ -1,6 +1,6 @@
-#include "BBSynth/PluginEditor.h"
+#include "PluginEditor.h"
 
-#include "BBSynth/PluginProcessor.h"
+#include "../PluginProcessor.h"
 
 namespace audio_plugin {
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
