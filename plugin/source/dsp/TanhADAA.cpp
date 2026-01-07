@@ -1,10 +1,10 @@
 
-#include "BBSynth/TanhADAA.h"
-#include "BBSynth/Utils.h"
+#include "TanhADAA.h"
 
 #include <algorithm>
 #include <cmath>
 
+#include "../Utils.h"
 #include "juce_core/system/juce_PlatformDefs.h"
 
 namespace audio_plugin {

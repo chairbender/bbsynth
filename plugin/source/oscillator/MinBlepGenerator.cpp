@@ -7,7 +7,7 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 // todo rewrite to modern c++ standards
 // todo cleanup / reduce need for static casting - some places are using size_t in places where the juce lib wants int.
 
-#include "BBSynth/MinBlepGenerator.h"
+#include "MinBlepGenerator.h"
 
 #include <fstream>
 

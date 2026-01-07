@@ -1,4 +1,4 @@
-#include "BBSynth/Downsampler.h"
+#include "Downsampler.h"
 
 namespace audio_plugin {
 

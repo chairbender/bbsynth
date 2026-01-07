@@ -1,4 +1,4 @@
-#include "BBSynth/AnalogADSR.h"
+#include "AnalogADSR.h"
 
 #include <cmath>
 

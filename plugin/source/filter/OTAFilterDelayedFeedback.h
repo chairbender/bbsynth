@@ -5,7 +5,7 @@
 #include <array>
 #include <vector>
 
-#include "TanhADAA.h"
+#include "../dsp/TanhADAA.h"
 
 namespace audio_plugin {
 

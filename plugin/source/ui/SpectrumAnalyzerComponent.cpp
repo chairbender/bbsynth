@@ -1,4 +1,4 @@
-#include "BBSynth/SpectrumAnalyzerComponent.h"
+#include "SpectrumAnalyzerComponent.h"
 
 namespace audio_plugin {
 

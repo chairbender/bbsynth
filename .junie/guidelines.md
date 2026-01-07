@@ -1,4 +1,4 @@
-Follow Google C++ Style Guide. 
+Follow Google C++ Style Guide.
 
 Fields: snake_case_ with trailing underscore. Other variables: snake_case. 
 Constants kCamelCase with leading k. Functions: CamelCase with leading uppercase.

@@ -8,9 +8,9 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 // todo restore == checks against the same var as isNaN checks as that was the
 // actual intention
 
-#include "BBSynth/WaveGenerator.h"
+#include "WaveGenerator.h"
 
-#include "BBSynth/Constants.h"
+#include "../Constants.h"
 
 namespace audio_plugin {
 constexpr double DELTA{.0000001};
