@@ -4,6 +4,7 @@
 #include <juce_dsp/juce_dsp.h>
 
 #include "../PluginProcessor.h"
+#include "LFOSection.h"
 #include "SpectrumAnalyzerComponent.h"
 
 namespace audio_plugin {
@@ -23,7 +24,6 @@ public:
   juce::Grid LayoutMainGrid();
   void LayoutVCFSection(juce::Grid grid);
   void LayoutVCO2Section(juce::Grid grid);
-  void LayoutLFOSection(juce::Grid grid);
   void LayoutVCOModSection(juce::Grid grid);
   void LayoutVCO1Section(juce::Grid grid);
   void LayoutVCASection(juce::Grid grid);
@@ -38,7 +38,6 @@ public:
 private:
   static juce::Grid MakeMainGrid();
  void PaintBackground(juce::Graphics& g) const;
-  void PaintLFOSection();
  void PaintVCOModSection();
   void PaintVCO1Section();
  void PaintVCO2Section();
@@ -53,24 +52,7 @@ private:
   // access the processor object that created it.
   AudioPluginAudioProcessor& processorRef;
 
-  // LFO section
-  juce::Label lfo_label_;
-  //rate
-  juce::Label rate_label_;
-  juce::Slider rate_slider_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> rate_attachment_;
-  // delay time
-  juce::Label delay_time_label_;
-  juce::Slider delay_time_slider_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> delay_time_attachment_;
-  // attack
-  juce::Label lfo_attack_label_;
-  juce::Slider lfo_attack_slider_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lfo_attack_attachment_;
-  // wave form
-  std::vector<std::unique_ptr<juce::ToggleButton>> lfo_wave_type_buttons_;
-  juce::Label lfo_wave_form_label_;
-  std::unique_ptr<juce::ParameterAttachment> lfo_wave_type_attachment_;
+  LFOSection lfo_section_;
 
   // VCO Modulator section
   juce::Label vco_mod_label_;
