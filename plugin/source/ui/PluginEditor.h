@@ -4,8 +4,9 @@
 #include <juce_dsp/juce_dsp.h>
 
 #include "../PluginProcessor.h"
-#include "LFOSection.h"
 #include "SpectrumAnalyzerComponent.h"
+#include "section/LFOSection.h"
+#include "section/VCOModSection.h"
 
 namespace audio_plugin {
 
@@ -24,7 +25,6 @@ public:
   juce::Grid LayoutMainGrid();
   void LayoutVCFSection(juce::Grid grid);
   void LayoutVCO2Section(juce::Grid grid);
-  void LayoutVCOModSection(juce::Grid grid);
   void LayoutVCO1Section(juce::Grid grid);
   void LayoutVCASection(juce::Grid grid);
   void LayoutEnv1Section(juce::Grid grid);
@@ -38,7 +38,6 @@ public:
 private:
   static juce::Grid MakeMainGrid();
  void PaintBackground(juce::Graphics& g) const;
- void PaintVCOModSection();
   void PaintVCO1Section();
  void PaintVCO2Section();
   void PaintVCFSection();
@@ -53,31 +52,7 @@ private:
   AudioPluginAudioProcessor& processorRef;
 
   LFOSection lfo_section_;
-
-  // VCO Modulator section
-  juce::Label vco_mod_label_;
-  // lfo -> freq mod
-  juce::Slider vco_mod_lfo_freq_slider_;
-  juce::Label vco_mod_lfo_freq_label_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vco_mod_freq_attachment_;
-  // env1 -> freq mod
-  juce::Slider vco_mod_env1_freq_slider_;
-  juce::Label vco_mod_env1_freq_label_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vco_mod_env1_freq_attachment_;
-  // VCO picker - osc1, osc2, or both
-  juce::ToggleButton vco_mod_osc1_button_;
-  juce::ToggleButton vco_mod_osc2_button_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> vco_mod_osc1_attachment_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> vco_mod_osc2_attachment_;
-
-  // pulse width
-  juce::Slider pulse_width_slider_;
-  juce::Label pulse_width_label_;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> pulse_width_attachment_;
-
-  std::vector<std::unique_ptr<juce::ToggleButton>> pulse_width_source_buttons_;
-  juce::Label pulse_width_source_label_;
-  std::unique_ptr<juce::ParameterAttachment> pulse_width_source_attachment_;
+  VCOModSection vco_mod_section_;
 
   //VCO 1 section
   juce::Label vco1_label_;
