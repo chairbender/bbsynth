@@ -9,10 +9,12 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
       keyboardComponent{keyboard_state_,
                         juce::MidiKeyboardComponent::horizontalKeyboard},
       processorRef(p),
-      lfo_section_{p} {
+      lfo_section_{p},
+      vco_mod_section_{p} {
   juce::ignoreUnused(processorRef);
 
   addAndMakeVisible(lfo_section_);
+  addAndMakeVisible(vco_mod_section_);
 
   // Wave type selectors
   const juce::StringArray waveTypeOptions = {"SIN", "SAW", "TRI", "SQR", "RND"};
@@ -54,26 +56,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
       });
   wave2_type_attachment_->sendInitialUpdate();
 
-  const juce::StringArray pwSourceOptions = {"E2-", "E2+", "E1-",
-                                             "E1+", "LFO", "MAN"};
-  for (int i = 0; i < pwSourceOptions.size(); ++i) {
-    auto btn = std::make_unique<juce::ToggleButton>(pwSourceOptions[i]);
-    btn->setRadioGroupId(1004);
-    btn->setClickingTogglesState(false);
-    btn->onClick = [this, i] {
-      auto* param = processorRef.apvts_.getParameter("pulseWidthSource");
-      param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(i)));
-    };
-    pulse_width_source_buttons_.emplace_back(std::move(btn));
-  }
-  pulse_width_source_attachment_ = std::make_unique<juce::ParameterAttachment>(
-      *processorRef.apvts_.getParameter("pulseWidthSource"),
-      [this](const float f) {
-        const size_t index = static_cast<size_t>(f);
-        pulse_width_source_buttons_[index]->setToggleState(
-            true, juce::dontSendNotification);
-      });
-  pulse_width_source_attachment_->sendInitialUpdate();
+
 
   const juce::StringArray filterSlopeOptions = {"-24", "-18", "-12"};
   for (int i = 0; i < filterSlopeOptions.size(); ++i) {
@@ -182,7 +165,6 @@ void AudioPluginAudioProcessorEditor::paint(juce::Graphics& g) {
   g.setColour(juce::Colours::white);
   g.setFont(15.0f);
 
-  PaintVCOModSection();
   PaintVCO1Section();
   PaintVCO2Section();
   PaintVCFSection();
@@ -246,7 +228,7 @@ juce::Grid AudioPluginAudioProcessorEditor::LayoutMainGrid() {
 
   grid.items = {
       // row 1 labels
-      juce::GridItem(lfo_section_), juce::GridItem(vco_mod_label_),
+      juce::GridItem(lfo_section_), juce::GridItem(vco_mod_section_),
       juce::GridItem(vco1_label_), juce::GridItem(vco2_label_),
       juce::GridItem(vcf_label_), juce::GridItem(vca_label_),
       juce::GridItem(env1_label_), juce::GridItem(env2_label_),
@@ -269,6 +251,7 @@ juce::Grid AudioPluginAudioProcessorEditor::LayoutMainGrid() {
       grid.items[8].currentBounds.toNearestInt().getHeight();
   const auto combined_height = row_1_height + row_2_height;
   lfo_section_.setBounds(lfo_section_.getBounds().withHeight(combined_height));
+  vco_mod_section_.setBounds(vco_mod_section_.getBounds().withHeight(combined_height));
   return grid;
 }
 void AudioPluginAudioProcessorEditor::LayoutVCFSection(const juce::Grid grid) {
@@ -361,46 +344,6 @@ void AudioPluginAudioProcessorEditor::LayoutVCO2Section(const juce::Grid grid) {
     btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
   }
 }
-void AudioPluginAudioProcessorEditor::LayoutVCOModSection(
-    const juce::Grid grid) {
-  const auto section_bounds = grid.items[9].currentBounds.reduced(4);
-  juce::Grid section_grid;
-  section_grid.alignContent = juce::Grid::AlignContent::center;
-  section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(2)),
-                                  juce::Grid::TrackInfo(juce::Grid::Fr(4))};
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
-                               juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.items = {juce::GridItem{vco_mod_lfo_freq_slider_},
-                        juce::GridItem{vco_mod_env1_freq_slider_},
-                        juce::GridItem{},
-                        juce::GridItem{pulse_width_slider_},
-                        juce::GridItem{},
-                        juce::GridItem{vco_mod_lfo_freq_label_},
-                        juce::GridItem{vco_mod_env1_freq_label_},
-                        juce::GridItem{},
-                        juce::GridItem{pulse_width_label_},
-                        juce::GridItem{pulse_width_source_label_}};
-
-  section_grid.performLayout(section_bounds.toNearestInt());
-
-  auto button_area = section_grid.items[2].currentBounds;
-  button_area.removeFromBottom(button_area.getHeight() / 2);
-  vco_mod_osc1_button_.setBounds(
-      button_area.removeFromTop(button_area.getHeight() / 2).toNearestInt());
-  vco_mod_osc2_button_.setBounds(button_area.toNearestInt());
-
-  auto radio_area = section_grid.items[4].currentBounds.toNearestInt();
-  const auto button_height =
-      radio_area.getHeight() / 2 /
-      static_cast<int>(pulse_width_source_buttons_.size());
-
-  for (auto& btn : pulse_width_source_buttons_) {
-    btn->setBounds(radio_area.removeFromTop(button_height).toNearestInt());
-  }
-}
 void AudioPluginAudioProcessorEditor::LayoutVCO1Section(const juce::Grid grid) {
   const auto section_bounds = grid.items[10].currentBounds.reduced(4);
   juce::Grid section_grid;
@@ -483,8 +426,6 @@ void AudioPluginAudioProcessorEditor::LayoutEnv2Section(const juce::Grid grid) {
 void AudioPluginAudioProcessorEditor::resized() {
   const auto grid = LayoutMainGrid();
 
-  // row 1 sections
-  LayoutVCOModSection(grid);
   LayoutVCO1Section(grid);
   LayoutVCO2Section(grid);
   LayoutVCFSection(grid);
@@ -573,63 +514,6 @@ void AudioPluginAudioProcessorEditor::PaintBackground(juce::Graphics& g) const {
     g.setColour(outlineColor);
     g.drawRect(fullSectionBounds, 2.0f);
   }
-}
-void AudioPluginAudioProcessorEditor::PaintVCOModSection() {
-  vco_mod_label_.setText("VCO Modulator", juce::dontSendNotification);
-  addAndMakeVisible(vco_mod_label_);
-
-  // lfo -> freq mod
-  vco_mod_lfo_freq_label_.setText("LFO Freq Mod", juce::dontSendNotification);
-  addAndMakeVisible(vco_mod_lfo_freq_label_);
-  vco_mod_lfo_freq_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
-  vco_mod_lfo_freq_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false,
-                                           50, 20);
-  addAndMakeVisible(vco_mod_lfo_freq_slider_);
-  vco_mod_freq_attachment_ =
-      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-          processorRef.apvts_, "vcoModLfoFreq", vco_mod_lfo_freq_slider_);
-
-  // env1 -> freq mod
-  vco_mod_env1_freq_label_.setText("ENV1 Freq Mod", juce::dontSendNotification);
-  addAndMakeVisible(vco_mod_env1_freq_label_);
-  vco_mod_env1_freq_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
-  vco_mod_env1_freq_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false,
-                                            50, 20);
-  addAndMakeVisible(vco_mod_env1_freq_slider_);
-  vco_mod_env1_freq_attachment_ =
-      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-          processorRef.apvts_, "vcoModEnv1Freq", vco_mod_env1_freq_slider_);
-
-  vco_mod_osc1_button_.setButtonText("VCO 1");
-  vco_mod_osc1_button_.setClickingTogglesState(true);
-  addAndMakeVisible(vco_mod_osc1_button_);
-  vco_mod_osc1_attachment_ =
-      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-          processorRef.apvts_, "vcoModOsc1", vco_mod_osc1_button_);
-
-  vco_mod_osc2_button_.setButtonText("VCO 2");
-  vco_mod_osc2_button_.setClickingTogglesState(true);
-  addAndMakeVisible(vco_mod_osc2_button_);
-  vco_mod_osc2_attachment_ =
-      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-          processorRef.apvts_, "vcoModOsc2", vco_mod_osc2_button_);
-
-  pulse_width_label_.setText("Pulse Width", juce::dontSendNotification);
-  addAndMakeVisible(pulse_width_label_);
-  pulse_width_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
-  pulse_width_slider_.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50,
-                                      20);
-  addAndMakeVisible(pulse_width_slider_);
-  pulse_width_attachment_ =
-      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-          processorRef.apvts_, "pulseWidth", pulse_width_slider_);
-
-  pulse_width_source_label_.setText("PW Source", juce::dontSendNotification);
-  addAndMakeVisible(pulse_width_source_label_);
-  for (auto& btn : pulse_width_source_buttons_) {
-    addAndMakeVisible(*btn);
-  }
-  processorRef.apvts_.addParameterListener("pulseWidthSource", this);
 }
 
 void AudioPluginAudioProcessorEditor::PaintVCO1Section() {

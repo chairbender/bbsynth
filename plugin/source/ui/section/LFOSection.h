@@ -1,7 +1,6 @@
 #pragma once
 
-#include "../PluginProcessor.h"
-
+#include "../../PluginProcessor.h"
 
 namespace audio_plugin {
 
