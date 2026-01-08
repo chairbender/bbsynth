@@ -12,6 +12,8 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(
       lfo_section_{p} {
   juce::ignoreUnused(processorRef);
 
+  addAndMakeVisible(lfo_section_);
+
   // Wave type selectors
   const juce::StringArray waveTypeOptions = {"SIN", "SAW", "TRI", "SQR", "RND"};
   for (int i = 0; i < waveTypeOptions.size(); ++i) {
@@ -243,7 +245,7 @@ juce::Grid AudioPluginAudioProcessorEditor::LayoutMainGrid() {
   auto grid = MakeMainGrid();
 
   grid.items = {
-      juce::GridItem(), juce::GridItem(vco_mod_label_),
+      juce::GridItem(lfo_section_), juce::GridItem(vco_mod_label_),
       juce::GridItem(vco1_label_), juce::GridItem(vco2_label_),
       juce::GridItem(vcf_label_), juce::GridItem(vca_label_),
       juce::GridItem(env1_label_), juce::GridItem(env2_label_),
