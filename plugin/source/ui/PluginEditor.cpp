@@ -245,21 +245,30 @@ juce::Grid AudioPluginAudioProcessorEditor::LayoutMainGrid() {
   auto grid = MakeMainGrid();
 
   grid.items = {
+      // row 1 labels
       juce::GridItem(lfo_section_), juce::GridItem(vco_mod_label_),
       juce::GridItem(vco1_label_), juce::GridItem(vco2_label_),
       juce::GridItem(vcf_label_), juce::GridItem(vca_label_),
       juce::GridItem(env1_label_), juce::GridItem(env2_label_),
+      // row 1 controls
       juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
       juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
-      // Row 2
+      // Row 2 labels
       juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
       juce::GridItem(vcf_drive_scaling_label_), juce::GridItem{},
       juce::GridItem{}, juce::GridItem{},
-      // Row 3
+      // Row 2 controls
       juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{},
       juce::GridItem{}, juce::GridItem{}, juce::GridItem{}, juce::GridItem{}};
 
   grid.performLayout(topRow);
+  // todo: fix after row 1+2 finally merged
+  const auto row_1_height =
+      grid.items[0].currentBounds.toNearestInt().getHeight();
+  const auto row_2_height =
+      grid.items[8].currentBounds.toNearestInt().getHeight();
+  const auto combined_height = row_1_height + row_2_height;
+  lfo_section_.setBounds(lfo_section_.getBounds().withHeight(combined_height));
   return grid;
 }
 void AudioPluginAudioProcessorEditor::LayoutVCFSection(const juce::Grid grid) {
