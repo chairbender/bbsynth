@@ -91,7 +91,7 @@ void LFOSection::resized() {
 
   section_grid.performLayout(section_bounds.toNearestInt());
 
-  auto radio_area = section_grid.items[3].currentBounds.toNearestInt();
+  auto radio_area = section_grid.items[7].currentBounds.toNearestInt();
   const auto button_height = radio_area.getHeight() / 10;
 
   for (const auto& btn : lfo_wave_type_buttons_) {
