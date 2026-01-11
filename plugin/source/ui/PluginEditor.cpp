@@ -65,7 +65,7 @@ juce::Grid AudioPluginAudioProcessorEditor::LayoutMainGrid() {
   auto grid = MakeMainGrid();
 
   grid.items = {
-      // row 1 labels
+      // row 1 sections
       juce::GridItem(lfo_section_),
       juce::GridItem(vco_mod_section_),
       juce::GridItem(vco1_section_),
@@ -74,16 +74,7 @@ juce::Grid AudioPluginAudioProcessorEditor::LayoutMainGrid() {
       juce::GridItem(vca_section_),
       juce::GridItem(env1_section_),
       juce::GridItem(env2_section_),
-      // row 1 controls
-      juce::GridItem{},
-      juce::GridItem{},
-      juce::GridItem{},
-      juce::GridItem{},
-      juce::GridItem{},
-      juce::GridItem{},
-      juce::GridItem{},
-      juce::GridItem{},
-      // Row 2 labels
+      // Row 2 sections
       juce::GridItem{},
       juce::GridItem{},
       juce::GridItem{},
@@ -91,37 +82,9 @@ juce::Grid AudioPluginAudioProcessorEditor::LayoutMainGrid() {
       juce::GridItem(vcf_drive_scaling_section_),
       juce::GridItem{},
       juce::GridItem{},
-      juce::GridItem{},
-      // Row 2 controls
-      juce::GridItem{},
-      juce::GridItem{},
-      juce::GridItem{},
-      juce::GridItem{},
-      juce::GridItem{},
-      juce::GridItem{},
-      juce::GridItem{},
       juce::GridItem{}};
 
   grid.performLayout(topRow);
-  // todo: fix after row 1+2 finally merged
-  const auto row_1_height =
-      grid.items[0].currentBounds.toNearestInt().getHeight();
-  const auto row_2_height =
-      grid.items[8].currentBounds.toNearestInt().getHeight();
-  const auto combined_height = row_1_height + row_2_height;
-  lfo_section_.setBounds(lfo_section_.getBounds().withHeight(combined_height));
-  vco_mod_section_.setBounds(
-      vco_mod_section_.getBounds().withHeight(combined_height));
-  vco1_section_.setBounds(
-      vco1_section_.getBounds().withHeight(combined_height));
-  vco2_section_.setBounds(
-      vco2_section_.getBounds().withHeight(combined_height));
-  vcf_section_.setBounds(vcf_section_.getBounds().withHeight(combined_height));
-  vca_section_.setBounds(vca_section_.getBounds().withHeight(combined_height));
-  env1_section_.setBounds(
-      env1_section_.getBounds().withHeight(combined_height));
-  env2_section_.setBounds(
-      env2_section_.getBounds().withHeight(combined_height));
 
   return grid;
 }
@@ -134,9 +97,7 @@ juce::Grid AudioPluginAudioProcessorEditor::MakeMainGrid() {
   grid.rowGap = juce::Grid::Px(4);
   grid.alignContent = juce::Grid::AlignContent::center;
   grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                       juce::Grid::TrackInfo(juce::Grid::Fr(7)),
-                       juce::Grid::TrackInfo(juce::Grid::Fr(1)),
-                       juce::Grid::TrackInfo(juce::Grid::Fr(7))};
+                       juce::Grid::TrackInfo(juce::Grid::Fr(1))};
   grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(3)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                           juce::Grid::TrackInfo(juce::Grid::Fr(2)),
