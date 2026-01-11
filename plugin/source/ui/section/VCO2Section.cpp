@@ -72,11 +72,6 @@ VCO2Section::VCO2Section(AudioPluginAudioProcessor& processor)
 }
 
 void VCO2Section::resized() {
-  auto label_bounds = vco2_label_.getBounds().reduced(4, 0);
-  vco2_label_.setBounds(
-      label_bounds.removeFromLeft(label_bounds.getWidth() / 2));
-  vco2_sync_button_.setBounds(label_bounds);
-
   const auto section_bounds = getLocalBounds().reduced(4);
   juce::Grid section_grid;
   section_grid.alignContent = juce::Grid::AlignContent::center;
@@ -84,17 +79,24 @@ void VCO2Section::resized() {
                                   juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                   juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                   juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                juce::Grid::TrackInfo(juce::Grid::Fr(1))};
   section_grid.items = {
-      juce::GridItem{cross_mod_slider_}, juce::GridItem{},
-      juce::GridItem{fine_tune_slider_}, juce::GridItem{vco2_level_slider_},
-      juce::GridItem{cross_mod_label_},  juce::GridItem{wave2_type_label_},
-      juce::GridItem{fine_tune_label_},  juce::GridItem{vco2_level_label_}};
+      juce::GridItem{vco2_label_}.withArea(1, 1, 1, 3),
+      juce::GridItem{vco2_sync_button_}.withArea(1, 3, 1, 5),
+      juce::GridItem{cross_mod_slider_},
+      juce::GridItem{},
+      juce::GridItem{fine_tune_slider_},
+      juce::GridItem{vco2_level_slider_},
+      juce::GridItem{cross_mod_label_},
+      juce::GridItem{wave2_type_label_},
+      juce::GridItem{fine_tune_label_},
+      juce::GridItem{vco2_level_label_}};
 
   section_grid.performLayout(section_bounds.toNearestInt());
 
-  auto radio_area = section_grid.items[1].currentBounds.toNearestInt();
+  auto radio_area = section_grid.items[3].currentBounds.toNearestInt();
   const auto button_height = radio_area.getHeight() / 10;
 
   for (auto& btn : wave2_type_buttons_) {

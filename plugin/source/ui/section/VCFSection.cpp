@@ -131,11 +131,6 @@ VCFSection::VCFSection(AudioPluginAudioProcessor& processor)
 }
 
 void VCFSection::resized() {
-  auto label_bounds = vcf_label_.getBounds().reduced(4, 0);
-  vcf_label_.setBounds(
-      label_bounds.removeFromLeft(label_bounds.getWidth() / 3));
-  filter_type_combo_.setBounds(label_bounds);
-
   const auto section_bounds = getLocalBounds().reduced(4);
   juce::Grid section_grid;
   section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
@@ -146,9 +141,12 @@ void VCFSection::resized() {
                                   juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                   juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                   juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.items = {juce::GridItem{filter_hpf_slider_},
+  section_grid.items = {juce::GridItem{vcf_label_}.withArea(1, 1, 1, 3),
+                        juce::GridItem{filter_type_combo_}.withArea(1, 3, 1, 9),
+                        juce::GridItem{filter_hpf_slider_},
                         juce::GridItem{filter_cutoff_slider_},
                         juce::GridItem{filter_resonance_slider_},
                         juce::GridItem{filter_drive_slider_},
@@ -169,7 +167,7 @@ void VCFSection::resized() {
 
   // filter slope layout
   {
-    auto radio_area = section_grid.items[4].currentBounds.toNearestInt();
+    auto radio_area = section_grid.items[6].currentBounds.toNearestInt();
     const auto button_height =
         radio_area.getHeight() / static_cast<int>(filter_slope_buttons_.size());
 
@@ -180,7 +178,7 @@ void VCFSection::resized() {
 
   // filter env source layout
   {
-    auto radio_area = section_grid.items[7].currentBounds.toNearestInt();
+    auto radio_area = section_grid.items[9].currentBounds.toNearestInt();
     const auto button_height =
         radio_area.getHeight() /
         static_cast<int>(filter_env_source_buttons_.size());

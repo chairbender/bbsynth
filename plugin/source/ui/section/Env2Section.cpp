@@ -53,9 +53,11 @@ void Env2Section::resized() {
                                   juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                   juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                   juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.items = {juce::GridItem{env2_attack_slider_},
+  section_grid.items = {juce::GridItem{env2_label_}.withArea(1, 1, 1, 5),
+                        juce::GridItem{env2_attack_slider_},
                         juce::GridItem{env2_decay_slider_},
                         juce::GridItem{env2_sustain_slider_},
                         juce::GridItem{env2_release_slider_},

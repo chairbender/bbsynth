@@ -59,23 +59,26 @@ void VCFDriveScalingSection::resized() {
                                   juce::Grid::TrackInfo(juce::Grid::Fr(2)),
                                   juce::Grid::TrackInfo(juce::Grid::Fr(2)),
                                   juce::Grid::TrackInfo(juce::Grid::Fr(2))};
-  // 3 rows: 1 for headers, 1 for input, 1 for state
+  // 4 rows: 1 for section label, 1 for headers, 1 for input, 1 for state
   section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                juce::Grid::TrackInfo(juce::Grid::Fr(4))};
   section_grid.items = {
       // Row 0
+      juce::GridItem{vcf_drive_scaling_label_}.withArea(1, 1, 1, 6),
+      // Row 1
       juce::GridItem{}, juce::GridItem{filter_stage_header_labels_[0]},
       juce::GridItem{filter_stage_header_labels_[1]},
       juce::GridItem{filter_stage_header_labels_[2]},
       juce::GridItem{filter_stage_header_labels_[3]},
-      // Row 1
+      // Row 2
       juce::GridItem{filter_input_row_label_},
       juce::GridItem{filter_input_drive_scale_sliders_[0]},
       juce::GridItem{filter_input_drive_scale_sliders_[1]},
       juce::GridItem{filter_input_drive_scale_sliders_[2]},
       juce::GridItem{filter_input_drive_scale_sliders_[3]},
-      // Row 2
+      // Row 3
       juce::GridItem{filter_state_row_label_},
       juce::GridItem{filter_state_drive_scale_sliders_[0]},
       juce::GridItem{filter_state_drive_scale_sliders_[1]},

@@ -41,12 +41,17 @@ void VCASection::resized() {
   section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                   juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                   juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                juce::Grid::TrackInfo(juce::Grid::Fr(1))};
   section_grid.items = {
-      juce::GridItem{vca_level_slider_},  juce::GridItem{vca_lfo_mod_slider_},
-      juce::GridItem{vca_tone_slider_},   juce::GridItem{vca_level_label_},
-      juce::GridItem{vca_lfo_mod_label_}, juce::GridItem{vca_tone_label_}};
+      juce::GridItem{vca_label_}.withArea(1, 1, 1, 4),
+      juce::GridItem{vca_level_slider_},
+      juce::GridItem{vca_lfo_mod_slider_},
+      juce::GridItem{vca_tone_slider_},
+      juce::GridItem{vca_level_label_},
+      juce::GridItem{vca_lfo_mod_label_},
+      juce::GridItem{vca_tone_label_}};
 
   section_grid.performLayout(section_bounds.toNearestInt());
 }
