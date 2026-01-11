@@ -50,17 +50,19 @@ void VCO1Section::resized() {
   section_grid.alignContent = juce::Grid::AlignContent::center;
   section_grid.templateColumns = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                   juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(4)),
+  section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
+                               juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                juce::Grid::TrackInfo(juce::Grid::Fr(1))};
 
-  section_grid.items = {juce::GridItem{},  // placeholder for radio area
+  section_grid.items = {juce::GridItem{vco1_label_}.withArea(1, 1, 1, 3),
+                        juce::GridItem{},  // placeholder for radio area
                         juce::GridItem{vco1_level_slider_},
                         juce::GridItem{wave_type_label_},
                         juce::GridItem{vco1_level_label_}};
 
   section_grid.performLayout(section_bounds.toNearestInt());
 
-  auto radio_area = section_grid.items[0].currentBounds.toNearestInt();
+  auto radio_area = section_grid.items[1].currentBounds.toNearestInt();
   const auto button_height = radio_area.getHeight() / 10;
 
   for (auto& btn : wave_type_buttons_) {
