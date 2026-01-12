@@ -1,5 +1,6 @@
 #pragma once
-
+import JuceImports;
+import std;
 
 namespace audio_plugin {
 /**

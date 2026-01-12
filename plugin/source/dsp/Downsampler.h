@@ -1,7 +1,6 @@
 #pragma once
-
-#include <juce_dsp/juce_dsp.h>
-#include <vector>
+import JuceImports;
+import std;
 
 namespace audio_plugin {
 // Because we generate at oversampled rate and don't use upsampling,

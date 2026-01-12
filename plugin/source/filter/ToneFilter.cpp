@@ -1,3 +1,6 @@
+import JuceImports;
+import std;
+
 #include "ToneFilter.h"
 
 namespace audio_plugin {

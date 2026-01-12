@@ -1,3 +1,6 @@
+import JuceImports;
+import std;
+
 #include "SpectrumAnalyzerComponent.h"
 
 namespace audio_plugin {

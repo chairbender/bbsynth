@@ -1,3 +1,6 @@
+import JuceImports;
+import std;
+
 #include "Downsampler.h"
 
 namespace audio_plugin {

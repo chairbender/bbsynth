@@ -1,8 +1,7 @@
+import JuceImports;
+import std;
+
 #include "OTAFilterDelayedFeedback.h"
-
-#include <juce_dsp/juce_dsp.h>
-
-#include <cmath>
 
 #include "../Constants.h"
 #include "../Utils.h"

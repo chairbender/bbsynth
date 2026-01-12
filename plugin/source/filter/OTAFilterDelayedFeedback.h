@@ -1,9 +1,6 @@
 #pragma once
-
-#include <juce_audio_processors/juce_audio_processors.h>
-
-#include <array>
-#include <vector>
+import JuceImports;
+import std;
 
 #include "../dsp/TanhADAA.h"
 

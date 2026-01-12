@@ -1,3 +1,6 @@
+import JuceImports;
+import std;
+
 #include "VCFDriveScalingSection.h"
 
 namespace audio_plugin {

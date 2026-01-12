@@ -1,8 +1,6 @@
 #pragma once
-#include <algorithm>
-#include <cmath>
-#include <juce_core/juce_core.h>
-#include <juce_dsp/juce_dsp.h>
+import std;
+import JuceImports;
 
 namespace audio_plugin {
 

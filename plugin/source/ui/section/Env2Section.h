@@ -1,5 +1,8 @@
 #pragma once
 
+import JuceImports;
+import std;
+
 #include "../../PluginProcessor.h"
 
 namespace audio_plugin {

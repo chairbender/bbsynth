@@ -1,3 +1,6 @@
+import JuceImports;
+import std;
+
 #include "VCASection.h"
 
 namespace audio_plugin {

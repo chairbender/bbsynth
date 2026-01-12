@@ -1,3 +1,6 @@
+import JuceImports;
+import std;
+
 #include "LFOSection.h"
 
 namespace audio_plugin {

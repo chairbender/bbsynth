@@ -1,7 +1,7 @@
-#include "OTAFilterTPTNewtonRaphson.h"
-
 import JuceImports;
 import std;
+
+#include "OTAFilterTPTNewtonRaphson.h"
 
 #include "../Constants.h"
 #include "../Utils.h"

@@ -1,8 +1,8 @@
 
-#include "TanhADAA.h"
+import JuceImports;
+import std;
 
-#include <algorithm>
-#include <cmath>
+#include "TanhADAA.h"
 
 #include "../Utils.h"
 #include "juce_core/system/juce_PlatformDefs.h"

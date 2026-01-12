@@ -1,3 +1,6 @@
+import JuceImports;
+import std;
+
 #include "VCFSection.h"
 
 namespace audio_plugin {

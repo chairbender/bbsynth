@@ -1,3 +1,6 @@
+import JuceImports;
+import std;
+
 #include "PluginProcessor.h"
 
 #include "Constants.h"

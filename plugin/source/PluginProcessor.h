@@ -1,9 +1,8 @@
 #pragma once
-
-#include <juce_audio_processors/juce_audio_processors.h>
+import JuceImports;
+import std;
 
 #include "filter/ToneFilter.h"
-#include "juce_dsp/juce_dsp.h"
 #include "oscillator/WaveGenerator.h"
 
 namespace audio_plugin {

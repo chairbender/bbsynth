@@ -10,9 +10,8 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 
 
 #pragma once
-
-#include <juce_audio_basics/juce_audio_basics.h>
-#include <juce_core/juce_core.h>
+import JuceImports;
+import std;
 
 namespace audio_plugin {
 

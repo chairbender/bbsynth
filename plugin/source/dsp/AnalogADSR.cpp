@@ -1,3 +1,6 @@
+import JuceImports;
+import std;
+
 #include "AnalogADSR.h"
 
 namespace audio_plugin {

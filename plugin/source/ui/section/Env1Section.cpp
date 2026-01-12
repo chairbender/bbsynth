@@ -1,3 +1,6 @@
+import JuceImports;
+import std;
+
 #include "Env1Section.h"
 
 namespace audio_plugin {
