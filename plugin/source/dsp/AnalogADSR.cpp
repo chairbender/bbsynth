@@ -1,7 +1,5 @@
 #include "AnalogADSR.h"
 
-#include <cmath>
-
 namespace audio_plugin {
 
 void AnalogADSR::Prepare(const double sample_rate) {

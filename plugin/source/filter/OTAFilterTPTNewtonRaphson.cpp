@@ -1,8 +1,7 @@
 #include "OTAFilterTPTNewtonRaphson.h"
 
-#include <juce_dsp/juce_dsp.h>
-
-#include <cmath>
+import JuceImports;
+import std;
 
 #include "../Constants.h"
 #include "../Utils.h"
