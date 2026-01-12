@@ -5,13 +5,14 @@ Used with permission:
 https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 */
 
-// todo restore == checks against the same var as isNaN checks as that was the
-// actual intention
 
 #include "WaveGenerator.h"
 
 #include "../Constants.h"
 
+
+// TODO: WaveGenerator is a template class so the standard practice is
+//   to put it all in the header file
 namespace audio_plugin {
 constexpr double DELTA{.0000001};
 
