@@ -3,6 +3,7 @@
 #include <juce_dsp/juce_dsp.h>
 
 #include <cmath>
+#include <ranges>
 
 #include "../Constants.h"
 #include "../Utils.h"
@@ -28,11 +29,14 @@ OTAFilterDelayedFeedback::OTAFilterDelayedFeedback(
       dc_out_y1_{0} {}
 
 inline void OTAFilterDelayedFeedback::FilterStage(const float in, float& out,
-                                   TanhADAA& tanh_in, TanhADAA& tanh_state,
-                                   const float g, const float scale) const {
+                                                  TanhADAA& tanh_in,
+                                                  TanhADAA& tanh_state,
+                                                  const float g,
+                                                  const float scale) const {
   constexpr auto kLeak = 0.99995f;
   const auto stage_index = &tanh_in - &tanh_in_[0];
-  const auto state_scale = 1.f / (drive_ * state_drive_scales_[static_cast<size_t>(stage_index)]);
+  const auto state_scale =
+      1.f / (drive_ * state_drive_scales_[static_cast<size_t>(stage_index)]);
   const auto tanh_in_val = tanh_in.process(in * scale);
   const auto tanh_state_val = tanh_state.process(out * state_scale);
   const float v = tanh_in_val * (1.f / scale);
@@ -45,72 +49,111 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
   jassert(sample_rate_ > 0);
 
   // todo vectorize
-  const auto buf = buffers.getWritePointer(0);
-  const auto env_data = env_buffer_->getReadPointer(0);
-  const auto lfo_data = lfo_buffer_.getReadPointer(0);
+  const auto samples = std::span(buffers.getWritePointer(0) + start_sample,
+                                 static_cast<size_t>(numSamples));
+  const auto sample_chunks = samples | std::ranges::views::chunk(kOversample);
+  const auto env_data =
+      std::span(env_buffer_->getReadPointer(0) + start_sample / kOversample,
+                static_cast<size_t>(numSamples / kOversample));
+  const auto lfo_data =
+      std::span(lfo_buffer_.getReadPointer(0) + start_sample / kOversample,
+                static_cast<size_t>(numSamples / kOversample));
 
-  for (auto i = start_sample; i < start_sample + numSamples; ++i) {
-    const auto sample = buf[i];
-    // modulation - envelope and LFO affects cutoff frequency
-    const float modulated_cutoff = juce::jlimit(kMinCutoff, kMaxCutoff, cutoff_freq_ + env_mod_ * env_data[i / kOversample] * kMaxCutoff + lfo_mod_ * lfo_data[i / kOversample] * kMaxCutoff);
+  for (auto [sample_chunk, env_sample, lfo_sample] :
+       std::views::zip(sample_chunks, env_data, lfo_data)) {
+    for (auto& sample : sample_chunk) {
+      // modulation - envelope and LFO affects cutoff frequency
+      const float modulated_cutoff = juce::jlimit(
+          kMinCutoff, kMaxCutoff,
+          cutoff_freq_ + env_mod_ * env_sample * kMaxCutoff +
+              lfo_mod_ * lfo_sample * kMaxCutoff);
 
-    // this was my original "naive" approach which can exceed 1 in some cases and blow the filter up.
-    // It seems to work fine now that I've addressed other issues with the filter.
-    const auto g = tanf(juce::MathConstants<float>::pi * modulated_cutoff / static_cast<float>(sample_rate_));
-    // this TPT method of calculating g ensures the value won't exceed 1.
-    //const auto g = tanf(juce::MathConstants<float>::pi * modulated_cutoff/static_cast<float>(sample_rate_)) /
-    //  (1 + tanf(juce::MathConstants<float>::pi * modulated_cutoff/static_cast<float>(sample_rate_)));
-    // this approach simply clamps g to ensure it doesn't exceed 1
-    //const auto g = std::min(.9f, std::tanf(juce::MathConstants<float>::pi * modulated_cutoff/static_cast<float>(sample_rate_)));
+      // this was my original "naive" approach which can exceed 1 in some cases
+      // and blow the filter up. It seems to work fine now that I've addressed
+      // other issues with the filter.
+      const auto g = tanf(juce::MathConstants<float>::pi * modulated_cutoff /
+                          static_cast<float>(sample_rate_));
+      // this TPT method of calculating g ensures the value won't exceed 1.
+      // const auto g = tanf(juce::MathConstants<float>::pi *
+      // modulated_cutoff/static_cast<float>(sample_rate_)) /
+      //  (1 + tanf(juce::MathConstants<float>::pi *
+      //  modulated_cutoff/static_cast<float>(sample_rate_)));
+      // this approach simply clamps g to ensure it doesn't exceed 1
+      // const auto g = std::min(.9f, std::tanf(juce::MathConstants<float>::pi *
+      // modulated_cutoff/static_cast<float>(sample_rate_)));
 
-    // resonance feedback from output
-    float last_stage_output = 0;
-    switch (num_stages_) {
-      case 1: last_stage_output = s1_; break;
-      case 2: last_stage_output = s2_; break;
-      case 3: last_stage_output = s3_; break;
-      case 4: last_stage_output = s4_; break;
-      default: last_stage_output = s4_; break;
+      // resonance feedback from output
+      float last_stage_output = 0;
+      switch (num_stages_) {
+        case 1:
+          last_stage_output = s1_;
+          break;
+        case 2:
+          last_stage_output = s2_;
+          break;
+        case 3:
+          last_stage_output = s3_;
+          break;
+        case 4:
+          last_stage_output = s4_;
+          break;
+        default:
+          last_stage_output = s4_;
+          break;
+      }
+
+      // feedback with compensation
+      // const auto feedback = resonance_ * last_stage_output / (1 + resonance_
+      // * (1.f / static_cast<float>(num_stages_))); feedback without
+      // compensation
+      const auto feedback = resonance_ * last_stage_output;
+
+      // input with soft clipping
+      // try 0.8 to 1.5 range
+      // todo: we could even expose this as yet another param
+      constexpr auto kFeedbackDrive = 1.f;
+      constexpr auto kFeedbackScale = 1.f / kFeedbackDrive;
+      const auto u =
+          sample -
+          tanh_feedback_.process(feedback * kFeedbackScale) * kFeedbackDrive;
+
+      // todo: different scale / drive amount for each stage as opposed to the
+      // same for each.
+
+      FilterStage(u, s1_, tanh_in_[0], tanh_state_[0], g,
+                  1.f / (drive_ * input_drive_scales_[0]));
+      if (num_stages_ >= 2)
+        FilterStage(s1_, s2_, tanh_in_[1], tanh_state_[1], g,
+                    1.f / (drive_ * input_drive_scales_[1]));
+      if (num_stages_ >= 3)
+        FilterStage(s2_, s3_, tanh_in_[2], tanh_state_[2], g,
+                    1.f / (drive_ * input_drive_scales_[2]));
+      if (num_stages_ >= 4)
+        FilterStage(s3_, s4_, tanh_in_[3], tanh_state_[3], g,
+                    1.f / (drive_ * input_drive_scales_[3]));
+
+      // DC block and soft clip the output
+      // try 2.0 - 4.0 range
+      // todo: we could even expose this as yet another param
+      constexpr auto kOutputDrive = 2.f;
+      constexpr auto kOutputScale = 1.f / kOutputDrive;
+      // prevents the clipping inherent in the TanhADAA calculation
+      // (happens at extreme g, res, drive values)
+      const auto tanh_final_out_val =
+          tanh_final_out_.process((last_stage_output)*kOutputScale);
+      const auto dc_in = tanh_final_out_val;
+      const auto dc_out = Sanitize(dc_in - dc_out_x1_ + 0.99f * dc_out_y1_);
+      dc_out_x1_ = dc_in;
+      dc_out_y1_ = dc_out;
+      // it can very slightly clip, but that's within tolerable levels, so
+      // we don't clamp here.
+      sample = dc_out;
     }
-
-    // feedback with compensation
-    //const auto feedback = resonance_ * last_stage_output / (1 + resonance_ * (1.f / static_cast<float>(num_stages_)));
-    // feedback without compensation
-    const auto feedback = resonance_ * last_stage_output;
-
-    // input with soft clipping
-    // try 0.8 to 1.5 range
-    // todo: we could even expose this as yet another param
-    constexpr auto kFeedbackDrive = 1.f;
-    constexpr auto kFeedbackScale = 1.f / kFeedbackDrive;
-    const auto u = sample - tanh_feedback_.process(feedback * kFeedbackScale) * kFeedbackDrive;
-
-    // todo: different scale / drive amount for each stage as opposed to the same for each.
-
-    FilterStage(u, s1_, tanh_in_[0], tanh_state_[0], g, 1.f / (drive_ * input_drive_scales_[0]));
-    if (num_stages_ >= 2) FilterStage(s1_, s2_, tanh_in_[1], tanh_state_[1], g, 1.f / (drive_ * input_drive_scales_[1]));
-    if (num_stages_ >= 3) FilterStage(s2_, s3_, tanh_in_[2], tanh_state_[2], g, 1.f / (drive_ * input_drive_scales_[2]));
-    if (num_stages_ >= 4) FilterStage(s3_, s4_, tanh_in_[3], tanh_state_[3], g, 1.f / (drive_ * input_drive_scales_[3]));
-
-    // DC block and soft clip the output
-    // try 2.0 - 4.0 range
-    // todo: we could even expose this as yet another param
-    constexpr auto kOutputDrive = 2.f;
-    constexpr auto kOutputScale = 1.f / kOutputDrive;
-    // prevents the clipping inherent in the TanhADAA calculation
-    // (happens at extreme g, res, drive values)
-    const auto tanh_final_out_val = tanh_final_out_.process((last_stage_output) * kOutputScale);
-    const auto dc_in = tanh_final_out_val;
-    const auto dc_out = Sanitize(dc_in - dc_out_x1_ + 0.99f * dc_out_y1_);
-    dc_out_x1_ = dc_in;
-    dc_out_y1_ = dc_out;
-    // it can very slightly clip, but that's within tolerable levels, so
-    // we don't clamp here.
-    buf[i] = dc_out;
   }
 }
 
-void OTAFilterDelayedFeedback::Configure(const juce::AudioProcessorValueTreeState& state) {
+void OTAFilterDelayedFeedback::Configure(
+    const juce::AudioProcessorValueTreeState& state) {
   cutoff_freq_ = state.getRawParameterValue("filterCutoffFreq")->load();
   resonance_ = state.getRawParameterValue("filterResonance")->load();
   drive_ = state.getRawParameterValue("filterDrive")->load();
@@ -118,18 +161,27 @@ void OTAFilterDelayedFeedback::Configure(const juce::AudioProcessorValueTreeStat
   lfo_mod_ = state.getRawParameterValue("filterLfoMod")->load();
   for (int i = 0; i < 4; ++i) {
     input_drive_scales_[static_cast<size_t>(i)] =
-        state.getRawParameterValue("filterInputDriveScale" + juce::String(i + 1))
+        state
+            .getRawParameterValue("filterInputDriveScale" + juce::String(i + 1))
             ->load();
     state_drive_scales_[static_cast<size_t>(i)] =
-        state.getRawParameterValue("filterStateDriveScale" + juce::String(i + 1))
+        state
+            .getRawParameterValue("filterStateDriveScale" + juce::String(i + 1))
             ->load();
   }
-  switch (static_cast<int>(
-              state.getRawParameterValue("filterSlope")->load())) {
-    case 0: num_stages_ = 4; break;
-    case 1: num_stages_ = 3; break;
-    case 2: num_stages_ = 2; break;
-    default: num_stages_ = 4; break;
+  switch (static_cast<int>(state.getRawParameterValue("filterSlope")->load())) {
+    case 0:
+      num_stages_ = 4;
+      break;
+    case 1:
+      num_stages_ = 3;
+      break;
+    case 2:
+      num_stages_ = 2;
+      break;
+    default:
+      num_stages_ = 4;
+      break;
   }
 }
 
@@ -145,4 +197,4 @@ void OTAFilterDelayedFeedback::Reset() {
 void OTAFilterDelayedFeedback::set_sample_rate(const double rate) {
   sample_rate_ = static_cast<float>(rate);
 }
-}
+}  // namespace audio_plugin
