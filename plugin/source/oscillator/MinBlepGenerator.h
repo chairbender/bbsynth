@@ -130,7 +130,7 @@ public:
 
       // Sum over all input samples n
       for (size_t n = 0; n < N; n++) {
-        double angle = -2.0 * M_PI * static_cast<double>(k)
+        double angle = -2.0 * juce::MathConstants<float>::pi * static_cast<double>(k)
           * static_cast<double>(n) / static_cast<double>(N);
         double cosAngle = cos(angle);
         double sinAngle = sin(angle);
@@ -164,7 +164,7 @@ public:
 
       // Sum over all frequency bins k
       for (size_t k = 0; k < N; k++) {
-        double angle = 2.0 * M_PI * static_cast<double>(k)
+        double angle = 2.0 * juce::MathConstants<float>::pi * static_cast<double>(k)
           * static_cast<double>(n) / static_cast<double>(N);  // Note: positive angle (opposite of DFT)
         double cosAngle = cos(angle);
         double sinAngle = sin(angle);

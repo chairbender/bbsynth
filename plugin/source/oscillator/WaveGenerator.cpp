@@ -403,24 +403,6 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
 
   // todo: we aren't using gain_last_ / volume right now
   gain_last_[0] = volume_;
-
-#if JUCE_DEBUG
-
-  // Using dB -12 to +3 ... normalized to 0..1 for indicator
-  float RMS = outputBuffer.getRMSLevel(0, 0, outputBuffer.getNumSamples());
-
-  // Aaron - wtf?  How do we get NaN .. but we do .... hmmmm
-  if (isnanf(RMS)) {
-    DBG("NaN " + juce::String(outputBuffer.getNumSamples()) + " " +
-        juce::String(*outputBuffer.getReadPointer(0, 0)));
-  }
-
-  if (RMS > 5 || RMS < 0) {
-    DBG("WOAH! " + juce::String(RMS) + " " +
-        juce::String(*outputBuffer.getReadPointer(0, 0)));
-  }
-
-#endif
 }
 
 template <bool IsLFO>
