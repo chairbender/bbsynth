@@ -148,7 +148,6 @@ void AudioPluginAudioProcessor::prepareToPlay(const double sampleRate,
 void AudioPluginAudioProcessor::releaseResources() {
   // When playback stops, you can use this as an opportunity to free up any
   // spare memory, etc.
-  juce::ignoreUnused(index);
 }
 
 bool AudioPluginAudioProcessor::isBusesLayoutSupported(
