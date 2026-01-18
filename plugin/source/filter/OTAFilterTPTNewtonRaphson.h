@@ -53,7 +53,7 @@ class OTAFilterTPTNewtonRaphson {
   std::array<float, 4> state_drive_scales_;
 
  private:
-  float ProcessSample(float in, int index);
+  float ProcessSample(float in, float env_sample, float lfo_sample);
 
   // Evaluate filter for a given output guess.
   // Returns what the output would be if the actual output were 'out_guess'
@@ -63,6 +63,7 @@ class OTAFilterTPTNewtonRaphson {
   // d(output)/d(out_guess) = how much does changing our guess change the predicted output?
   float ComputeJacobian(float in, float out_guess, float G, float k) const;
 
+  // todo: why one is & and other is *?
   const juce::AudioBuffer<float>* env_buffer_;
   const juce::AudioBuffer<float>& lfo_buffer_;
   float sample_rate_;
