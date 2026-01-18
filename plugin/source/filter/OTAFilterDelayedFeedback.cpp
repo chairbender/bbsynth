@@ -58,7 +58,7 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
       std::span(lfo_buffer_.getReadPointer(0) + start_sample / kOversample,
                 static_cast<size_t>(numSamples / kOversample));
 
-  for (auto [sample_chunk, env_sample, lfo_sample] :
+  for (const auto [sample_chunk, env_sample, lfo_sample] :
        std::views::zip(sample_chunks, env_data, lfo_data)) {
     for (auto& sample : sample_chunk) {
       // modulation - envelope and LFO affects cutoff frequency
@@ -158,7 +158,7 @@ void OTAFilterDelayedFeedback::Configure(
   drive_ = state.getRawParameterValue("filterDrive")->load();
   env_mod_ = state.getRawParameterValue("filterEnvMod")->load();
   lfo_mod_ = state.getRawParameterValue("filterLfoMod")->load();
-  for (auto [input_drive_scale, state_drive_scale, input_drive_param,
+  for (const auto [input_drive_scale, state_drive_scale, input_drive_param,
              state_drive_param] :
        std::views::zip(input_drive_scales_, state_drive_scales_,
                        kInputDriveScaleParams, kStateDriveScaleParams)) {
