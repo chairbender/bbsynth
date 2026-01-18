@@ -62,10 +62,10 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
        std::views::zip(sample_chunks, env_data, lfo_data)) {
     for (auto& sample : sample_chunk) {
       // modulation - envelope and LFO affects cutoff frequency
-      const float modulated_cutoff = juce::jlimit(
-          kMinCutoff, kMaxCutoff,
-          cutoff_freq_ + env_mod_ * env_sample * kMaxCutoff +
-              lfo_mod_ * lfo_sample * kMaxCutoff);
+      const float modulated_cutoff =
+          juce::jlimit(kMinCutoff, kMaxCutoff,
+                       cutoff_freq_ + env_mod_ * env_sample * kMaxCutoff +
+                           lfo_mod_ * lfo_sample * kMaxCutoff);
 
       // this was my original "naive" approach which can exceed 1 in some cases
       // and blow the filter up. It seems to work fine now that I've addressed
@@ -158,15 +158,12 @@ void OTAFilterDelayedFeedback::Configure(
   drive_ = state.getRawParameterValue("filterDrive")->load();
   env_mod_ = state.getRawParameterValue("filterEnvMod")->load();
   lfo_mod_ = state.getRawParameterValue("filterLfoMod")->load();
-  for (int i = 0; i < 4; ++i) {
-    input_drive_scales_[static_cast<size_t>(i)] =
-        state
-            .getRawParameterValue("filterInputDriveScale" + juce::String(i + 1))
-            ->load();
-    state_drive_scales_[static_cast<size_t>(i)] =
-        state
-            .getRawParameterValue("filterStateDriveScale" + juce::String(i + 1))
-            ->load();
+  for (auto [input_drive_scale, state_drive_scale, input_drive_param,
+             state_drive_param] :
+       std::views::zip(input_drive_scales_, state_drive_scales_,
+                       kInputDriveScaleParams, kStateDriveScaleParams)) {
+    input_drive_scale = state.getRawParameterValue(input_drive_param)->load();
+    state_drive_scale = state.getRawParameterValue(state_drive_param)->load();
   }
   switch (static_cast<int>(state.getRawParameterValue("filterSlope")->load())) {
     case 0:

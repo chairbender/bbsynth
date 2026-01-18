@@ -27,11 +27,7 @@ OTAFilterTPTNewtonRaphson::OTAFilterTPTNewtonRaphson(
       s3_{0},
       s4_{0} {}
 
-constexpr auto GetIndexSuffixedParams(const std::string_view param_prefix) {
-  return std::views::iota(0, 4) | std::views::transform([param_prefix](auto i) {
-           return std::format("{}{}", param_prefix, i + 1);
-         });
-}
+
 
 void OTAFilterTPTNewtonRaphson::Configure(
     const juce::AudioProcessorValueTreeState& state) {
@@ -40,10 +36,7 @@ void OTAFilterTPTNewtonRaphson::Configure(
   drive_ = state.getRawParameterValue("filterDrive")->load();
   env_mod_ = state.getRawParameterValue("filterEnvMod")->load();
   lfo_mod_ = state.getRawParameterValue("filterLfoMod")->load();
-  constexpr auto kInputDriveScaleParams =
-      GetIndexSuffixedParams("filterInputDriveScale");
-  constexpr auto kStateDriveScaleParams =
-      GetIndexSuffixedParams("filterStateDriveScale");
+
   for (auto [input_drive_scale, state_drive_scale, input_drive_param,
              state_drive_param] :
        std::views::zip(input_drive_scales_, state_drive_scales_,
