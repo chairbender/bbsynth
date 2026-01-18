@@ -196,7 +196,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   // when they first compile a plugin, but obviously you don't need to keep
   // this code if your algorithm always overwrites all the output channels.
   for (const auto i :
-       std::views::iota(totalNumOutputChannels, totalNumInputChannels))
+       std::views::iota(totalNumInputChannels, totalNumOutputChannels))
     buffer.clear(i, 0, buffer.getNumSamples());
 
   // This is the place where you'd normally do the guts of your plugin's
@@ -213,7 +213,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     // Update all voices with current parameters
     std::ranges::for_each(GetVoices(),
-                          [&](const auto voice) { voice->Configure(apvts_); });
+                          [this](const auto voice) { voice->Configure(apvts_); });
 
     // lfo params
     ConfigureLFO();
@@ -320,12 +320,12 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const auto vca_level = apvts_.getRawParameterValue("vcaLevel")->load();
     const auto vca_lfo_mod = apvts_.getRawParameterValue("vcaLfoMod")->load();
     const auto lfo_samples =
-        std::span(lfo_buffer_.getReadPointer(0), lfo_buffer_.getNumSamples());
+        std::span(lfo_buffer_.getReadPointer(0), buffer.getNumSamples());
     const auto output_buf =
         std::span(buffer.getWritePointer(0), buffer.getNumSamples());
     for (auto [lfo_sample, buf_write_sample] :
          std::views::zip(lfo_samples, output_buf)) {
-      buf_write_sample *= (vca_level + lfo_sample * vca_lfo_mod);
+      buf_write_sample *= vca_level + lfo_sample * vca_lfo_mod;
     }
 
     // // tone filtering
@@ -496,7 +496,7 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       juce::StringArray{"Env 1", "Env 2"}, 0));
 
   // Drive Scaling
-  for (const auto i : std::views::iota(1, 4)) {
+  for (const auto i : std::views::iota(1, 5)) {
     parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
         "filterInputDriveScale" + juce::String(i),
         "Filter Stage " + juce::String(i) + " Input Drive Scale",
