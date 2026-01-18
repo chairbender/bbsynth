@@ -2,7 +2,6 @@
 
 #include <juce_dsp/juce_dsp.h>
 
-#include <cmath>
 #include <ranges>
 
 #include "../Constants.h"
