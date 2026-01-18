@@ -1,4 +1,6 @@
 #pragma once
+#include <format>
+#include <ranges>
 
 namespace audio_plugin {
 constexpr auto kOversample = 2;
@@ -9,4 +11,15 @@ constexpr auto kMinCutoff = 20.0f;
 // todo: I think it doesn't serve much purpose to allow it to go higher than the nyquist freq?
 constexpr auto kMaxCutoff = 22000.0f;
 constexpr auto kNumVoices = 1;
+
+// todo: not sure if putting a function here is a best practice...
+constexpr auto GetIndexSuffixedParams(const std::string_view param_prefix) {
+  return std::views::iota(0, 4) | std::views::transform([param_prefix](auto i) {
+           return std::format("{}{}", param_prefix, i + 1);
+         });
+}
+constexpr auto kInputDriveScaleParams =
+    GetIndexSuffixedParams("filterInputDriveScale");
+constexpr auto kStateDriveScaleParams =
+    GetIndexSuffixedParams("filterStateDriveScale");
 }
