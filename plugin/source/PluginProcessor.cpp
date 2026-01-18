@@ -323,7 +323,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         std::span(lfo_buffer_.getReadPointer(0), buffer.getNumSamples());
     const auto output_buf =
         std::span(buffer.getWritePointer(0), buffer.getNumSamples());
-    for (auto [lfo_sample, buf_write_sample] :
+    for (const auto [lfo_sample, buf_write_sample] :
          std::views::zip(lfo_samples, output_buf)) {
       buf_write_sample *= vca_level + lfo_sample * vca_lfo_mod;
     }

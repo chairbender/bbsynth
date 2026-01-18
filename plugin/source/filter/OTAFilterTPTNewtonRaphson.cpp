@@ -37,7 +37,7 @@ void OTAFilterTPTNewtonRaphson::Configure(
   env_mod_ = state.getRawParameterValue("filterEnvMod")->load();
   lfo_mod_ = state.getRawParameterValue("filterLfoMod")->load();
 
-  for (auto [input_drive_scale, state_drive_scale, input_drive_param,
+  for (const auto [input_drive_scale, state_drive_scale, input_drive_param,
              state_drive_param] :
        std::views::zip(input_drive_scales_, state_drive_scales_,
                        kInputDriveScaleParams, kStateDriveScaleParams)) {
@@ -321,7 +321,7 @@ void OTAFilterTPTNewtonRaphson::Process(juce::AudioBuffer<float>& buffers,
       std::span(env_buffer_->getReadPointer(0) + start_chunk, num_chunks);
   const auto lfo_samples =
       std::span(lfo_buffer_.getReadPointer(0) + start_chunk, num_chunks);
-  for (auto [sample_chunk, env_sample, lfo_sample] :
+  for (const auto [sample_chunk, env_sample, lfo_sample] :
        std::views::zip(buffer_chunk, env_samples, lfo_samples)) {
     for (auto& sample : sample_chunk) {
       sample = ProcessSample(sample, env_sample, lfo_sample);
