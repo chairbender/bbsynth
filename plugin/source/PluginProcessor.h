@@ -1,10 +1,12 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <ranges>
 
 #include "filter/ToneFilter.h"
 #include "juce_dsp/juce_dsp.h"
 #include "oscillator/WaveGenerator.h"
+#include "oscillator/Oscillator.h"
 
 namespace audio_plugin {
 
@@ -46,6 +48,7 @@ public:
 private:
   static juce::AudioProcessorValueTreeState::ParameterLayout CreateParameterLayout();
   void ConfigureLFO();
+  std::ranges::view auto GetVoices();
 
   void parameterChanged(const juce::String& name, float newValue) override;
 

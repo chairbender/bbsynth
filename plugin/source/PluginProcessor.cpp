@@ -1,5 +1,7 @@
 #include "PluginProcessor.h"
 
+#include <ranges>
+
 #include "Constants.h"
 #include "Utils.h"
 #include "oscillator/Oscillator.h"
@@ -23,7 +25,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
       lfo_ramp_step_{0},
       lfo_delay_time_s_{0},
       lfo_rate_{0} {
-  for (auto i = 0; i < 1; ++i) {
+  for (auto _ : std::views::iota(0, kNumVoices)) {
     synth.addVoice(new OscillatorVoice(lfo_buffer_));
   }
   synth.addSound(new OscillatorSound(apvts_));
@@ -115,10 +117,17 @@ void AudioPluginAudioProcessor::ConfigureLFO() {
       break;
   }
 }
+std::ranges::view auto AudioPluginAudioProcessor::GetVoices() {
+  return std::views::iota(0, synth.getNumVoices()) |
+         std::views::transform([this](auto i) {
+           return dynamic_cast<OscillatorVoice*>(synth.getVoice(i));
+         });
+}
 
 void AudioPluginAudioProcessor::prepareToPlay(const double sampleRate,
                                               const int samplesPerBlock) {
-  juce::dsp::ProcessSpec process_spec{sampleRate, static_cast<juce::uint32>(samplesPerBlock), 1};
+  juce::dsp::ProcessSpec process_spec{
+      sampleRate, static_cast<juce::uint32>(samplesPerBlock), 1};
 
   main_limiter_.prepare(process_spec);
   main_limiter_.setRelease(50.f);
@@ -131,18 +140,16 @@ void AudioPluginAudioProcessor::prepareToPlay(const double sampleRate,
   lfo_samples_until_start_ = -1;
   lfo_ramp_ = -1;
   lfo_generator_.PrepareToPlay(sampleRate);
-  hpf_.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 1000.0f);
+  hpf_.coefficients =
+      juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 1000.0f);
   hpf_.prepare(process_spec);
   hpf_.reset();
   ConfigureLFO();
   tone_filter_.Prepare(sampleRate, samplesPerBlock);
-  // Update all voices with current parameters
-  for (int i = 0; i < synth.getNumVoices(); ++i) {
-    if (auto* voice = dynamic_cast<OscillatorVoice*>(synth.getVoice(i))) {
-      voice->Configure(apvts_);
-      voice->SetBlockSize(samplesPerBlock);
-    }
-  }
+  std::ranges::for_each(GetVoices(), [&](const auto voice) {
+    voice->Configure(apvts_);
+    voice->SetBlockSize(samplesPerBlock);
+  });
 }
 
 void AudioPluginAudioProcessor::releaseResources() {
@@ -188,7 +195,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
   // This is here to avoid people getting screaming feedback
   // when they first compile a plugin, but obviously you don't need to keep
   // this code if your algorithm always overwrites all the output channels.
-  for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+  for (const auto i :
+       std::views::iota(totalNumOutputChannels, totalNumInputChannels))
     buffer.clear(i, 0, buffer.getNumSamples());
 
   // This is the place where you'd normally do the guts of your plugin's
@@ -204,15 +212,14 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                                   buffer.getNumSamples(), true);
 
     // Update all voices with current parameters
-    for (int i = 0; i < synth.getNumVoices(); ++i) {
-      if (auto* voice = dynamic_cast<OscillatorVoice*>(synth.getVoice(i))) {
-        voice->Configure(apvts_);
-      }
-    }
+    std::ranges::for_each(GetVoices(),
+                          [&](const auto voice) { voice->Configure(apvts_); });
+
     // lfo params
     ConfigureLFO();
 
-    // todo instead of clearing each block, just overwrite into it instead of adding to it
+    // todo instead of clearing each block, just overwrite into it instead of
+    // adding to it
     // TODO: do we actually need to do this?
     lfo_buffer_.clear(0, 0, lfo_buffer_.getNumSamples());
 
@@ -259,9 +266,10 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // if we started this block, start ramping where we started
     if (lfo_ramp_ < 0 && start_lfo_sample >= 0) {
       lfo_ramp_ = 0;
-      auto* lfo_buffer_data = lfo_buffer_.getWritePointer(0);
-      for (auto i = start_lfo_sample; i < lfo_buffer_.getNumSamples(); ++i) {
-        lfo_buffer_data[i] *= lfo_ramp_;
+      const auto lfo_samples = std::span(lfo_buffer_.getWritePointer(0),
+                                         lfo_buffer_.getNumSamples());
+      for (auto& lfo_sample : lfo_samples) {
+        lfo_sample *= lfo_ramp_;
         lfo_ramp_ += lfo_ramp_step_;
         if (lfo_ramp_ >= 1.f) {
           lfo_ramp_ = 1.f;
@@ -278,9 +286,10 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
       lfo_generator_.RenderNextBlock(lfo_buffer_, 0, buffer.getNumSamples());
       if (lfo_ramp_ < 1.f) {
         // if we are currently LFO ramping, continue it
-        auto* lfo_buffer_data = lfo_buffer_.getWritePointer(0);
-        for (auto i = 0; i < lfo_buffer_.getNumSamples(); ++i) {
-          lfo_buffer_data[i] *= lfo_ramp_;
+        const auto lfo_samples = std::span(lfo_buffer_.getWritePointer(0),
+                                           lfo_buffer_.getNumSamples());
+        for (auto& lfo_sample : lfo_samples) {
+          lfo_sample *= lfo_ramp_;
           lfo_ramp_ += lfo_ramp_step_;
           if (lfo_ramp_ >= 1.f) {
             lfo_ramp_ = 1.f;
@@ -294,21 +303,29 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 
     // todo: may be a more efficient way to allocate this instead of per block
-    auto audio_block = juce::dsp::AudioBlock<float>{buffer.getArrayOfWritePointers(),
-      1, static_cast<size_t>(buffer.getNumSamples())};
-    const auto process_context = juce::dsp::ProcessContextReplacing<float>{audio_block};
+    auto audio_block = juce::dsp::AudioBlock<float>{
+        buffer.getArrayOfWritePointers(), 1,
+        static_cast<size_t>(buffer.getNumSamples())};
+    const auto process_context =
+        juce::dsp::ProcessContextReplacing<float>{audio_block};
 
-    // // hpf params - todo: probably bad to be changing this every block...rather than when param is changed
-    const auto hpf_freq = static_cast<float>(apvts_.getRawParameterValue("hpfFreq")->load());
-    hpf_.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(getSampleRate(), hpf_freq);
+    // // hpf params - todo: probably bad to be changing this every
+    // block...rather than when param is changed
+    const auto hpf_freq =
+        static_cast<float>(apvts_.getRawParameterValue("hpfFreq")->load());
+    hpf_.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(
+        getSampleRate(), hpf_freq);
     hpf_.process(process_context);
     // apply global LFO-based VCA
     const auto vca_level = apvts_.getRawParameterValue("vcaLevel")->load();
     const auto vca_lfo_mod = apvts_.getRawParameterValue("vcaLfoMod")->load();
-    auto* buf_write = buffer.getWritePointer(0);
-    auto* lfo_buf_read = lfo_buffer_.getReadPointer(0);
-    for (auto i = 0; i < buffer.getNumSamples(); ++i) {
-      buf_write[i] *= (vca_level + lfo_buf_read[i] * vca_lfo_mod);
+    const auto lfo_samples =
+        std::span(lfo_buffer_.getReadPointer(0), lfo_buffer_.getNumSamples());
+    const auto output_buf =
+        std::span(buffer.getWritePointer(0), buffer.getNumSamples());
+    for (auto [lfo_sample, buf_write_sample] :
+         std::views::zip(lfo_samples, output_buf)) {
+      buf_write_sample *= (vca_level + lfo_sample * vca_lfo_mod);
     }
 
     // // tone filtering
@@ -317,13 +334,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     // stop the LFO if no more voices
     if (lfo_samples_until_start_ == 0 && start_lfo_sample < 0) {
-      bool all_voices_stopped = true;
-      for (int i = 0; i < synth.getNumVoices(); ++i) {
-        if (synth.getVoice(i)->isVoiceActive()) {
-          all_voices_stopped = false;
-          break;
-        }
-      }
+      const bool all_voices_stopped = !std::ranges::any_of(
+          GetVoices(), [](auto voice) { return voice->isVoiceActive(); });
       if (all_voices_stopped) {
         lfo_ramp_ = -1;
         lfo_samples_until_start_ = -1;
@@ -334,7 +346,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     main_limiter_.process(process_context);
 
     // mono to stereo
-    buffer.addFrom(1,  0, buffer, 0, 0, buffer.getNumSamples());
+    buffer.addFrom(1, 0, buffer, 0, 0, buffer.getNumSamples());
 
     editor->GetNextAudioBlock(buffer);
   }
@@ -378,19 +390,19 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       "lfoDelayTimeSeconds", "LFO Delay Time",
       juce::NormalisableRange(0.00f, 3.f, .01f), 0.3f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "lfoAttack", "LFO Attack",
-      juce::NormalisableRange(0.001f, 1.0f, .001f), 0.01f));
+      "lfoAttack", "LFO Attack", juce::NormalisableRange(0.001f, 1.0f, .001f),
+      0.01f));
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "lfoWaveType", "LFO Wave Type",
       juce::StringArray{"sine", "sawFall", "triangle", "square", "random"}, 0));
 
   // VCO Mod
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "vcoModLfoFreq", "LFO Freq Mod", juce::NormalisableRange(-.1f, .1f, .001f),
-      0.f));
+      "vcoModLfoFreq", "LFO Freq Mod",
+      juce::NormalisableRange(-.1f, .1f, .001f), 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-    "vcoModEnv1Freq", "Env 1 Freq Mod", juce::NormalisableRange(-1.f, 1.f, .01f),
-    0.f));
+      "vcoModEnv1Freq", "Env 1 Freq Mod",
+      juce::NormalisableRange(-1.f, 1.f, .01f), 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
       "vcoModOsc1", "Freq Mod Osc 1", true));
   parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
@@ -407,7 +419,8 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
       "waveType", "Wave Type",
       juce::StringArray{"SIN", "SAW", "TRI", "SQR", "RND"}, 1));
-  // level should never exceed 1 as that will cause clipping when both voices are added together
+  // level should never exceed 1 as that will cause clipping when both voices
+  // are added together
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "vco1Level", "VCO 1 Level", juce::NormalisableRange(0.f, .5f, 0.01f),
       0.5f));
@@ -418,8 +431,8 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       "wave2Type", "Wave 2 Type",
       juce::StringArray{"sine", "sawFall", "triangle", "square", "random"}, 1));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-  "vco2Level", "VCO 2 Level", juce::NormalisableRange(0.f, .5f, 0.01f),
-  0.5f));
+      "vco2Level", "VCO 2 Level", juce::NormalisableRange(0.f, .5f, 0.01f),
+      0.5f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "fineTune", "Fine Tune", juce::NormalisableRange(-1.f, 1.f, 0.01f), 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
@@ -460,26 +473,30 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       juce::NormalisableRange(20.f, 2000.f, 1.f, 0.3f), 20.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterCutoffFreq", "Filter Cutoff Frequency",
-      // todo what would actually be the best range, considering we do oversampling?
+      // todo what would actually be the best range, considering we do
+      // oversampling?
       juce::NormalisableRange(kMinCutoff, kMaxCutoff, 1.f), 23000.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "filterResonance", "Filter Resonance",
       juce::NormalisableRange(0.f, 4.f, 0.01f), 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "filterDrive", "Filter Drive", juce::NormalisableRange(kMinDrive, 10.f, 0.0001f,
-        .4f),
-      kMinDrive));
+      "filterDrive", "Filter Drive",
+      juce::NormalisableRange(kMinDrive, 10.f, 0.0001f, .4f), kMinDrive));
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
-      "filterSlope", "Filter Slope", juce::StringArray{"-24 dB", "-18 dB", "-12 dB"}, 0));
+      "filterSlope", "Filter Slope",
+      juce::StringArray{"-24 dB", "-18 dB", "-12 dB"}, 0));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "filterEnvMod", "Filter Env Mod", juce::NormalisableRange(-1.f, 1.f, 0.01f), 0.f));
+      "filterEnvMod", "Filter Env Mod",
+      juce::NormalisableRange(-1.f, 1.f, 0.01f), 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "filterLfoMod", "Filter LFO Mod", juce::NormalisableRange(-1.f, 1.f, 0.01f), 0.f));
+      "filterLfoMod", "Filter LFO Mod",
+      juce::NormalisableRange(-1.f, 1.f, 0.01f), 0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterChoice>(
-      "filterEnvSource", "Filter Env Source", juce::StringArray{"Env 1", "Env 2"}, 0));
+      "filterEnvSource", "Filter Env Source",
+      juce::StringArray{"Env 1", "Env 2"}, 0));
 
   // Drive Scaling
-  for (int i = 1; i <= 4; ++i) {
+  for (const auto i : std::views::iota(1, 4)) {
     parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
         "filterInputDriveScale" + juce::String(i),
         "Filter Stage " + juce::String(i) + " Input Drive Scale",
@@ -498,7 +515,8 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "vcaLevel", "VCA Level", juce::NormalisableRange(0.f, 1.f, 0.01f), 0.8f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
-      "vcaLfoMod", "VCA LFO Mod", juce::NormalisableRange(-1.f, 1.f, 0.01f), 0.f));
+      "vcaLfoMod", "VCA LFO Mod", juce::NormalisableRange(-1.f, 1.f, 0.01f),
+      0.f));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "vcaTone", "VCA Tone", juce::NormalisableRange(-1.f, 1.f, 0.01f), 0.f));
 
