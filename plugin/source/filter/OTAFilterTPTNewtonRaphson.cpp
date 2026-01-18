@@ -27,10 +27,10 @@ OTAFilterTPTNewtonRaphson::OTAFilterTPTNewtonRaphson(
       s3_{0},
       s4_{0} {}
 
-
 constexpr auto GetIndexSuffixedParams(const std::string_view param_prefix) {
-  return std::views::iota(0, 4) | std::views::transform(
-      [param_prefix](auto i) { return std::format("{}{}", param_prefix, i + 1); });
+  return std::views::iota(0, 4) | std::views::transform([param_prefix](auto i) {
+           return std::format("{}{}", param_prefix, i + 1);
+         });
 }
 
 void OTAFilterTPTNewtonRaphson::Configure(
@@ -40,8 +40,10 @@ void OTAFilterTPTNewtonRaphson::Configure(
   drive_ = state.getRawParameterValue("filterDrive")->load();
   env_mod_ = state.getRawParameterValue("filterEnvMod")->load();
   lfo_mod_ = state.getRawParameterValue("filterLfoMod")->load();
-  constexpr auto kInputDriveScaleParams = GetIndexSuffixedParams("filterInputDriveScale");
-  constexpr auto kStateDriveScaleParams = GetIndexSuffixedParams("filterStateDriveScale");
+  constexpr auto kInputDriveScaleParams =
+      GetIndexSuffixedParams("filterInputDriveScale");
+  constexpr auto kStateDriveScaleParams =
+      GetIndexSuffixedParams("filterStateDriveScale");
   for (auto [input_drive_scale, state_drive_scale, input_drive_param,
              state_drive_param] :
        std::views::zip(input_drive_scales_, state_drive_scales_,
@@ -200,13 +202,14 @@ float OTAFilterTPTNewtonRaphson::ComputeJacobian(const float in,
 }
 
 float OTAFilterTPTNewtonRaphson::ProcessSample(const float in,
-                                               const int index) {
+                                               const float env_sample,
+                                               const float lfo_sample) {
   const auto env_data = env_buffer_->getReadPointer(0);
   const auto lfo_data = lfo_buffer_.getReadPointer(0);
-  const float modulated_cutoff = juce::jlimit(
-      kMinCutoff, kMaxCutoff,
-      cutoff_freq_ + env_mod_ * env_data[index / kOversample] * kMaxCutoff +
-          lfo_mod_ * lfo_data[index / kOversample] * kMaxCutoff);
+  const float modulated_cutoff =
+      juce::jlimit(kMinCutoff, kMaxCutoff,
+                   cutoff_freq_ + env_mod_ * env_sample * kMaxCutoff +
+                       lfo_mod_ * lfo_sample * kMaxCutoff);
 
   // Calculate TPT coefficient
   const float g = std::tanf(juce::MathConstants<float>::pi * modulated_cutoff /
@@ -318,9 +321,20 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in,
 void OTAFilterTPTNewtonRaphson::Process(juce::AudioBuffer<float>& buffers,
                                         const int start_sample,
                                         const int numSamples) {
-  const auto data = buffers.getWritePointer(0);
-  for (auto i = start_sample; i < start_sample + numSamples; ++i) {
-    data[i] = ProcessSample(data[i], i);
+  const auto buffer_chunk =
+      std::span(buffers.getWritePointer(0) + start_sample, numSamples) |
+      std::views::chunk(kOversample);
+  const auto start_chunk = start_sample / kOversample;
+  const auto num_chunks = buffer_chunk.size();
+  const auto env_samples =
+      std::span(env_buffer_->getReadPointer(0) + start_chunk, num_chunks);
+  const auto lfo_samples =
+      std::span(lfo_buffer_.getReadPointer(0) + start_chunk, num_chunks);
+  for (auto [sample_chunk, env_sample, lfo_sample] :
+       std::views::zip(buffer_chunk, env_samples, lfo_samples)) {
+    for (auto& sample : sample_chunk) {
+      sample = ProcessSample(sample, env_sample, lfo_sample);
+    }
   }
 }
 
