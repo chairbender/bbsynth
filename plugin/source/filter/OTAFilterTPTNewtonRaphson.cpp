@@ -204,8 +204,6 @@ float OTAFilterTPTNewtonRaphson::ComputeJacobian(const float in,
 float OTAFilterTPTNewtonRaphson::ProcessSample(const float in,
                                                const float env_sample,
                                                const float lfo_sample) {
-  const auto env_data = env_buffer_->getReadPointer(0);
-  const auto lfo_data = lfo_buffer_.getReadPointer(0);
   const float modulated_cutoff =
       juce::jlimit(kMinCutoff, kMaxCutoff,
                    cutoff_freq_ + env_mod_ * env_sample * kMaxCutoff +
@@ -247,7 +245,7 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in,
 
   float v1, v2, v3, v4;  // Stage outputs
 
-  for (int iter = 0; iter < max_iterations; ++iter) {
+  for (const auto _ : std::views::iota(0, max_iterations)) {
     // Evaluate what output would be for this guess
     const float predicted_out =
         EvaluateFilter(in, out_guess, G, k, v1, v2, v3, v4);
