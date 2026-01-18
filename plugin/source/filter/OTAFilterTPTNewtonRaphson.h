@@ -3,7 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include <array>
-#include <vector>
+#include <ranges>
 
 #include "../dsp/TanhADAA.h"
 

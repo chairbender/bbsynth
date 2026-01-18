@@ -3,6 +3,8 @@
 #include <juce_dsp/juce_dsp.h>
 
 #include <cmath>
+#include <ranges>
+#include <span>
 
 #include "../Constants.h"
 #include "../Utils.h"
@@ -25,6 +27,12 @@ OTAFilterTPTNewtonRaphson::OTAFilterTPTNewtonRaphson(
       s3_{0},
       s4_{0} {}
 
+
+constexpr auto GetIndexSuffixedParams(const std::string_view param_prefix) {
+  return std::views::iota(0, 4) | std::views::transform(
+      [param_prefix](auto i) { return std::format("{}{}", param_prefix, i + 1); });
+}
+
 void OTAFilterTPTNewtonRaphson::Configure(
     const juce::AudioProcessorValueTreeState& state) {
   cutoff_freq_ = state.getRawParameterValue("filterCutoffFreq")->load();
@@ -32,13 +40,14 @@ void OTAFilterTPTNewtonRaphson::Configure(
   drive_ = state.getRawParameterValue("filterDrive")->load();
   env_mod_ = state.getRawParameterValue("filterEnvMod")->load();
   lfo_mod_ = state.getRawParameterValue("filterLfoMod")->load();
-  for (int i = 0; i < 4; ++i) {
-    input_drive_scales_[static_cast<size_t>(i)] =
-        state.getRawParameterValue("filterInputDriveScale" + juce::String(i + 1))
-            ->load();
-    state_drive_scales_[static_cast<size_t>(i)] =
-        state.getRawParameterValue("filterStateDriveScale" + juce::String(i + 1))
-            ->load();
+  constexpr auto kInputDriveScaleParams = GetIndexSuffixedParams("filterInputDriveScale");
+  constexpr auto kStateDriveScaleParams = GetIndexSuffixedParams("filterStateDriveScale");
+  for (auto [input_drive_scale, state_drive_scale, input_drive_param,
+             state_drive_param] :
+       std::views::zip(input_drive_scales_, state_drive_scales_,
+                       kInputDriveScaleParams, kStateDriveScaleParams)) {
+    input_drive_scale = state.getRawParameterValue(input_drive_param)->load();
+    state_drive_scale = state.getRawParameterValue(state_drive_param)->load();
   }
   switch (static_cast<int>(state.getRawParameterValue("filterSlope")->load())) {
     case 0:
@@ -70,10 +79,12 @@ void OTAFilterTPTNewtonRaphson::Reset() {
   }
 }
 
-float OTAFilterTPTNewtonRaphson::EvaluateFilter(
-    const float in, const float out_guess, const float G, const float k,
-    float& v1_out, float& v2_out, float& v3_out, float& v4_out,
-    const bool use_adaa) const {
+float OTAFilterTPTNewtonRaphson::EvaluateFilter(const float in,
+                                                const float out_guess,
+                                                const float G, const float k,
+                                                float& v1_out, float& v2_out,
+                                                float& v3_out, float& v4_out,
+                                                const bool use_adaa) const {
   // Input with feedback
   const float u = in - k * out_guess;
 
@@ -84,8 +95,10 @@ float OTAFilterTPTNewtonRaphson::EvaluateFilter(
   const float state_drive1 = drive_ * state_drive_scales_[0];
   const float v1_sat = use_adaa ? tanh_stages_[0].process(u / drive1) * drive1
                                 : std::tanh(u / drive1) * drive1;
-  const float s1_sat = use_adaa ? state_tanh_stages_[0].process(s1_ / state_drive1) * state_drive1
-                                : std::tanh(s1_ / state_drive1) * state_drive1;
+  const float s1_sat =
+      use_adaa
+          ? state_tanh_stages_[0].process(s1_ / state_drive1) * state_drive1
+          : std::tanh(s1_ / state_drive1) * state_drive1;
   const float y1 = s1_ + G * (v1_sat - s1_sat);
   v1_out = y1;
   if (num_stages_ == 1) return y1;
@@ -94,8 +107,10 @@ float OTAFilterTPTNewtonRaphson::EvaluateFilter(
   const float state_drive2 = drive_ * state_drive_scales_[1];
   const float v2_sat = use_adaa ? tanh_stages_[1].process(y1 / drive2) * drive2
                                 : std::tanh(y1 / drive2) * drive2;
-  const float s2_sat = use_adaa ? state_tanh_stages_[1].process(s2_ / state_drive2) * state_drive2
-                                : std::tanh(s2_ / state_drive2) * state_drive2;
+  const float s2_sat =
+      use_adaa
+          ? state_tanh_stages_[1].process(s2_ / state_drive2) * state_drive2
+          : std::tanh(s2_ / state_drive2) * state_drive2;
   const float y2 = s2_ + G * (v2_sat - s2_sat);
   v2_out = y2;
   if (num_stages_ == 2) return y2;
@@ -104,8 +119,10 @@ float OTAFilterTPTNewtonRaphson::EvaluateFilter(
   const float state_drive3 = drive_ * state_drive_scales_[2];
   const float v3_sat = use_adaa ? tanh_stages_[2].process(y2 / drive3) * drive3
                                 : std::tanh(y2 / drive3) * drive3;
-  const float s3_sat = use_adaa ? state_tanh_stages_[2].process(s3_ / state_drive3) * state_drive3
-                                : std::tanh(s3_ / state_drive3) * state_drive3;
+  const float s3_sat =
+      use_adaa
+          ? state_tanh_stages_[2].process(s3_ / state_drive3) * state_drive3
+          : std::tanh(s3_ / state_drive3) * state_drive3;
   const float y3 = s3_ + G * (v3_sat - s3_sat);
   v3_out = y3;
   if (num_stages_ == 3) return y3;
@@ -114,8 +131,10 @@ float OTAFilterTPTNewtonRaphson::EvaluateFilter(
   const float state_drive4 = drive_ * state_drive_scales_[3];
   const float v4_sat = use_adaa ? tanh_stages_[3].process(y3 / drive4) * drive4
                                 : std::tanh(y3 / drive4) * drive4;
-  const float s4_sat = use_adaa ? state_tanh_stages_[3].process(s4_ / state_drive4) * state_drive4
-                                : std::tanh(s4_ / state_drive4) * state_drive4;
+  const float s4_sat =
+      use_adaa
+          ? state_tanh_stages_[3].process(s4_ / state_drive4) * state_drive4
+          : std::tanh(s4_ / state_drive4) * state_drive4;
   const float y4 = s4_ + G * (v4_sat - s4_sat);
   v4_out = y4;
 
@@ -180,7 +199,8 @@ float OTAFilterTPTNewtonRaphson::ComputeJacobian(const float in,
   return deriv;
 }
 
-float OTAFilterTPTNewtonRaphson::ProcessSample(const float in, const int index) {
+float OTAFilterTPTNewtonRaphson::ProcessSample(const float in,
+                                               const int index) {
   const auto env_data = env_buffer_->getReadPointer(0);
   const auto lfo_data = lfo_buffer_.getReadPointer(0);
   const float modulated_cutoff = juce::jlimit(
@@ -203,11 +223,21 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in, const int index) 
 
   float out_guess = 0;
   switch (num_stages_) {
-    case 1: out_guess = s1_; break;
-    case 2: out_guess = s2_; break;
-    case 3: out_guess = s3_; break;
-    case 4: out_guess = s4_; break;
-    default: out_guess = s4_; break;
+    case 1:
+      out_guess = s1_;
+      break;
+    case 2:
+      out_guess = s2_;
+      break;
+    case 3:
+      out_guess = s3_;
+      break;
+    case 4:
+      out_guess = s4_;
+      break;
+    default:
+      out_guess = s4_;
+      break;
   }
   constexpr int max_iterations = 4;  // Usually converges in 2-3 iterations
   constexpr float tolerance = 1e-6f;
