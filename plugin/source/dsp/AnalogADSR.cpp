@@ -1,6 +1,8 @@
 #include "AnalogADSR.h"
 
 #include <cmath>
+#include <ranges>
+#include <span>
 
 namespace audio_plugin {
 
@@ -87,10 +89,13 @@ void AnalogADSR::WriteStage(juce::AudioBuffer<float>& buffer,
         excess_samples >= 0 ? remaining_stage_samples : num_samples;
     // todo: could be constexpr if we find a library with a constexpr pow function
     const auto denom = std::pow(2, Curve) - 1;
-    for (int i = 0; i < samples_to_write; ++i) {
+
+    const auto buffer_span = std::span{buffer.getWritePointer(0) + start_sample,
+                                       static_cast<size_t>(samples_to_write)};
+    for (auto& sample : buffer_span) {
       // scale time to 0,1 interval
       const float progress = (static_cast<float>(stage_samples_++) /
-          static_cast<float>((this->*ConfiguredStageSamples)));
+                              static_cast<float>((this->*ConfiguredStageSamples)));
       const auto num = (std::pow(2, Curve * progress) - 1);
       const auto unscaled = num / denom;
       // now scale to target -> release (either of which may be a pointer to member or a constant)
@@ -109,8 +114,9 @@ void AnalogADSR::WriteStage(juce::AudioBuffer<float>& buffer,
         }
       }(this);
       // now scale the 0 - 1 interval to start - end
-      const auto scaled = start_actual + (target_actual - start_actual) * static_cast<float>(unscaled);
-      buffer.setSample(0, start_sample + i, scaled);
+      const auto scaled =
+          start_actual + (target_actual - start_actual) * static_cast<float>(unscaled);
+      sample = scaled;
     }
     if (excess_samples > 0) {
       // we didn't fill the buffer up - transition to the next state and
@@ -137,9 +143,10 @@ void AnalogADSR::WriteEnvelopeToBuffer(juce::AudioBuffer<float>& buffer,
       (buffer, start_sample, num_samples);
   } else if (state_ == State::sustain) {
     // sustain lasts until note off, so just write constant value
-    const auto buffer_ptr = buffer.getWritePointer(0);
-    for (int i = 0; i < num_samples; ++i) {
-      buffer_ptr[i] = sustain_level_;
+    const auto buffer_span = std::span{buffer.getWritePointer(0),
+                                       static_cast<size_t>(num_samples)};
+    for (auto& sample : buffer_span) {
+      sample = sustain_level_;
     }
   } else if (state_ == State::release) {
     WriteStage<&AnalogADSR::AdvanceStateFromRelease,0.4f, &AnalogADSR::release_samples_, &AnalogADSR::released_level_, 0.f>(buffer, start_sample, num_samples);

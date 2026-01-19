@@ -1,5 +1,7 @@
 #include "PluginEditor.h"
 
+#include <ranges>
+
 #include "../PluginProcessor.h"
 
 namespace audio_plugin {
@@ -119,7 +121,9 @@ void AudioPluginAudioProcessorEditor::PaintBackground(juce::Graphics& g) const {
   auto grid = MakeMainGrid();
 
   // We only need the items for layout calculation
-  for (auto i = 0; i < 32; ++i) grid.items.add(juce::GridItem());
+  for ( const auto _ : std::views::iota(0, 32)) {
+    grid.items.add(juce::GridItem());
+  }
 
   grid.performLayout(area);
 
@@ -132,9 +136,10 @@ void AudioPluginAudioProcessorEditor::PaintBackground(juce::Graphics& g) const {
 
   constexpr auto kNumSections = 8;
   // Paint Row 1 (Top Sections)
-  for (auto i = 0; i < kNumSections; ++i) {
+  for (const auto i : std::views::iota(0, kNumSections)) {
     const auto labelBounds = grid.items[i].currentBounds;
-    const auto controlBounds = grid.items[i + kNumSections].currentBounds;
+    const auto controlBounds =
+        grid.items[i + static_cast<size_t>(kNumSections)].currentBounds;
     // Row 1 sections should only span Row 0 (labels) and Row 1 (controls)
     const auto fullSectionBounds =
         labelBounds.withHeight(controlBounds.getBottom() - labelBounds.getY());
