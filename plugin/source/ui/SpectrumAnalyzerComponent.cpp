@@ -67,11 +67,11 @@ void SpectrumAnalyzerComponent::drawNextFrameOfSpectrum() {
   // then render our FFT data..
   forwardFFT.performFrequencyOnlyForwardTransform(fftData);  // [2]
 
-  auto mindB = -100.0f;
-  auto maxdB = 0.0f;
-
   for (const auto [i, scope_sample] : std::views::enumerate(scopeData))  // [3]
   {
+    constexpr auto mindB = -100.0f;
+    constexpr auto maxdB = 0.0f;
+
     auto skewedProportionX =
         1.0f - std::exp(std::log(1.0f - static_cast<float>(i) / static_cast<float>(scopeSize)) * 0.2f);
     auto fftDataIndex = juce::jlimit(
@@ -86,8 +86,8 @@ void SpectrumAnalyzerComponent::drawNextFrameOfSpectrum() {
   }
 }
 
-void SpectrumAnalyzerComponent::drawFrame(juce::Graphics& g) {
-  for (int i = 1; i < scopeSize; ++i) {
+void SpectrumAnalyzerComponent::drawFrame(juce::Graphics& g) const {
+  for (const int i : std::views::iota(1, scopeSize)) {
     const auto width = getLocalBounds().getWidth();
     const auto height = getLocalBounds().getHeight();
 
