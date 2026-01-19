@@ -33,14 +33,26 @@ void AnalogADSR::NoteOn() {
   // This can be done as constant rate or constant time.
   // todo: probably not thread safe
   state_ = State::attack;
-  stage_samples_ = 0;
   retrigger_level_ = last_level_;
+
+  if (retrigger_constant_rate_) {
+    // scale stage samples based on where we are starting from.
+    // If we were at 0, we take the full time. If we were already at 0.5, we
+    // take half the time to get to 1.
+    stage_samples_ = static_cast<int>(retrigger_level_ * static_cast<float>(attack_samples_));
+  } else {
+    stage_samples_ = 0;
+  }
 }
 
 void AnalogADSR::NoteOff() {
   if (state_ != State::idle) {
     AdvanceStateFromSustain();
   }
+}
+
+void AnalogADSR::set_retrigger_constant_rate(const bool constant_rate) {
+  retrigger_constant_rate_ = constant_rate;
 }
 
 void AnalogADSR::AdvanceStateFromAttack() {
@@ -142,9 +154,15 @@ void AnalogADSR::WriteEnvelopeToBuffer(juce::AudioBuffer<float>& buffer,
     return;
   }
   if (state_ == State::attack) {
-    // todo: support constant rate instead of constant time
-    WriteStage<&AnalogADSR::AdvanceStateFromAttack,-0.4f, &AnalogADSR::attack_samples_,&AnalogADSR::retrigger_level_, 1.f>
-      (buffer, start_sample, num_samples);
+    if (retrigger_constant_rate_) {
+      WriteStage<&AnalogADSR::AdvanceStateFromAttack, -0.4f,
+                 &AnalogADSR::attack_samples_, 0.f, 1.f>(buffer, start_sample,
+                                                         num_samples);
+    } else {
+      WriteStage<&AnalogADSR::AdvanceStateFromAttack, -0.4f,
+                 &AnalogADSR::attack_samples_, &AnalogADSR::retrigger_level_,
+                 1.f>(buffer, start_sample, num_samples);
+    }
   } else if (state_ == State::decay) {
     WriteStage<&AnalogADSR::AdvanceStateFromDecay,0.4f, &AnalogADSR::decay_samples_, 1.f, &AnalogADSR::sustain_level_>
       (buffer, start_sample, num_samples);

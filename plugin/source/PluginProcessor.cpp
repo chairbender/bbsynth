@@ -453,6 +453,8 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "adsrRelease", "ADSR Release (s)",
       juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.3f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
+      "env1RetriggerRate", "ENV1 Retrigger Rate", false));
 
   // ENV2 parameters
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -467,6 +469,8 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "env2Release", "ENV2 Release (s)",
       juce::NormalisableRange(0.001f, 5.0f, 0.001f, 0.3f), 0.3f));
+  parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
+      "env2RetriggerRate", "ENV2 Retrigger Rate", false));
   // VCF
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "hpfFreq", "HPF Frequency",

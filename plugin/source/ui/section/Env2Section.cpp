@@ -43,6 +43,13 @@ Env2Section::Env2Section(AudioPluginAudioProcessor& processor)
           processor_.apvts_, "env2Release", env2_release_slider_);
   env2_release_label_.setText("R", juce::dontSendNotification);
   addAndMakeVisible(env2_release_label_);
+
+  env2_retrigger_button_.setButtonText("Retrigger Rate");
+  env2_retrigger_button_.setClickingTogglesState(true);
+  addAndMakeVisible(env2_retrigger_button_);
+  env2_retrigger_attachment_ =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          processor_.apvts_, "env2RetriggerRate", env2_retrigger_button_);
 }
 
 void Env2Section::resized() {
@@ -56,7 +63,8 @@ void Env2Section::resized() {
   section_grid.templateRows = {juce::Grid::TrackInfo(juce::Grid::Fr(1)),
                                juce::Grid::TrackInfo(juce::Grid::Fr(4)),
                                juce::Grid::TrackInfo(juce::Grid::Fr(1))};
-  section_grid.items = {juce::GridItem{env2_label_}.withArea(1, 1, 1, 5),
+  section_grid.items = {juce::GridItem{env2_label_}.withArea(1, 1, 1, 3),
+                        juce::GridItem{env2_retrigger_button_}.withArea(1, 3, 1, 5),
                         juce::GridItem{env2_attack_slider_},
                         juce::GridItem{env2_decay_slider_},
                         juce::GridItem{env2_sustain_slider_},

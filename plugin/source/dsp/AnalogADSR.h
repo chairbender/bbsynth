@@ -15,6 +15,7 @@ class AnalogADSR {
   void Reset();
   void NoteOn();
   void NoteOff();
+  void set_retrigger_constant_rate(bool constant_rate);
   // this does NOT APPLY the envelope to the buffer - it writes the raw envelope
   // values to the buffer so the envelope can be used by other parts of the plugin
   // This only affects the first channel of the buffer.
