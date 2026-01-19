@@ -140,9 +140,9 @@ void MinBlepGenerator::BuildBlep() const {
   dumpArrayToCsv(buffer1, "blackman.csv");
 
   // Minimum Phase Reconstruction
-  RealCepstrum(static_cast<size_t>(n), buffer1.getRawDataPointer());
+  RealCepstrum(std::span(buffer1.getRawDataPointer(), static_cast<size_t>(n)));
   dumpArrayToCsv(buffer1, "cepstrum.csv");
-  MinimumPhase(static_cast<size_t>(n), buffer1.getRawDataPointer());
+  MinimumPhase(std::span(buffer1.getRawDataPointer(), static_cast<size_t>(n)));
 
   dumpArrayToCsv(buffer1, "minphase.csv");
 

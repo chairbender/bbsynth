@@ -157,36 +157,41 @@ class MinBlepGenerator {
 
   // Inverse Discrete Fourier Transform.
   // Note the result is scaled by 1/n, which assumes the DFT was NOT scaled.
-  static void InverseDFT(const size_t N, double* realTime, double* imagTime,
-                         const double* realFreq, const double* imagFreq) {
-    for (size_t k = 0; k < N; k++) {
-      realTime[k] = 0.0;
-      imagTime[k] = 0.0;
-    }
+  static void InverseDFT(const std::span<double> realTime,
+                         const std::span<double> imagTime,
+                         const std::span<const double> realFreq,
+                         const std::span<const double> imagFreq) {
+    std::ranges::fill(realTime, 0.0);
+    std::ranges::fill(imagTime, 0.0);
+
+    const auto n_samples = static_cast<double>(realTime.size());
 
     // Calculate IDFT for each time sample n
-    for (size_t n = 0; n < N; n++) {
-      double realSum = 0.0;
-      double imagSum = 0.0;
+    for (auto [n, time_sample] :
+         std::views::enumerate(std::views::zip(realTime, imagTime))) {
+      auto& [real_time_sample, imag_time_sample] = time_sample;
+      double real_sum = 0.0;
+      double imag_sum = 0.0;
 
       // Sum over all frequency bins k
-      for (size_t k = 0; k < N; k++) {
-        double angle =
-            2.0 * juce::MathConstants<float>::pi * static_cast<double>(k) *
-            static_cast<double>(n) /
-            static_cast<double>(N);  // Note: positive angle (opposite of DFT)
-        double cosAngle = cos(angle);
-        double sinAngle = sin(angle);
+      for (auto [k, freq_sample] :
+           std::views::enumerate(std::views::zip(realFreq, imagFreq))) {
+        auto& [real_freq_sample, imag_freq_sample] = freq_sample;
+        const double angle = 2.0 * juce::MathConstants<double>::pi *
+                             static_cast<double>(k) * static_cast<double>(n) /
+                             n_samples;  // Note: positive angle (opposite of DFT)
+        const double cos_angle = cos(angle);
+        const double sin_angle = sin(angle);
 
         // Complex multiplication: (inputReal[k] + i*inputImag[k]) * (cos(angle)
         // + i*sin(angle))
-        realSum += realFreq[k] * cosAngle - imagFreq[k] * sinAngle;
-        imagSum += realFreq[k] * sinAngle + imagFreq[k] * cosAngle;
+        real_sum += real_freq_sample * cos_angle - imag_freq_sample * sin_angle;
+        imag_sum += real_freq_sample * sin_angle + imag_freq_sample * cos_angle;
       }
 
       // Normalize by dividing by N
-      realTime[n] = realSum / static_cast<double>(N);
-      imagTime[n] = imagSum / static_cast<double>(N);
+      real_time_sample = real_sum / n_samples;
+      imag_time_sample = imag_sum / n_samples;
     }
   }
 
@@ -204,105 +209,95 @@ class MinBlepGenerator {
   }
 
   // Compute Real Cepstrum Of x
-  static void RealCepstrum(const size_t n, double* x) {
-    size_t i;
+  static void RealCepstrum(const std::span<double> x) {
+    const auto n = x.size();
 
-    const auto realTime = new double[n];
-    const auto imagTime = new double[n];
-    const auto realFreq = new double[n];
-    const auto imagFreq = new double[n];
+    auto real_time = std::vector<double>(n);
+    auto imag_time = std::vector<double>(n);
+    auto real_freq = std::vector<double>(n);
+    auto imag_freq = std::vector<double>(n);
 
     // Compose Complex FFT Input
-    for (i = 0; i < n; i++) {
-      realTime[i] = x[i];
-      imagTime[i] = 0.0;
-    }
+    std::ranges::copy(x, real_time.begin());
+    std::ranges::fill(imag_time, 0.0);
 
-    const auto real_time_span = std::span(realTime, n);
-    const auto imag_time_span = std::span(imagTime, n);
-    const auto real_freq_span = std::span(realFreq, n);
-    const auto imag_freq_span = std::span(imagFreq, n);
+    const auto real_time_span = std::span(real_time);
+    const auto imag_time_span = std::span(imag_time);
+    const auto real_freq_span = std::span(real_freq);
+    const auto imag_freq_span = std::span(imag_freq);
     DFT(real_time_span, imag_time_span, real_freq_span, imag_freq_span);
 
     // Note: For real cepstrum, we only return the real part
     // The imaginary part should be negligible (numerical errors only)
-    for (i = 0; i < n; i++) {
+    for (auto [real_sample, imag_sample] :
+         std::views::zip(real_freq, imag_freq)) {
       // Calculate magnitude: sqrt(real^2 + imag^2)
-      double magnitude =
-          sqrt(realFreq[i] * realFreq[i] + imagFreq[i] * imagFreq[i]);
+      const double magnitude = sqrt(real_sample * real_sample + imag_sample * imag_sample);
 
       // Take natural log (add small epsilon to avoid log(0))
-      const double epsilon = 1e-10;
-      realFreq[i] = log(magnitude + epsilon);
-      imagFreq[i] = 0;
+      const double kEpsilon = 1e-10;
+      real_sample = log(magnitude + kEpsilon);
+      imag_sample = 0.0;
     }
 
     // Perform Inverse FFT (this also scales by 1/n)
-    InverseDFT(n, realTime, imagTime, realFreq, imagFreq);
+    InverseDFT(real_time_span, imag_time_span, real_freq_span, imag_freq_span);
 
     // Output Real Part Of FFT
-    for (i = 0; i < n; i++) x[i] = realTime[i];
-
-    delete[] realTime;
-    delete[] imagTime;
-    delete[] realFreq;
-    delete[] imagFreq;
+    std::ranges::copy(real_time, x.begin());
   }
 
   // Compute Minimum Phase Reconstruction Of x
-  static void MinimumPhase(const size_t n, double* x) {
-    const auto realTime = new double[n];
-    const auto imagTime = new double[n];
-    const auto realFreq = new double[n];
-    const auto imagFreq = new double[n];
+  static void MinimumPhase(const std::span<double> x) {
+    const auto n = x.size();
+    auto real_time = std::vector<double>(n);
+    auto imag_time = std::vector<double>(n);
+    auto real_freq = std::vector<double>(n);
+    auto imag_freq = std::vector<double>(n);
 
     // Compose Complex FFT Input
     // keep DC component
-    realTime[0] = x[0];
-    for (size_t i = 1; i < n; i++) {
-      realTime[i] = x[i];
-      imagTime[i] = 0.0;
+    real_time[0] = x[0];
+    for (const auto i : std::views::iota(1u, n)) {
+      real_time[i] = x[i];
+      imag_time[i] = 0.0;
     }
 
     // double the positive freqs (causal part)
-    for (size_t i = 0; i < n / 2; i++) {
-      realTime[i] *= 2;
+    for (const auto i : std::views::iota(0u, n / 2)) {
+      real_time[i] *= 2;
     }
 
     // nyquist freq (for even N)
     // todo assumes nyquist bin is half the input - is this correct?
     if (n % 2 == 0) {
-      realTime[n / 2] = x[n / 2];
+      real_time[n / 2] = x[n / 2];
     }
 
     // zero out negative freqs (anti-causal part)
-    for (size_t i = (n / 2) + 1; i < n; i++) {
-      realTime[i] = 0;
+    for (const auto i : std::views::iota((n / 2) + 1, n)) {
+      real_time[i] = 0;
     }
 
-    const auto real_time_span = std::span(realTime, n);
-    const auto imag_time_span = std::span(imagTime, n);
-    const auto real_freq_span = std::span(realFreq, n);
-    const auto imag_freq_span = std::span(imagFreq, n);
+    const auto real_time_span = std::span(real_time);
+    const auto imag_time_span = std::span(imag_time);
+    const auto real_freq_span = std::span(real_freq);
+    const auto imag_freq_span = std::span(imag_freq);
     DFT(real_time_span, imag_time_span, real_freq_span, imag_freq_span);
 
     // exponentiate to get complex spectrum
-    for (size_t k = 0; k < n; k++) {
-      double magnitude = exp(realFreq[k]);
-      double phase = imagFreq[k];
+    for (auto [real_sample, imag_sample] :
+         std::views::zip(real_freq, imag_freq)) {
+      const double magnitude = exp(real_sample);
+      const double phase = imag_sample;
 
-      realFreq[k] = magnitude * cos(phase);
-      imagFreq[k] = magnitude * sin(phase);
+      real_sample = magnitude * cos(phase);
+      imag_sample = magnitude * sin(phase);
     }
 
-    InverseDFT(n, realTime, imagTime, realFreq, imagFreq);
+    InverseDFT(real_time_span, imag_time_span, real_freq_span, imag_freq_span);
 
-    for (size_t i = 0; i < n; i++) x[i] = realTime[i];
-
-    delete[] realTime;
-    delete[] imagTime;
-    delete[] realFreq;
-    delete[] imagFreq;
+    std::ranges::copy(real_time, x.begin());
   }
 
   // FILTER ::::::
@@ -376,7 +371,7 @@ class MinBlepGenerator {
   }
 
   void Clear();
-  bool IsClear() const;
+  [[nodiscard]] bool IsClear() const;
 
   // CUSTOM ::::
   void set_limiting_freq(float proportionOfSamplingRate);
