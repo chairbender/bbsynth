@@ -99,7 +99,8 @@ WaveGenerator<IsLFO>::WaveGenerator(
   skew_ = 0;
   last_sample_ = 0;
 
-  for (int i = 0; i < history_length_; i++) history_.add(0);
+  history_.resize(history_length_);
+  history_.fill(0);
 
   phase_angle_target_ = phase_angle_actual_ = 0;  // expressed 0 - 2*PI
 }
@@ -129,7 +130,8 @@ WaveGenerator<IsLFO>::WaveGenerator()
   skew_ = 0;
   last_sample_ = 0;
 
-  for (int i = 0; i < history_length_; i++) history_.add(0);
+  history_.resize(history_length_);
+  history_.fill(0);
 
   phase_angle_target_ = phase_angle_actual_ = 0;  // expressed 0 - 2*PI
 }
@@ -353,7 +355,7 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
       // have a positive bias) adding together, which gets worse as the note
       // gets higher.
       if (dc_blocker_enabled_) {
-        const auto samples = wave.getRawDataPointer();
+        const auto samples = std::span(wave.getRawDataPointer(), numSamples);
 
         // Preserve last raw input of this block (before we overwrite samples)
         const float lastInputRaw = samples[numSamples - 1];
@@ -362,11 +364,11 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
         auto xPrev = static_cast<float>(prev_buffer_last_sample_raw_);
         auto yPrev = static_cast<float>(prev_buffer_last_sample_filtered_);
 
-        for (int i = 0; i < numSamples; ++i) {
+        for (auto& sample : samples) {
           constexpr float r = 0.995f;
-          const float x = samples[i];
+          const float x = sample;
           const float y = (x - xPrev) + r * yPrev;
-          samples[i] = y;
+          sample = y;
           xPrev = x;
           yPrev = y;
         }
@@ -379,10 +381,10 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
   }
 
   // BUILD ::::
-  for (int i = 0; i < numSamples; i = i + 20) {
+  for (const auto sample : std::span(wave.getRawDataPointer(), numSamples) | 
+    std::views::stride(20)) {
     // just adding a sample every 20 or so to the history
-    history_.add(wave.getUnchecked(i));
-
+    history_.add(sample);
     if (history_.size() > history_length_) history_.remove(0);
   }
 
