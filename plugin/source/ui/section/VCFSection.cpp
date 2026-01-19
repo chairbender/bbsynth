@@ -1,5 +1,7 @@
 #include "VCFSection.h"
 
+#include <ranges>
+
 namespace audio_plugin {
 
 VCFSection::VCFSection(AudioPluginAudioProcessor& processor)
@@ -51,11 +53,11 @@ VCFSection::VCFSection(AudioPluginAudioProcessor& processor)
   addAndMakeVisible(filter_drive_label_);
 
   const juce::StringArray filterSlopeOptions = {"-24", "-18", "-12"};
-  for (int i = 0; i < filterSlopeOptions.size(); ++i) {
-    auto btn = std::make_unique<juce::ToggleButton>(filterSlopeOptions[i]);
+  for (const auto [i, option] : std::views::enumerate(filterSlopeOptions)) {
+    auto btn = std::make_unique<juce::ToggleButton>(option);
     btn->setRadioGroupId(1005);
     btn->setClickingTogglesState(false);
-    btn->onClick = [this, i] {
+    btn->onClick = [this, i = static_cast<int>(i)] {
       auto* param = processor_.apvts_.getParameter("filterSlope");
       param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(i)));
     };
@@ -96,11 +98,11 @@ VCFSection::VCFSection(AudioPluginAudioProcessor& processor)
   addAndMakeVisible(filter_lfo_mod_label_);
 
   const juce::StringArray filterEnvSourceOptions = {"E1", "E2"};
-  for (int i = 0; i < filterEnvSourceOptions.size(); ++i) {
-    auto btn = std::make_unique<juce::ToggleButton>(filterEnvSourceOptions[i]);
+  for (const auto [i, option] : std::views::enumerate(filterEnvSourceOptions)) {
+    auto btn = std::make_unique<juce::ToggleButton>(option);
     btn->setRadioGroupId(1006);
     btn->setClickingTogglesState(false);
-    btn->onClick = [this, i] {
+    btn->onClick = [this, i = static_cast<int>(i)] {
       auto* param = processor_.apvts_.getParameter("filterEnvSource");
       param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(i)));
     };

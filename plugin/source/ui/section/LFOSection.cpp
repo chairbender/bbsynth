@@ -1,5 +1,7 @@
 #include "LFOSection.h"
 
+#include <ranges>
+
 namespace audio_plugin {
 
 LFOSection::LFOSection(AudioPluginAudioProcessor& processor)
@@ -41,13 +43,12 @@ LFOSection::LFOSection(AudioPluginAudioProcessor& processor)
   addAndMakeVisible(lfo_wave_form_label_);
 
 
-  const juce::StringArray lfoWaveTypeOptions = {"SIN", "SAW", "TRI", "SQR",
-                                                "RND"};
-  for (int i = 0; i < lfoWaveTypeOptions.size(); ++i) {
-    auto btn = std::make_unique<juce::ToggleButton>(lfoWaveTypeOptions[i]);
+  const juce::StringArray lfoWaveTypeOptions = {"SIN", "SAW", "TRI", "SQR", "RND"};
+  for (const auto [i, option] : std::views::enumerate(lfoWaveTypeOptions)) {
+    auto btn = std::make_unique<juce::ToggleButton>(option);
     btn->setRadioGroupId(1002);
     btn->setClickingTogglesState(false);
-    btn->onClick = [this, i] {
+    btn->onClick = [this, i = static_cast<int>(i)] {
       auto* param = processor_.apvts_.getParameter("lfoWaveType");
       param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(i)));
     };

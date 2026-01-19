@@ -1,5 +1,8 @@
 #include "Oscillator.h"
 
+#include <ranges>
+#include <span>
+
 #include "../Constants.h"
 #include "../Utils.h"
 
@@ -280,10 +283,16 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   }
 
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
-  auto* data = oversample_buffer_.getWritePointer(0);
-  auto* env1_data = env1_buffer_.getReadPointer(0);
-  for (int i = oversample_start_sample; i < oversample_samples; ++i) {
-    data[i] *= env1_data[i / kOversample];
+  const auto data_span = std::span{oversample_buffer_.getWritePointer(0) + oversample_start_sample,
+                                   static_cast<size_t>(oversample_samples)};
+  const auto env1_data_span =
+      std::span{env1_buffer_.getReadPointer(0) + startSample, static_cast<size_t>(numSamples)};
+
+  for (const auto [sample, env_sample] :
+       std::views::zip(data_span | std::views::chunk(kOversample), env1_data_span)) {
+    for (auto& s : sample) {
+      s *= env_sample;
+    }
   }
 
   if (!envelope_.IsActive()) {

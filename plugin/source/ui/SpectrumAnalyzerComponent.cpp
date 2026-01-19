@@ -1,5 +1,8 @@
 #include "SpectrumAnalyzerComponent.h"
 
+#include <ranges>
+#include <span>
+
 namespace audio_plugin {
 
 SpectrumAnalyzerComponent::SpectrumAnalyzerComponent()
@@ -15,11 +18,10 @@ void SpectrumAnalyzerComponent::getNextAudioBlock(
     const juce::AudioBuffer<float>& buffer) {
   if (buffer.getNumChannels() > 0) {
     // todo is 0 correct for sampleidx?
-    auto* channelData =
-        buffer.getReadPointer(0, 0);
+    const auto channel_data_span =
+        std::span{buffer.getReadPointer(0, 0), static_cast<size_t>(buffer.getNumSamples())};
 
-    for (auto i = 0; i < buffer.getNumSamples(); ++i)
-      pushNextSampleIntoFifo(channelData[i]);
+    for (const auto sample : channel_data_span) pushNextSampleIntoFifo(sample);
   }
 }
 
@@ -68,7 +70,7 @@ void SpectrumAnalyzerComponent::drawNextFrameOfSpectrum() {
   auto mindB = -100.0f;
   auto maxdB = 0.0f;
 
-  for (int i = 0; i < scopeSize; ++i)  // [3]
+  for (const auto [i, scope_sample] : std::views::enumerate(scopeData))  // [3]
   {
     auto skewedProportionX =
         1.0f - std::exp(std::log(1.0f - static_cast<float>(i) / static_cast<float>(scopeSize)) * 0.2f);
@@ -80,14 +82,14 @@ void SpectrumAnalyzerComponent::drawNextFrameOfSpectrum() {
                          juce::Decibels::gainToDecibels(static_cast<float>(fftSize))),
         mindB, maxdB, 0.0f, 1.0f);
 
-    scopeData[i] = level;  // [4]
+    scope_sample = level;  // [4]
   }
 }
 
 void SpectrumAnalyzerComponent::drawFrame(juce::Graphics& g) {
   for (int i = 1; i < scopeSize; ++i) {
-    auto width = getLocalBounds().getWidth();
-    auto height = getLocalBounds().getHeight();
+    const auto width = getLocalBounds().getWidth();
+    const auto height = getLocalBounds().getHeight();
 
     g.drawLine({static_cast<float>(juce::jmap(i - 1, 0, scopeSize - 1, 0, width)),
                 juce::jmap(scopeData[i - 1], 0.0f, 1.0f, static_cast<float>(height), 0.0f),

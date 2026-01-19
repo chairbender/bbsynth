@@ -1,5 +1,7 @@
 #include "VCFDriveScalingSection.h"
 
+#include <ranges>
+
 namespace audio_plugin {
 
 VCFDriveScalingSection::VCFDriveScalingSection(
@@ -11,27 +13,27 @@ VCFDriveScalingSection::VCFDriveScalingSection(
   vcf_drive_scaling_label_.setJustificationType(juce::Justification::centred);
   addAndMakeVisible(vcf_drive_scaling_label_);
 
-  for (int i = 0; i < 4; ++i) {
-    auto& inSlider = filter_input_drive_scale_sliders_[static_cast<size_t>(i)];
+  for (const auto i : std::views::iota(0, 4)) {
+    const auto idx = static_cast<size_t>(i);
+    auto& inSlider = filter_input_drive_scale_sliders_[idx];
     inSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     inSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
     addAndMakeVisible(inSlider);
-    filter_input_drive_scale_attachments_[static_cast<size_t>(i)] =
+    filter_input_drive_scale_attachments_[idx] =
         std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
             processor_.apvts_, "filterInputDriveScale" + juce::String(i + 1),
             inSlider);
 
-    auto& stateSlider =
-        filter_state_drive_scale_sliders_[static_cast<size_t>(i)];
+    auto& stateSlider = filter_state_drive_scale_sliders_[idx];
     stateSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     stateSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
     addAndMakeVisible(stateSlider);
-    filter_state_drive_scale_attachments_[static_cast<size_t>(i)] =
+    filter_state_drive_scale_attachments_[idx] =
         std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
             processor_.apvts_, "filterStateDriveScale" + juce::String(i + 1),
             stateSlider);
 
-    auto& stageLabel = filter_stage_header_labels_[static_cast<size_t>(i)];
+    auto& stageLabel = filter_stage_header_labels_[idx];
     stageLabel.setText(juce::String(i + 1), juce::dontSendNotification);
     stageLabel.setJustificationType(juce::Justification::centred);
     stageLabel.setFont(juce::FontOptions(14.0f, juce::Font::bold));

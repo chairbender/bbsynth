@@ -1,5 +1,7 @@
 #include "VCO2Section.h"
 
+#include <ranges>
+
 namespace audio_plugin {
 
 VCO2Section::VCO2Section(AudioPluginAudioProcessor& processor)
@@ -9,11 +11,11 @@ VCO2Section::VCO2Section(AudioPluginAudioProcessor& processor)
 
   // Wave type selector
   const juce::StringArray wave2TypeOptions = {"SIN", "SAW", "TRI", "SQR", "RND"};
-  for (int i = 0; i < wave2TypeOptions.size(); ++i) {
-    auto btn = std::make_unique<juce::ToggleButton>(wave2TypeOptions[i]);
+  for (const auto [i, option] : std::views::enumerate(wave2TypeOptions)) {
+    auto btn = std::make_unique<juce::ToggleButton>(option);
     btn->setRadioGroupId(1003);
     btn->setClickingTogglesState(false);
-    btn->onClick = [this, i] {
+    btn->onClick = [this, i = static_cast<int>(i)] {
       auto* param = processor_.apvts_.getParameter("wave2Type");
       param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(i)));
     };

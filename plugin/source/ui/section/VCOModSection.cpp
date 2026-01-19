@@ -1,5 +1,7 @@
 #include "VCOModSection.h"
 
+#include <ranges>
+
 namespace audio_plugin {
 VCOModSection::VCOModSection(AudioPluginAudioProcessor& processor)
     : processor_{processor} {
@@ -52,13 +54,12 @@ VCOModSection::VCOModSection(AudioPluginAudioProcessor& processor)
       std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
           processor_.apvts_, "pulseWidth", pulse_width_slider_);
 
-  const juce::StringArray pwSourceOptions = {"E2-", "E2+", "E1-",
-                                             "E1+", "LFO", "MAN"};
-  for (int i = 0; i < pwSourceOptions.size(); ++i) {
-    auto btn = std::make_unique<juce::ToggleButton>(pwSourceOptions[i]);
+  const juce::StringArray pwSourceOptions = {"E2-", "E2+", "E1-", "E1+", "LFO", "MAN"};
+  for (const auto [i, option] : std::views::enumerate(pwSourceOptions)) {
+    auto btn = std::make_unique<juce::ToggleButton>(option);
     btn->setRadioGroupId(1004);
     btn->setClickingTogglesState(false);
-    btn->onClick = [this, i] {
+    btn->onClick = [this, i = static_cast<int>(i)] {
       auto* param = processor_.apvts_.getParameter("pulseWidthSource");
       param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(i)));
     };
