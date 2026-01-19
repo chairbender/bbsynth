@@ -256,6 +256,14 @@ void MinBlepGenerator::ProcessBlock(float* buffer, int numSamples) {
   ProcessCurrentBleps(buffer, numSamples);
 }
 
+std::ranges::view auto MinBlepGenerator::ReverseActiveBlepOffsets() {
+  // if we used enumerate here, the indices wouldn't be reversed, only the values would,
+  // so we use zip and iota instead
+  return std::views::zip(
+    std::views::iota(0, currentActiveBlepOffsets.size()) | std::views::reverse,
+    std::views::reverse(currentActiveBlepOffsets));
+}
+
 void MinBlepGenerator::RescaleBlepsToBuffer(const float* buffer,
                                             const int numSamples,
                                             const float shiftBlepsBy) {
@@ -264,23 +272,23 @@ void MinBlepGenerator::RescaleBlepsToBuffer(const float* buffer,
   jassert(currentActiveBlepOffsets.size() < 1000);
 
   // reverse so we can remove if needed as we iterate
-  for (auto [i, blep_offset] : std::views::enumerate(std::views::reverse(currentActiveBlepOffsets))) {
+  for (auto [i, blep] : ReverseActiveBlepOffsets()) {
     // confusingly, the nonlinearities actually occurred 1 sample BEFORE the
     // number we get this is because the detector detects that one JUST OCCURED,
     // and then adds it with the fractional offset from the last sample
 
     // SCALE FREQ (to this bleps prop freq)
-    blep_offset.freqMultiple = over_sampling_ratio_ * proportional_blep_freq_;
+    blep.freqMultiple = over_sampling_ratio_ * proportional_blep_freq_;
 
     // MODIFY :::: the exact offset ...
     // since this is an effect ... it manifests 1 sample later than the
     // discontinuity
     const float exactOffset = static_cast<float>(
-        -blep_offset.offset +
+        -blep.offset +
         static_cast<double>(
             shiftBlepsBy));  // +1 here is NEEDED for flanger/chorus !!
-    blep_offset.offset =
-        blep_offset.offset -
+    blep.offset =
+        blep.offset -
         static_cast<double>(shiftBlepsBy);  // starts compensating on the sample
                                             // AFTER the blep ....
 
@@ -293,7 +301,7 @@ void MinBlepGenerator::RescaleBlepsToBuffer(const float* buffer,
       // ... so we can get edge cases here ....
       // simply roll it over to the next buffer ...
       DBG("OUT OF RANGE NONLINEARITY ??? " + juce::String(exactOffset));
-      blep_offset.offset =
+      blep.offset =
           static_cast<double>(exactOffset - static_cast<float>(numSamples));
       continue;
     }
@@ -372,8 +380,8 @@ void MinBlepGenerator::RescaleBlepsToBuffer(const float* buffer,
 
     // ADD ::::
     // GAIN factors ... how big of a discontinutiy are we talking about ?
-    blep_offset.pos_change_magnitude = static_cast<double>(magnitude_position);
-    blep_offset.vel_change_magnitude = static_cast<double>(magnitude_velocity);
+    blep.pos_change_magnitude = static_cast<double>(magnitude_position);
+    blep.vel_change_magnitude = static_cast<double>(magnitude_velocity);
   }
 }
 
@@ -425,11 +433,13 @@ static void lerpCorrection(float* outputBuffer,
 //  no longer have aliasing, and higher frequency only makes the signal shorter,
 //  so we can definitely size the ring buffer so that it will accommodate the
 //  longest possible blep.
-void MinBlepGenerator::ProcessCurrentBleps(float* buffer, int numSamples) {
+void MinBlepGenerator::ProcessCurrentBleps(float* buffer,
+                                           const int numSamples) {
   // PROCESS ALL BLEPS -
-  /// for each offset, mix a portion of the blep array with the output ....
-  for (int i = currentActiveBlepOffsets.size(); --i >= 0;) {
-    BlepOffset blep = currentActiveBlepOffsets[i];
+  // for each offset, mix a portion of the blep array with the output ....
+  // backwards so we can remove if needed as we iterate
+  // we skip the first blep for some reason
+  for (auto [i, blep] : ReverseActiveBlepOffsets()) {
 
     // this determines how fast we step through the (oversampled) blep table
     // per output sample - it scales output samples into kernel samples (the
