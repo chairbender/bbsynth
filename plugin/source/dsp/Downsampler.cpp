@@ -61,7 +61,7 @@ void Downsampler::process(const juce::AudioBuffer<float>& input,
   const int dest_num_samples = sourceNumSamples / oversamplingFactor_;
   if (stages_.empty()) {
     jassert(oversamplingFactor_ == 1);
-    output.copyFrom(0, sourceStartSample, input, 0, sourceStartSample,
+    output.addFrom(0, sourceStartSample, input, 0, sourceStartSample,
                     sourceNumSamples);
     return;
   }
@@ -112,7 +112,7 @@ void Downsampler::process(const juce::AudioBuffer<float>& input,
         }
 
         // Mix with 0.5 gain and manage one-sample delay between paths
-        outputData[i] = (delay + directOut) * 0.5f;
+        outputData[i] += (delay + directOut) * 0.5f;
         delay = inOdd;
       }
     }
