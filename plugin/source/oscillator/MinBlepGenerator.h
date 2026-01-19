@@ -6,8 +6,8 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 */
 
 // todo rewrite to modern c++ standards
-// todo cleanup / reduce need for static casting - some places are using size_t in places where the juce lib wants int.
-
+// todo cleanup / reduce need for static casting - some places are using size_t
+// in places where the juce lib wants int.
 
 #pragma once
 
@@ -36,7 +36,12 @@ class MinBlepGenerator {
   juce::HeapBlock<FilterState> filter_states_;
   double ratio_, last_ratio_;
 
-public:
+  /**
+   * @return i, BlepOffset in reverse (note that i will start high and decrease)
+   */
+  std::ranges::view auto ReverseActiveBlepOffsets();
+
+ public:
   double over_sampling_ratio_;
   int zero_crossings_;
 
@@ -45,24 +50,24 @@ public:
 
   // Tweaking the Blep F
   double proportional_blep_freq_;
-  bool return_derivative_;  // set this to return the FIRST DERIVATIVE of the blep
-                          // (for first der. discontinuities)
+  bool return_derivative_;  // set this to return the FIRST DERIVATIVE of the
+                            // blep (for first der. discontinuities)
 
   struct BlepOffset {
     /**
-     * This is a value representing a sample index (integer part) + subsample (fractional part).
-     * But what is offset from is a little unintuitive...
+     * This is a value representing a sample index (integer part) + subsample
+     * (fractional part). But what is offset from is a little unintuitive...
      * Consider just the integer part for now:
-     * When the blep occured in the current buffer, this will be a negative value
-     * where the magnitude of the value matches the index
-     * the blep occurred at.
-     * It's set up so that as you walk through the current buffer (i + offset) = 0
-     * when you've reached the sample where the blep happend, and gets more positive as you
-     * continue to step through samples. This is used to convert to a lookup against the blep
-     * table so we know what part of the blep table we should be mixing in for a given offset in
-     * output samples from the start of the blep.
-     * The sign flips to positive once we start processing the next buffer of audio, and
-     * (todo presumably) the magnitude at that point represents how many samples ago the blep occurred
+     * When the blep occured in the current buffer, this will be a negative
+     * value where the magnitude of the value matches the index the blep
+     * occurred at. It's set up so that as you walk through the current buffer
+     * (i + offset) = 0 when you've reached the sample where the blep happend,
+     * and gets more positive as you continue to step through samples. This is
+     * used to convert to a lookup against the blep table so we know what part
+     * of the blep table we should be mixing in for a given offset in output
+     * samples from the start of the blep. The sign flips to positive once we
+     * start processing the next buffer of audio, and (todo presumably) the
+     * magnitude at that point represents how many samples ago the blep occurred
      * (so the blep tail is processed when it spans multiple buffers).
      */
     double offset = 0;
@@ -73,14 +78,15 @@ public:
 
   juce::Array<BlepOffset, juce::CriticalSection> currentActiveBlepOffsets;
 
-public:
   MinBlepGenerator();
   ~MinBlepGenerator();
 
   static juce::Array<float> min_blep_array();
   static juce::Array<float> min_blep_deriv_array();
 
-  void set_return_derivative(const bool derivative) { return_derivative_ = derivative; }
+  void set_return_derivative(const bool derivative) {
+    return_derivative_ = derivative;
+  }
 
   // Utility ....
 
@@ -96,11 +102,10 @@ public:
 
   // Generate Blackman Window
   static inline double BlackmanHarris(const double p) {
-    return
-      + 0.35875
-      - 0.48829 * std::cos(2 * juce::MathConstants<double>::pi * p)
-      + 0.14128 * std::cos(4 * juce::MathConstants<double>::pi * p)
-      - 0.01168 * std::cos(6 * juce::MathConstants<double>::pi * p);
+    return +0.35875 -
+           0.48829 * std::cos(2 * juce::MathConstants<double>::pi * p) +
+           0.14128 * std::cos(4 * juce::MathConstants<double>::pi * p) -
+           0.01168 * std::cos(6 * juce::MathConstants<double>::pi * p);
   }
 
   /**
@@ -113,11 +118,8 @@ public:
   }
 
   // Discrete Fourier Transform
-  static void DFT(const size_t N,
-           const double* realTime,
-           const double* imagTime,
-           double* realFreq,
-           double* imagFreq) {
+  static void DFT(const size_t N, const double* realTime,
+                  const double* imagTime, double* realFreq, double* imagFreq) {
     for (size_t k = 0; k < N; k++) {
       realFreq[k] = 0.0;
       imagFreq[k] = 0.0;
@@ -130,12 +132,14 @@ public:
 
       // Sum over all input samples n
       for (size_t n = 0; n < N; n++) {
-        double angle = -2.0 * juce::MathConstants<float>::pi * static_cast<double>(k)
-          * static_cast<double>(n) / static_cast<double>(N);
+        double angle = -2.0 * juce::MathConstants<float>::pi *
+                       static_cast<double>(k) * static_cast<double>(n) /
+                       static_cast<double>(N);
         double cosAngle = cos(angle);
         double sinAngle = sin(angle);
 
-        // Complex multiplication: (inputReal[n] + i*inputImag[n]) * (cos(angle) + i*sin(angle))
+        // Complex multiplication: (inputReal[n] + i*inputImag[n]) * (cos(angle)
+        // + i*sin(angle))
         realSum += realTime[n] * cosAngle - imagTime[n] * sinAngle;
         imagSum += realTime[n] * sinAngle + imagTime[n] * cosAngle;
       }
@@ -147,11 +151,8 @@ public:
 
   // Inverse Discrete Fourier Transform.
   // Note the result is scaled by 1/n, which assumes the DFT was NOT scaled.
-  static void InverseDFT(const size_t N,
-                  double* realTime,
-                  double* imagTime,
-                  const double* realFreq,
-                  const double* imagFreq) {
+  static void InverseDFT(const size_t N, double* realTime, double* imagTime,
+                         const double* realFreq, const double* imagFreq) {
     for (size_t k = 0; k < N; k++) {
       realTime[k] = 0.0;
       imagTime[k] = 0.0;
@@ -164,12 +165,15 @@ public:
 
       // Sum over all frequency bins k
       for (size_t k = 0; k < N; k++) {
-        double angle = 2.0 * juce::MathConstants<float>::pi * static_cast<double>(k)
-          * static_cast<double>(n) / static_cast<double>(N);  // Note: positive angle (opposite of DFT)
+        double angle =
+            2.0 * juce::MathConstants<float>::pi * static_cast<double>(k) *
+            static_cast<double>(n) /
+            static_cast<double>(N);  // Note: positive angle (opposite of DFT)
         double cosAngle = cos(angle);
         double sinAngle = sin(angle);
 
-        // Complex multiplication: (inputReal[k] + i*inputImag[k]) * (cos(angle) + i*sin(angle))
+        // Complex multiplication: (inputReal[k] + i*inputImag[k]) * (cos(angle)
+        // + i*sin(angle))
         realSum += realFreq[k] * cosAngle - imagFreq[k] * sinAngle;
         imagSum += realFreq[k] * sinAngle + imagFreq[k] * cosAngle;
       }
@@ -181,11 +185,13 @@ public:
   }
 
   // Complex Absolute Value
-  static inline double Cabs(const double x, const double y) { return sqrt((x * x) + (y * y)); }
+  static inline double Cabs(const double x, const double y) {
+    return sqrt((x * x) + (y * y));
+  }
 
   // Complex Exponential
-  static inline void Cexp(const double x,
-                          const double y, double* zx, double* zy) {
+  static inline void Cexp(const double x, const double y, double* zx,
+                          double* zy) {
     const double expx = exp(x);
     *zx = expx * cos(y);
     *zy = expx * sin(y);
@@ -212,8 +218,8 @@ public:
     // The imaginary part should be negligible (numerical errors only)
     for (i = 0; i < n; i++) {
       // Calculate magnitude: sqrt(real^2 + imag^2)
-      double magnitude = sqrt(realFreq[i] * realFreq[i] +
-                             imagFreq[i] * imagFreq[i]);
+      double magnitude =
+          sqrt(realFreq[i] * realFreq[i] + imagFreq[i] * imagFreq[i]);
 
       // Take natural log (add small epsilon to avoid log(0))
       const double epsilon = 1e-10;
@@ -225,8 +231,7 @@ public:
     InverseDFT(n, realTime, imagTime, realFreq, imagFreq);
 
     // Output Real Part Of FFT
-    for (i = 0; i < n; i++)
-      x[i] = realTime[i];
+    for (i = 0; i < n; i++) x[i] = realTime[i];
 
     delete[] realTime;
     delete[] imagTime;
@@ -278,8 +283,7 @@ public:
 
     InverseDFT(n, realTime, imagTime, realFreq, imagFreq);
 
-    for (size_t i = 0; i < n; i++)
-      x[i] = realTime[i];
+    for (size_t i = 0; i < n; i++) x[i] = realTime[i];
 
     delete[] realTime;
     delete[] imagTime;
@@ -300,12 +304,8 @@ public:
     SetFilterCoefficients(c1, c1 * 2.0, c1, 1.0, c1 * 2.0 * (1.0 - nSquared),
                           c1 * (1.0 - std::sqrt(2.0) * n + nSquared));
   }
-  void SetFilterCoefficients(double c1,
-                             double c2,
-                             double c3,
-                             double c4,
-                             double c5,
-                             double c6) {
+  void SetFilterCoefficients(double c1, double c2, double c3, double c4,
+                             double c5, double c6) {
     const double a = 1.0 / c4;
 
     c1 *= a;
@@ -331,8 +331,7 @@ public:
                    coefficients_[5] * fs.y2_;
 
 #if JUCE_INTEL
-      if (!(out < -1.0e-8 || out > 1.0e-8))
-        out = 0;
+      if (!(out < -1.0e-8 || out > 1.0e-8)) out = 0;
 #endif
 
       fs.x2_ = fs.x1_;
@@ -351,8 +350,7 @@ public:
                  coefficients_[5] * fs.y2_;
 
 #if JUCE_INTEL
-    if (!(out < -1.0e-8 || out > 1.0e-8))
-      out = 0;
+    if (!(out < -1.0e-8 || out > 1.0e-8)) out = 0;
 #endif
 
     fs.x2_ = fs.x1_;
@@ -376,9 +374,8 @@ public:
   juce::Array<BlepOffset> GetNextBleps();
 
   void ProcessBlock(float* buffer, int numSamples);
-  void RescaleBlepsToBuffer(const float* buffer,
-                               int numSamples,
-                               float shiftBlepsBy = 0);
+  void RescaleBlepsToBuffer(const float* buffer, int numSamples,
+                            float shiftBlepsBy = 0);
   void ProcessCurrentBleps(float* buffer, int numSamples);
 };
 
