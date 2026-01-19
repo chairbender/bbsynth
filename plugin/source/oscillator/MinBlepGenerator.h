@@ -14,6 +14,8 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
 
+#include <ranges>
+
 namespace audio_plugin {
 
 class MinBlepGenerator {
@@ -91,7 +93,7 @@ class MinBlepGenerator {
   // Utility ....
 
   // SINC Function
-  static inline double Sinc(const double x) {
+  static double Sinc(const double x) {
     if (x == 0.0)
       return 1.0;
     else {
@@ -101,7 +103,7 @@ class MinBlepGenerator {
   }
 
   // Generate Blackman Window
-  static inline double BlackmanHarris(const double p) {
+  static double BlackmanHarris(const double p) {
     return +0.35875 -
            0.48829 * std::cos(2 * juce::MathConstants<double>::pi * p) +
            0.14128 * std::cos(4 * juce::MathConstants<double>::pi * p) -
@@ -111,41 +113,45 @@ class MinBlepGenerator {
   /**
    * Applies the window to x
    */
-  static inline void ApplyBlackmanHarrisWindow(const int n, double* x) {
-    for (int i = 0; i < n; i++) {
-      x[i] *= BlackmanHarris(static_cast<double>(i) / (n - 1));
+  static void ApplyBlackmanHarrisWindow(std::span<double> x) {
+    for (auto [i, sample] : std::views::enumerate(x)) {
+      sample *= BlackmanHarris(static_cast<double>(i) /
+                               (static_cast<double>(x.size()) - 1));
     }
   }
 
   // Discrete Fourier Transform
-  static void DFT(const size_t N, const double* realTime,
-                  const double* imagTime, double* realFreq, double* imagFreq) {
-    for (size_t k = 0; k < N; k++) {
-      realFreq[k] = 0.0;
-      imagFreq[k] = 0.0;
-    }
+  static void DFT(const std::span<const double> realTime,
+                  const std::span<const double> imagTime, const std::span<double> realFreq,
+                  const std::span<double> imagFreq) {
+    std::ranges::fill(realFreq, 0.0);
+    std::ranges::fill(imagFreq, 0.0);
 
     // Calculate DFT for each frequency bin k
-    for (size_t k = 0; k < N; k++) {
+    for (auto [k, freq_sample] :
+         std::views::enumerate(std::views::zip(realFreq, imagFreq))) {
+      auto& [real_freq_sample, imag_freq_sample] = freq_sample;
       double realSum = 0.0;
       double imagSum = 0.0;
 
       // Sum over all input samples n
-      for (size_t n = 0; n < N; n++) {
-        double angle = -2.0 * juce::MathConstants<float>::pi *
-                       static_cast<double>(k) * static_cast<double>(n) /
-                       static_cast<double>(N);
-        double cosAngle = cos(angle);
-        double sinAngle = sin(angle);
+      for (auto [n, time_sample] :
+           std::views::enumerate(std::views::zip(realTime, imagTime))) {
+        auto& [real_time_sample, imag_time_sample] = time_sample;
+        const double angle = -2.0 * juce::MathConstants<float>::pi *
+                             static_cast<double>(k) * static_cast<double>(n) /
+                             static_cast<double>(realTime.size());
+        const double cosAngle = cos(angle);
+        const double sinAngle = sin(angle);
 
         // Complex multiplication: (inputReal[n] + i*inputImag[n]) * (cos(angle)
         // + i*sin(angle))
-        realSum += realTime[n] * cosAngle - imagTime[n] * sinAngle;
-        imagSum += realTime[n] * sinAngle + imagTime[n] * cosAngle;
+        realSum += real_time_sample * cosAngle - imag_time_sample * sinAngle;
+        imagSum += imag_time_sample * sinAngle + imag_time_sample * cosAngle;
       }
 
-      realFreq[k] = realSum;
-      imagFreq[k] = imagSum;
+      real_freq_sample = realSum;
+      imag_freq_sample = imagSum;
     }
   }
 
@@ -212,7 +218,11 @@ class MinBlepGenerator {
       imagTime[i] = 0.0;
     }
 
-    DFT(n, realTime, imagTime, realFreq, imagFreq);
+    const auto real_time_span = std::span(realTime, n);
+    const auto imag_time_span = std::span(imagTime, n);
+    const auto real_freq_span = std::span(realFreq, n);
+    const auto imag_freq_span = std::span(imagFreq, n);
+    DFT(real_time_span, imag_time_span, real_freq_span, imag_freq_span);
 
     // Note: For real cepstrum, we only return the real part
     // The imaginary part should be negligible (numerical errors only)
@@ -270,7 +280,11 @@ class MinBlepGenerator {
       realTime[i] = 0;
     }
 
-    DFT(n, realTime, imagTime, realFreq, imagFreq);
+    const auto real_time_span = std::span(realTime, n);
+    const auto imag_time_span = std::span(imagTime, n);
+    const auto real_freq_span = std::span(realFreq, n);
+    const auto imag_freq_span = std::span(imagFreq, n);
+    DFT(real_time_span, imag_time_span, real_freq_span, imag_freq_span);
 
     // exponentiate to get complex spectrum
     for (size_t k = 0; k < n; k++) {

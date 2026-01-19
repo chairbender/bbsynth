@@ -135,7 +135,7 @@ void MinBlepGenerator::BuildBlep() const {
   dumpArrayToCsv(buffer1, "sinc.csv");
 
   // Window Sinc
-  ApplyBlackmanHarrisWindow(n, buffer1.getRawDataPointer());
+  ApplyBlackmanHarrisWindow(std::span(buffer1.getRawDataPointer(), n));
 
   dumpArrayToCsv(buffer1, "blackman.csv");
 
@@ -455,7 +455,7 @@ void MinBlepGenerator::ProcessCurrentBleps(float* buffer,
     // To do this, we first have to step through the current buffer until we
     // reach a point where the blep has occurred (which will already be true if
     // the blep happened in a recent previous buffer).
-    for (float p = 0; p < static_cast<float>(numSamples); p++) {
+    for (const auto p : std::views::iota(0, numSamples)) {
       // figure out how many output samples (p) have transpired
       // since the blep - this will be negative if we haven't yet reached the
       // blep. +1 because the blep needs to be mixed in starting on the LOW
