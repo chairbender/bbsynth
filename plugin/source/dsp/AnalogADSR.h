@@ -34,7 +34,11 @@ class AnalogADSR {
   enum class State { idle, attack, decay, sustain, release };
   State state_{State::idle};
   float sample_rate_{0};
-
+  
+  // retrigger behavior - constant rate or constant time from where the 
+  // envelope was
+  bool retrigger_constant_rate_{false};
+  
   // configured amount of samples desired per stage
   int attack_samples_{0};
   int decay_samples_{0};
@@ -47,5 +51,7 @@ class AnalogADSR {
   float released_level_{0.f};
   // most recent output level, used for setting released level
   float last_level_{0.f};
+  // what was the level when we re-triggered
+  float retrigger_level_{0.f};
 };
 }  // namespace audio_plugin

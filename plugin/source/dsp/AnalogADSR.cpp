@@ -27,9 +27,14 @@ void AnalogADSR::Reset() {
 
 void AnalogADSR::NoteOn() {
   // reset to attack state regardless of where we are
+  // to prevent clicking and emulate interesting analog behavior,
+  // the envelope value starts from its current value if it was
+  // in the middle of playing rather than hard resetting back to the start.
+  // This can be done as constant rate or constant time.
   // todo: probably not thread safe
   state_ = State::attack;
   stage_samples_ = 0;
+  retrigger_level_ = last_level_;
 }
 
 void AnalogADSR::NoteOff() {
@@ -133,10 +138,12 @@ void AnalogADSR::WriteEnvelopeToBuffer(juce::AudioBuffer<float>& buffer,
                                        const int num_samples) {
   if (state_ == State::idle) {
     buffer.clear(0, start_sample, num_samples);
+    last_level_ = 0.f;
     return;
   }
   if (state_ == State::attack) {
-    WriteStage<&AnalogADSR::AdvanceStateFromAttack,-0.4f, &AnalogADSR::attack_samples_, 0.f, 1.f>
+    // todo: support constant rate instead of constant time
+    WriteStage<&AnalogADSR::AdvanceStateFromAttack,-0.4f, &AnalogADSR::attack_samples_,&AnalogADSR::retrigger_level_, 1.f>
       (buffer, start_sample, num_samples);
   } else if (state_ == State::decay) {
     WriteStage<&AnalogADSR::AdvanceStateFromDecay,0.4f, &AnalogADSR::decay_samples_, 1.f, &AnalogADSR::sustain_level_>
