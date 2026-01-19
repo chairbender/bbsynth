@@ -33,6 +33,10 @@ class Env1Section : public juce::Component {
   juce::Label env1_release_label_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
       env1_release_attachment_;
+
+  juce::ToggleButton env1_retrigger_button_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
+      env1_retrigger_attachment_;
 };
 
 }  // namespace audio_plugin

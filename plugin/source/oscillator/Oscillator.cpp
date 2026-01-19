@@ -57,6 +57,11 @@ void OscillatorVoice::Configure(
                        apvts.getRawParameterValue("env2Sustain")->load(),
                        apvts.getRawParameterValue("env2Release")->load());
 
+  envelope_.set_retrigger_constant_rate(
+      apvts.getRawParameterValue("env1RetriggerRate")->load() > 0.5f);
+  envelope2_.set_retrigger_constant_rate(
+      apvts.getRawParameterValue("env2RetriggerRate")->load() > 0.5f);
+
   if (apvts.getRawParameterValue("vcoModOsc1")->load() > 0) {
     waveGenerator_.set_pitch_bend_lfo_mod(
         apvts.getRawParameterValue("vcoModLfoFreq")->load());
