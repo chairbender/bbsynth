@@ -385,8 +385,8 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
     std::views::stride(20)) {
     // just adding a sample every 20 or so to the history
     history_.add(sample);
-    if (history_.size() > history_length_) history_.remove(0);
   }
+  history_.resize(history_length_);
 
   // COPY it to the outputbuffer ....
   // todo do the gain staging more intelligently - I think one reason we need it
@@ -461,7 +461,7 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
     modulator_data = modulator_buffer_.getReadPointer(0);
   }
 
-  for (int i = 0; i < numSamples; i++) {
+  for (const int i : std::views::iota(0, numSamples)) {
     // this seems to be used to prevent adding 2 bleps for one sample
     bool hard_sync_blep_occurred = false;
 
@@ -937,15 +937,14 @@ void WaveGenerator<IsLFO>::MoveAngleForward(int numSamples) {
   }
 
   // UPDATE the history
-  for (int i = 0; i < historyPoints; i++) {
+  for (const int i : std::views::iota(0, historyPoints)) {
     angle = current_angle_ + i * (20 * modAngleDelta);
     angle = fmod(angle, 2 * juce::MathConstants<double>::twoPi);  // modulus
     angle = skew_angle(angle);
 
     history_.add(static_cast<float>(GetValueAt(angle)));
-
-    if (history_.size() > history_length_) history_.remove(0);
   }
+  history_.resize(history_length_);
 
   current_angle_ = fmod(current_angle_ + numSamples * modAngleDelta,
                         2 * juce::MathConstants<double>::twoPi);  // ROLL
