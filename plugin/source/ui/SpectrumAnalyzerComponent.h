@@ -37,7 +37,7 @@ private:
   void timerCallback() override;
   void pushNextSampleIntoFifo(float sample) noexcept;
   void drawNextFrameOfSpectrum();
-  void drawFrame(juce::Graphics& g);
+  void drawFrame(juce::Graphics& g) const;
 
   juce::dsp::FFT forwardFFT;                   // [4]
   juce::dsp::WindowingFunction<float> window;  // [5]
