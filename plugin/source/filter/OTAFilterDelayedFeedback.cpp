@@ -91,7 +91,7 @@ inline void OTAFilterDelayedFeedback::FilterStage(const float in, float& out,
   constexpr auto kLeak = 0.99995f;
   const auto stage_index = &tanh_in - &tanh_in_[0];
   const auto state_scale =
-      1.f / (drive_.load() * state_drive_scales_[static_cast<size_t>(stage_index)].load());
+      1.f / (drive_ * state_drive_scales_[static_cast<size_t>(stage_index)]);
   const auto tanh_in_val = tanh_in.process(in * scale);
   const auto tanh_state_val = tanh_state.process(out * state_scale);
   const float v = tanh_in_val * (1.f / scale);
@@ -121,8 +121,8 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
       // modulation - envelope and LFO affects cutoff frequency
       const float modulated_cutoff =
           juce::jlimit(kMinCutoff, kMaxCutoff,
-                       cutoff_freq_.load() + env_mod_.load() * env_sample * kMaxCutoff +
-                           lfo_mod_.load() * lfo_sample * kMaxCutoff);
+                       cutoff_freq_ + env_mod_ * env_sample * kMaxCutoff +
+                           lfo_mod_ * lfo_sample * kMaxCutoff);
 
       // this was my original "naive" approach which can exceed 1 in some cases
       // and blow the filter up. It seems to work fine now that I've addressed
@@ -162,7 +162,7 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
       // const auto feedback = resonance_ * last_stage_output / (1 + resonance_
       // * (1.f / static_cast<float>(num_stages_))); feedback without
       // compensation
-      const auto feedback = resonance_.load() * last_stage_output;
+      const auto feedback = resonance_ * last_stage_output;
 
       // input with soft clipping
       // try 0.8 to 1.5 range
@@ -177,16 +177,16 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
       // same for each.
 
       FilterStage(u, s1_, tanh_in_[0], tanh_state_[0], g,
-                  1.f / (drive_.load() * input_drive_scales_[0].load()));
+                  1.f / (drive_ * input_drive_scales_[0]));
       if (num_stages_ >= 2)
         FilterStage(s1_, s2_, tanh_in_[1], tanh_state_[1], g,
-                    1.f / (drive_.load() * input_drive_scales_[1].load()));
+                    1.f / (drive_ * input_drive_scales_[1]));
       if (num_stages_ >= 3)
         FilterStage(s2_, s3_, tanh_in_[2], tanh_state_[2], g,
-                    1.f / (drive_.load() * input_drive_scales_[2].load()));
+                    1.f / (drive_ * input_drive_scales_[2]));
       if (num_stages_ >= 4)
         FilterStage(s3_, s4_, tanh_in_[3], tanh_state_[3], g,
-                    1.f / (drive_.load() * input_drive_scales_[3].load()));
+                    1.f / (drive_ * input_drive_scales_[3]));
 
       // DC block and soft clip the output
       // try 2.0 - 4.0 range

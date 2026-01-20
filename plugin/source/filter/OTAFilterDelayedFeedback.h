@@ -37,15 +37,15 @@ class OTAFilterDelayedFeedback
   void Reset();
   void set_sample_rate(double rate);
 
-  std::atomic<float> cutoff_freq_;
-  std::atomic<float> resonance_;
+  float cutoff_freq_;
+  float resonance_;
   // value of zero disables the distortion
-  std::atomic<float> drive_;
-  std::atomic<float> env_mod_;
-  std::atomic<float> lfo_mod_;
-  std::atomic<int> num_stages_;
-  std::array<std::atomic<float>, 4> input_drive_scales_;
-  std::array<std::atomic<float>, 4> state_drive_scales_;
+  float drive_;
+  float env_mod_;
+  float lfo_mod_;
+  int num_stages_;
+  std::array<float, 4> input_drive_scales_;
+  std::array<float, 4> state_drive_scales_;
 
  private:
   void FilterStage(float in, float& out, TanhADAA& tanh_in,

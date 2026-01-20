@@ -68,14 +68,14 @@ private:
   juce::dsp::Limiter<float> main_limiter_;
   // how many samples remaining until LFO should start,
   // < 0  means LFO is not playing.
-  std::atomic<int> lfo_samples_until_start_;
+  int lfo_samples_until_start_;
   // short ramp up for the LFO so it starts smoothly
   // -1 means not ramping
-  std::atomic<float> lfo_ramp_;
-  std::atomic<float> lfo_ramp_step_;
-  std::atomic<float> lfo_delay_time_s_;
+  float lfo_ramp_;
+  float lfo_ramp_step_;
+  float lfo_delay_time_s_;
   // configured rate
-  std::atomic<float> lfo_rate_;
+  float lfo_rate_;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessor)
 };
