@@ -10,6 +10,24 @@
 
 namespace audio_plugin {
 
+enum class FilterParamId {
+  kCutoffFreq,
+  kResonance,
+  kDrive,
+  kEnvMod,
+  kLfoMod,
+  kInputDriveScale1,
+  kInputDriveScale2,
+  kInputDriveScale3,
+  kInputDriveScale4,
+  kStateDriveScale1,
+  kStateDriveScale2,
+  kStateDriveScale3,
+  kStateDriveScale4,
+  kFilterSlope,
+  kCount
+};
+
 /**
  * 4 pole, mono, OTA filter emulation with adjustable drive.
  * Unlike the OTAFilterDelayedFeedback, this uses a TPT approach with
@@ -18,7 +36,7 @@ namespace audio_plugin {
  * also is way more computationally expensive.
  */
 class OTAFilterTPTNewtonRaphson
-    : public ParameterListenerManager<OTAFilterTPTNewtonRaphson> {
+    : public ParameterListenerManager<OTAFilterTPTNewtonRaphson, FilterParamId> {
  public:
   OTAFilterTPTNewtonRaphson(juce::AudioProcessorValueTreeState& apvts,
                             const juce::AudioBuffer<float>& env_buffer,

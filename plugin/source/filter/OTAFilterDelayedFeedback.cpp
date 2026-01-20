@@ -28,44 +28,44 @@ OTAFilterDelayedFeedback::OTAFilterDelayedFeedback(
       s4_{0},
       dc_out_x1_{0},
       dc_out_y1_{0} {
-  AddParameterListener("filterCutoffFreq",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("filterCutoffFreq", FilterParamId::kCutoffFreq,
+                       [this](const float value) {
                          cutoff_freq_ = value;
                        });
-  AddParameterListener("filterResonance",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("filterResonance", FilterParamId::kResonance,
+                       [this](const float value) {
                          resonance_ = value;
                        });
-  AddParameterListener("filterDrive",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("filterDrive", FilterParamId::kDrive,
+                       [this](const float value) {
                          drive_ = value;
                        });
-  AddParameterListener("filterEnvMod",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("filterEnvMod", FilterParamId::kEnvMod,
+                       [this](const float value) {
                          env_mod_ = value;
                        });
-  AddParameterListener("filterLfoMod",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("filterLfoMod", FilterParamId::kLfoMod,
+                       [this](const float value) {
                          lfo_mod_ = value;
                        });
 
   for (const auto [i, input_drive_param] :
        std::views::enumerate(kInputDriveScaleParams)) {
-    AddParameterListener(input_drive_param,
-                         [this, i](const juce::String&, const float value) {
+    AddParameterListener(input_drive_param, static_cast<FilterParamId>(static_cast<int>(FilterParamId::kInputDriveScale1) + i),
+                         [this, i](const float value) {
                            input_drive_scales_[i] = value;
                          });
   }
   for (const auto [i, state_drive_param] :
        std::views::enumerate(kStateDriveScaleParams)) {
-    AddParameterListener(state_drive_param,
-                         [this, i](const juce::String&, const float value) {
+    AddParameterListener(state_drive_param, static_cast<FilterParamId>(static_cast<int>(FilterParamId::kStateDriveScale1) + i),
+                         [this, i](const float value) {
                            state_drive_scales_[i] = value;
                          });
   }
 
-  AddParameterListener("filterSlope",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("filterSlope", FilterParamId::kFilterSlope,
+                       [this](const float value) {
                          switch (static_cast<int>(value)) {
                            case 0:
                              num_stages_ = 4;
@@ -101,6 +101,7 @@ inline void OTAFilterDelayedFeedback::FilterStage(const float in, float& out,
 void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
                                        const int start_sample,
                                        const int numSamples) {
+  ProcessDirtyParameters();
   jassert(sample_rate_ > 0);
 
   // todo vectorize

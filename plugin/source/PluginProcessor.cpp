@@ -32,39 +32,43 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
   synth.addSound(new OscillatorSound(apvts_));
 
   AddParameterListener("lfoDelayTimeSeconds",
-                       [this](const juce::String&, const float value) {
+                       PluginProcessorParamId::kLfoDelayTimeSeconds,
+                       [this](const float value) {
                          lfo_delay_time_s_ = value;
                        });
   AddParameterListener(
-      "lfoAttack", [this](const juce::String&, const float value) {
+      "lfoAttack", PluginProcessorParamId::kLfoAttack,
+      [this](const float value) {
         lfo_ramp_step_ = 1.f / (static_cast<float>(getSampleRate()) * value);
       });
   AddParameterListener(
-      "lfoRate", [this](const juce::String&, const float value) {
+      "lfoRate", PluginProcessorParamId::kLfoRate,
+      [this](const float value) {
         lfo_rate_ = value;
         lfo_generator_.set_pitch_hz(static_cast<double>(value));
       });
-  AddParameterListener("lfoWaveType", [this](const juce::String&, float value) {
-    switch (static_cast<int>(value)) {
-      case 0:
-        lfo_generator_.set_wave_type(sine);
-        break;
-      case 1:
-        lfo_generator_.set_wave_type(sawFall);
-        break;
-      case 2:
-        lfo_generator_.set_wave_type(triangle);
-        break;
-      case 3:
-        lfo_generator_.set_wave_type(square);
-        break;
-      case 4:
-        lfo_generator_.set_wave_type(random);
-        break;
-      default:
-        break;
-    }
-  });
+  AddParameterListener("lfoWaveType", PluginProcessorParamId::kLfoWaveType,
+                       [this](float value) {
+                         switch (static_cast<int>(value)) {
+                           case 0:
+                             lfo_generator_.set_wave_type(sine);
+                             break;
+                           case 1:
+                             lfo_generator_.set_wave_type(sawFall);
+                             break;
+                           case 2:
+                             lfo_generator_.set_wave_type(triangle);
+                             break;
+                           case 3:
+                             lfo_generator_.set_wave_type(square);
+                             break;
+                           case 4:
+                             lfo_generator_.set_wave_type(random);
+                             break;
+                           default:
+                             break;
+                         }
+                       });
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {
@@ -189,6 +193,7 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported(
 
 void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                              juce::MidiBuffer& midiMessages) {
+  ProcessDirtyParameters();
   juce::ignoreUnused(midiMessages);
 
   juce::ScopedNoDenormals noDenormals;

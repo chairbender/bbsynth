@@ -18,8 +18,37 @@ struct OscillatorSound : juce::SynthesiserSound {
   bool appliesToChannel([[maybe_unused]] int midiChannelNumber) override;
 };
 
+enum class OscillatorVoiceParamId {
+  kVcfFilterType,
+  kAdsrAttack,
+  kAdsrDecay,
+  kAdsrSustain,
+  kAdsrRelease,
+  kEnv1RetriggerRate,
+  kEnv2Attack,
+  kEnv2Decay,
+  kEnv2Sustain,
+  kEnv2Release,
+  kEnv2RetriggerRate,
+  kVcoModOsc1,
+  kVcoModOsc2,
+  kVcoModLfoFreq,
+  kVcoModEnv1Freq,
+  kWaveType,
+  kWave2Type,
+  kVco2Sync,
+  kCrossMod,
+  kFineTune,
+  kPulseWidthSource,
+  kPulseWidth,
+  kVco1Level,
+  kVco2Level,
+  kFilterEnvSource,
+  kCount
+};
+
 struct OscillatorVoice : juce::SynthesiserVoice,
-                         public ParameterListenerManager<OscillatorVoice> {
+                         public ParameterListenerManager<OscillatorVoice, OscillatorVoiceParamId> {
   OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
                   const juce::AudioBuffer<float>& lfo_buffer);
   bool canPlaySound(juce::SynthesiserSound* sound) override;
