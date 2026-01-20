@@ -10,7 +10,10 @@ class AnalogADSR {
   public:
   void Prepare(double sample_rate);
 
-  void Configure(float attack_seconds, float decay_seconds, float sustain_level, float release_seconds);
+  void set_attack(float attack_seconds);
+  void set_decay(float decay_seconds);
+  void set_sustain(float sustain_level);
+  void set_release(float release_seconds);
 
   void Reset();
   void NoteOn();

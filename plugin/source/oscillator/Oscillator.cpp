@@ -44,19 +44,19 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
   // ADSR 1
   AddParameterListener("adsrAttack", OscillatorVoiceParamId::kAdsrAttack,
                        [this](const float value) {
-                         envelope_.Configure(value, -1, -1, -1);
+                         envelope_.set_attack(value);
                        });
   AddParameterListener("adsrDecay", OscillatorVoiceParamId::kAdsrDecay,
                        [this](const float value) {
-                         envelope_.Configure(-1, value, -1, -1);
+                         envelope_.set_decay(value);
                        });
   AddParameterListener("adsrSustain", OscillatorVoiceParamId::kAdsrSustain,
                        [this](const float value) {
-                         envelope_.Configure(-1, -1, value, -1);
+                         envelope_.set_sustain(value);
                        });
   AddParameterListener("adsrRelease", OscillatorVoiceParamId::kAdsrRelease,
                        [this](const float value) {
-                         envelope_.Configure(-1, -1, -1, value);
+                         envelope_.set_release(value);
                        });
   AddParameterListener("env1RetriggerRate", OscillatorVoiceParamId::kEnv1RetriggerRate,
                        [this](const float value) {
@@ -66,19 +66,19 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
   // ADSR 2
   AddParameterListener("env2Attack", OscillatorVoiceParamId::kEnv2Attack,
                        [this](const float value) {
-                         envelope2_.Configure(value, -1, -1, -1);
+                         envelope2_.set_attack(value);
                        });
   AddParameterListener("env2Decay", OscillatorVoiceParamId::kEnv2Decay,
                        [this](const float value) {
-                         envelope2_.Configure(-1, value, -1, -1);
+                         envelope2_.set_decay(value);
                        });
   AddParameterListener("env2Sustain", OscillatorVoiceParamId::kEnv2Sustain,
                        [this](const float value) {
-                         envelope2_.Configure(-1, -1, value, -1);
+                         envelope2_.set_sustain(value);
                        });
   AddParameterListener("env2Release", OscillatorVoiceParamId::kEnv2Release,
                        [this](const float value) {
-                         envelope2_.Configure(-1, -1, -1, value);
+                         envelope2_.set_release(value);
                        });
   AddParameterListener("env2RetriggerRate", OscillatorVoiceParamId::kEnv2RetriggerRate,
                        [this](const float value) {
