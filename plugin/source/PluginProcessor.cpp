@@ -27,7 +27,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
       lfo_delay_time_s_{0},
       lfo_rate_{0} {
   for (auto _ : std::views::iota(0, kNumVoices)) {
-    synth.addVoice(new OscillatorVoice(lfo_buffer_));
+    synth.addVoice(new OscillatorVoice(apvts_, lfo_buffer_));
   }
   synth.addSound(new OscillatorSound(apvts_));
 
@@ -152,8 +152,8 @@ void AudioPluginAudioProcessor::prepareToPlay(const double sampleRate,
   hpf_.reset();
   tone_filter_.Prepare(sampleRate, samplesPerBlock);
   std::ranges::for_each(GetVoices(), [&](const auto voice) {
-    voice->Configure(apvts_);
     voice->SetBlockSize(samplesPerBlock);
+    voice->PrepareToPlay();
   });
   InitializeAllParameters();
 }
@@ -216,10 +216,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
           dynamic_cast<AudioPluginAudioProcessorEditor*>(getActiveEditor())) {
     editor->keyboard_state_.processNextMidiBuffer(midiMessages, 0,
                                                   buffer.getNumSamples(), true);
-
-    // Update all voices with current parameters
-    std::ranges::for_each(GetVoices(),
-                          [this](const auto voice) { voice->Configure(apvts_); });
 
     // todo instead of clearing each block, just overwrite into it instead of
     // adding to it

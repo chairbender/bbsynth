@@ -11,9 +11,11 @@
 
 namespace audio_plugin {
 OTAFilterTPTNewtonRaphson::OTAFilterTPTNewtonRaphson(
+    juce::AudioProcessorValueTreeState& apvts,
     const juce::AudioBuffer<float>& env_buffer,
     const juce::AudioBuffer<float>& lfo_buffer)
-    : cutoff_freq_{0.f},
+    : ParameterListenerManager{apvts},
+      cutoff_freq_{0.f},
       resonance_{0.f},
       drive_{0.f},
       env_mod_{0.f},
@@ -25,39 +27,60 @@ OTAFilterTPTNewtonRaphson::OTAFilterTPTNewtonRaphson(
       s1_{0},
       s2_{0},
       s3_{0},
-      s4_{0} {}
+      s4_{0} {
+  AddParameterListener("filterCutoffFreq",
+                       [this](const juce::String&, const float value) {
+                         cutoff_freq_ = value;
+                       });
+  AddParameterListener("filterResonance",
+                       [this](const juce::String&, const float value) {
+                         resonance_ = value;
+                       });
+  AddParameterListener("filterDrive",
+                       [this](const juce::String&, const float value) {
+                         drive_ = value;
+                       });
+  AddParameterListener("filterEnvMod",
+                       [this](const juce::String&, const float value) {
+                         env_mod_ = value;
+                       });
+  AddParameterListener("filterLfoMod",
+                       [this](const juce::String&, const float value) {
+                         lfo_mod_ = value;
+                       });
 
-
-
-void OTAFilterTPTNewtonRaphson::Configure(
-    const juce::AudioProcessorValueTreeState& state) {
-  cutoff_freq_ = state.getRawParameterValue("filterCutoffFreq")->load();
-  resonance_ = state.getRawParameterValue("filterResonance")->load();
-  drive_ = state.getRawParameterValue("filterDrive")->load();
-  env_mod_ = state.getRawParameterValue("filterEnvMod")->load();
-  lfo_mod_ = state.getRawParameterValue("filterLfoMod")->load();
-
-  for (const auto [input_drive_scale, state_drive_scale, input_drive_param,
-             state_drive_param] :
-       std::views::zip(input_drive_scales_, state_drive_scales_,
-                       kInputDriveScaleParams, kStateDriveScaleParams)) {
-    input_drive_scale = state.getRawParameterValue(input_drive_param)->load();
-    state_drive_scale = state.getRawParameterValue(state_drive_param)->load();
+  for (const auto [i, input_drive_param] :
+       std::views::enumerate(kInputDriveScaleParams)) {
+    AddParameterListener(input_drive_param,
+                         [this, i](const juce::String&, const float value) {
+                           input_drive_scales_[i] = value;
+                         });
   }
-  switch (static_cast<int>(state.getRawParameterValue("filterSlope")->load())) {
-    case 0:
-      num_stages_ = 4;
-      break;
-    case 1:
-      num_stages_ = 3;
-      break;
-    case 2:
-      num_stages_ = 2;
-      break;
-    default:
-      num_stages_ = 4;
-      break;
+  for (const auto [i, state_drive_param] :
+       std::views::enumerate(kStateDriveScaleParams)) {
+    AddParameterListener(state_drive_param,
+                         [this, i](const juce::String&, const float value) {
+                           state_drive_scales_[i] = value;
+                         });
   }
+
+  AddParameterListener("filterSlope",
+                       [this](const juce::String&, const float value) {
+                         switch (static_cast<int>(value)) {
+                           case 0:
+                             num_stages_ = 4;
+                             break;
+                           case 1:
+                             num_stages_ = 3;
+                             break;
+                           case 2:
+                             num_stages_ = 2;
+                             break;
+                           default:
+                             num_stages_ = 4;
+                             break;
+                         }
+                       });
 }
 
 void OTAFilterTPTNewtonRaphson::set_sample_rate(const double rate) {
@@ -199,8 +222,8 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in,
                                                const float lfo_sample) {
   const float modulated_cutoff =
       juce::jlimit(kMinCutoff, kMaxCutoff,
-                   cutoff_freq_ + env_mod_ * env_sample * kMaxCutoff +
-                       lfo_mod_ * lfo_sample * kMaxCutoff);
+                   cutoff_freq_.load() + env_mod_.load() * env_sample * kMaxCutoff +
+                       lfo_mod_.load() * lfo_sample * kMaxCutoff);
 
   // Calculate TPT coefficient
   const float g = std::tanf(juce::MathConstants<float>::pi * modulated_cutoff /
@@ -209,7 +232,7 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in,
   const float G = g_clamped / (1.0f + g_clamped);
 
   // Resonance feedback amount (scaled for 4-pole)
-  const float k = std::clamp(resonance_, 0.0f, 0.99f) * 4.0f;
+  const float k = std::clamp(resonance_.load(), 0.0f, 0.99f) * 4.0f;
 
   // Newton-Raphson iteration to solve implicit equation
   // We're solving: out = F(input, out)

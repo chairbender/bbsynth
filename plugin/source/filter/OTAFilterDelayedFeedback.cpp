@@ -9,9 +9,11 @@
 
 namespace audio_plugin {
 OTAFilterDelayedFeedback::OTAFilterDelayedFeedback(
+    juce::AudioProcessorValueTreeState& apvts,
     const juce::AudioBuffer<float>& env_buffer,
     const juce::AudioBuffer<float>& lfo_buffer)
-    : cutoff_freq_{0.f},
+    : ParameterListenerManager{apvts},
+      cutoff_freq_{0.f},
       resonance_{0.f},
       drive_{0.f},
       env_mod_{0.f},
@@ -25,7 +27,61 @@ OTAFilterDelayedFeedback::OTAFilterDelayedFeedback(
       s3_{0},
       s4_{0},
       dc_out_x1_{0},
-      dc_out_y1_{0} {}
+      dc_out_y1_{0} {
+  AddParameterListener("filterCutoffFreq",
+                       [this](const juce::String&, const float value) {
+                         cutoff_freq_ = value;
+                       });
+  AddParameterListener("filterResonance",
+                       [this](const juce::String&, const float value) {
+                         resonance_ = value;
+                       });
+  AddParameterListener("filterDrive",
+                       [this](const juce::String&, const float value) {
+                         drive_ = value;
+                       });
+  AddParameterListener("filterEnvMod",
+                       [this](const juce::String&, const float value) {
+                         env_mod_ = value;
+                       });
+  AddParameterListener("filterLfoMod",
+                       [this](const juce::String&, const float value) {
+                         lfo_mod_ = value;
+                       });
+
+  for (const auto [i, input_drive_param] :
+       std::views::enumerate(kInputDriveScaleParams)) {
+    AddParameterListener(input_drive_param,
+                         [this, i](const juce::String&, const float value) {
+                           input_drive_scales_[i] = value;
+                         });
+  }
+  for (const auto [i, state_drive_param] :
+       std::views::enumerate(kStateDriveScaleParams)) {
+    AddParameterListener(state_drive_param,
+                         [this, i](const juce::String&, const float value) {
+                           state_drive_scales_[i] = value;
+                         });
+  }
+
+  AddParameterListener("filterSlope",
+                       [this](const juce::String&, const float value) {
+                         switch (static_cast<int>(value)) {
+                           case 0:
+                             num_stages_ = 4;
+                             break;
+                           case 1:
+                             num_stages_ = 3;
+                             break;
+                           case 2:
+                             num_stages_ = 2;
+                             break;
+                           default:
+                             num_stages_ = 4;
+                             break;
+                         }
+                       });
+}
 
 inline void OTAFilterDelayedFeedback::FilterStage(const float in, float& out,
                                                   TanhADAA& tanh_in,
@@ -35,7 +91,7 @@ inline void OTAFilterDelayedFeedback::FilterStage(const float in, float& out,
   constexpr auto kLeak = 0.99995f;
   const auto stage_index = &tanh_in - &tanh_in_[0];
   const auto state_scale =
-      1.f / (drive_ * state_drive_scales_[static_cast<size_t>(stage_index)]);
+      1.f / (drive_.load() * state_drive_scales_[static_cast<size_t>(stage_index)].load());
   const auto tanh_in_val = tanh_in.process(in * scale);
   const auto tanh_state_val = tanh_state.process(out * state_scale);
   const float v = tanh_in_val * (1.f / scale);
@@ -64,8 +120,8 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
       // modulation - envelope and LFO affects cutoff frequency
       const float modulated_cutoff =
           juce::jlimit(kMinCutoff, kMaxCutoff,
-                       cutoff_freq_ + env_mod_ * env_sample * kMaxCutoff +
-                           lfo_mod_ * lfo_sample * kMaxCutoff);
+                       cutoff_freq_.load() + env_mod_.load() * env_sample * kMaxCutoff +
+                           lfo_mod_.load() * lfo_sample * kMaxCutoff);
 
       // this was my original "naive" approach which can exceed 1 in some cases
       // and blow the filter up. It seems to work fine now that I've addressed
@@ -105,7 +161,7 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
       // const auto feedback = resonance_ * last_stage_output / (1 + resonance_
       // * (1.f / static_cast<float>(num_stages_))); feedback without
       // compensation
-      const auto feedback = resonance_ * last_stage_output;
+      const auto feedback = resonance_.load() * last_stage_output;
 
       // input with soft clipping
       // try 0.8 to 1.5 range
@@ -120,16 +176,16 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
       // same for each.
 
       FilterStage(u, s1_, tanh_in_[0], tanh_state_[0], g,
-                  1.f / (drive_ * input_drive_scales_[0]));
+                  1.f / (drive_.load() * input_drive_scales_[0].load()));
       if (num_stages_ >= 2)
         FilterStage(s1_, s2_, tanh_in_[1], tanh_state_[1], g,
-                    1.f / (drive_ * input_drive_scales_[1]));
+                    1.f / (drive_.load() * input_drive_scales_[1].load()));
       if (num_stages_ >= 3)
         FilterStage(s2_, s3_, tanh_in_[2], tanh_state_[2], g,
-                    1.f / (drive_ * input_drive_scales_[2]));
+                    1.f / (drive_.load() * input_drive_scales_[2].load()));
       if (num_stages_ >= 4)
         FilterStage(s3_, s4_, tanh_in_[3], tanh_state_[3], g,
-                    1.f / (drive_ * input_drive_scales_[3]));
+                    1.f / (drive_.load() * input_drive_scales_[3].load()));
 
       // DC block and soft clip the output
       // try 2.0 - 4.0 range
@@ -148,36 +204,6 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
       // we don't clamp here.
       sample = dc_out;
     }
-  }
-}
-
-void OTAFilterDelayedFeedback::Configure(
-    const juce::AudioProcessorValueTreeState& state) {
-  cutoff_freq_ = state.getRawParameterValue("filterCutoffFreq")->load();
-  resonance_ = state.getRawParameterValue("filterResonance")->load();
-  drive_ = state.getRawParameterValue("filterDrive")->load();
-  env_mod_ = state.getRawParameterValue("filterEnvMod")->load();
-  lfo_mod_ = state.getRawParameterValue("filterLfoMod")->load();
-  for (const auto [input_drive_scale, state_drive_scale, input_drive_param,
-             state_drive_param] :
-       std::views::zip(input_drive_scales_, state_drive_scales_,
-                       kInputDriveScaleParams, kStateDriveScaleParams)) {
-    input_drive_scale = state.getRawParameterValue(input_drive_param)->load();
-    state_drive_scale = state.getRawParameterValue(state_drive_param)->load();
-  }
-  switch (static_cast<int>(state.getRawParameterValue("filterSlope")->load())) {
-    case 0:
-      num_stages_ = 4;
-      break;
-    case 1:
-      num_stages_ = 3;
-      break;
-    case 2:
-      num_stages_ = 2;
-      break;
-    default:
-      num_stages_ = 4;
-      break;
   }
 }
 

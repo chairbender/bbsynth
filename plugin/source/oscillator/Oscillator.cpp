@@ -19,185 +19,211 @@ bool OscillatorSound::appliesToChannel([[maybe_unused]] int midiChannelIndex) {
   return true;
 }
 
-OscillatorVoice::OscillatorVoice(const juce::AudioBuffer<float>& lfo_buffer)
-    : lfo_buffer_{lfo_buffer},
+OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
+                                 const juce::AudioBuffer<float>& lfo_buffer)
+    : ParameterListenerManager{apvts},
+      lfo_buffer_{lfo_buffer},
       waveGenerator_{lfo_buffer_, env1_buffer_, env2_buffer_, wave2_buffer_,
                      hard_sync_reset_sample_indices_},
       wave2Generator_{lfo_buffer_, env1_buffer_, env2_buffer_, wave2_buffer_,
                       hard_sync_reset_sample_indices_},
-      filter_tpt_{env1_buffer_, lfo_buffer_},
-      filter_dfb_{env1_buffer_, lfo_buffer_} {
+      filter_tpt_{apvts, env1_buffer_, lfo_buffer_},
+      filter_dfb_{apvts, env1_buffer_, lfo_buffer_} {
   waveGenerator_.PrepareToPlay(getSampleRate() * kOversample);
   wave2Generator_.PrepareToPlay(getSampleRate() * kOversample);
   waveGenerator_.set_mode(ANTIALIAS);
   wave2Generator_.set_mode(ANTIALIAS);
   filter_tpt_.set_sample_rate(getSampleRate() * kOversample);
   filter_dfb_.set_sample_rate(getSampleRate() * kOversample);
+
+  AddParameterListener("vcfFilterType",
+                       [this](const juce::String&, const float value) {
+                         filter_type_ = static_cast<int>(value);
+                       });
+
+  // ADSR 1
+  AddParameterListener("adsrAttack",
+                       [this](const juce::String&, const float value) {
+                         envelope_.Configure(value, -1, -1, -1);
+                       });
+  AddParameterListener("adsrDecay",
+                       [this](const juce::String&, const float value) {
+                         envelope_.Configure(-1, value, -1, -1);
+                       });
+  AddParameterListener("adsrSustain",
+                       [this](const juce::String&, const float value) {
+                         envelope_.Configure(-1, -1, value, -1);
+                       });
+  AddParameterListener("adsrRelease",
+                       [this](const juce::String&, const float value) {
+                         envelope_.Configure(-1, -1, -1, value);
+                       });
+  AddParameterListener("env1RetriggerRate",
+                       [this](const juce::String&, const float value) {
+                         envelope_.set_retrigger_constant_rate(value > 0.5f);
+                       });
+
+  // ADSR 2
+  AddParameterListener("env2Attack",
+                       [this](const juce::String&, const float value) {
+                         envelope2_.Configure(value, -1, -1, -1);
+                       });
+  AddParameterListener("env2Decay",
+                       [this](const juce::String&, const float value) {
+                         envelope2_.Configure(-1, value, -1, -1);
+                       });
+  AddParameterListener("env2Sustain",
+                       [this](const juce::String&, const float value) {
+                         envelope2_.Configure(-1, -1, value, -1);
+                       });
+  AddParameterListener("env2Release",
+                       [this](const juce::String&, const float value) {
+                         envelope2_.Configure(-1, -1, -1, value);
+                       });
+  AddParameterListener("env2RetriggerRate",
+                       [this](const juce::String&, const float value) {
+                         envelope2_.set_retrigger_constant_rate(value > 0.5f);
+                       });
+
+  // VCO Mod
+  auto update_vco_mod = [this, &apvts]() {
+    const float lfo_freq = apvts.getRawParameterValue("vcoModLfoFreq")->load();
+    const float env1_freq = apvts.getRawParameterValue("vcoModEnv1Freq")->load();
+
+    if (apvts.getRawParameterValue("vcoModOsc1")->load() > 0) {
+      waveGenerator_.set_pitch_bend_lfo_mod(lfo_freq);
+      waveGenerator_.set_pitch_bend_env1_mod(env1_freq);
+    } else {
+      waveGenerator_.set_pitch_bend_lfo_mod(0);
+      waveGenerator_.set_pitch_bend_env1_mod(0);
+    }
+
+    if (apvts.getRawParameterValue("vcoModOsc2")->load() > 0) {
+      wave2Generator_.set_pitch_bend_lfo_mod(lfo_freq);
+      wave2Generator_.set_pitch_bend_env1_mod(env1_freq);
+    } else {
+      wave2Generator_.set_pitch_bend_lfo_mod(0);
+      wave2Generator_.set_pitch_bend_env1_mod(0);
+    }
+  };
+
+  AddParameterListener("vcoModOsc1", [update_vco_mod](auto&, auto) { update_vco_mod(); });
+  AddParameterListener("vcoModOsc2", [update_vco_mod](auto&, auto) { update_vco_mod(); });
+  AddParameterListener("vcoModLfoFreq", [update_vco_mod](auto&, auto) { update_vco_mod(); });
+  AddParameterListener("vcoModEnv1Freq", [update_vco_mod](auto&, auto) { update_vco_mod(); });
+
+  // Wave Types
+  AddParameterListener("waveType",
+                       [this](const juce::String&, const float value) {
+                         switch (static_cast<int>(value)) {
+                           case 0: waveGenerator_.set_wave_type(sine); break;
+                           case 1: waveGenerator_.set_wave_type(sawFall); break;
+                           case 2: waveGenerator_.set_wave_type(triangle); break;
+                           case 3: waveGenerator_.set_wave_type(square); break;
+                           case 4: waveGenerator_.set_wave_type(random); break;
+                           default: DBG("unhandled default case");
+                         }
+                       });
+  AddParameterListener("wave2Type",
+                       [this](const juce::String&, const float value) {
+                         switch (static_cast<int>(value)) {
+                           case 0: wave2Generator_.set_wave_type(sine); break;
+                           case 1: wave2Generator_.set_wave_type(sawFall); break;
+                           case 2: wave2Generator_.set_wave_type(triangle); break;
+                           case 3: wave2Generator_.set_wave_type(square); break;
+                           case 4: wave2Generator_.set_wave_type(random); break;
+                           default: DBG("unhandled default case");
+                         }
+                       });
+
+  // Sync / Fine / Cross
+  auto update_sync_cross = [this, &apvts]() {
+    const bool hard_sync = apvts.getRawParameterValue("vco2Sync")->load() > 0.5f;
+    const float crossMod = apvts.getRawParameterValue("crossMod")->load();
+
+    if (hard_sync && crossMod <= 0.f) {
+      waveGenerator_.set_hard_sync_mode(PRIMARY);
+      wave2Generator_.set_hard_sync_mode(SECONDARY);
+    } else {
+      waveGenerator_.set_hard_sync_mode(DISABLED);
+      wave2Generator_.set_hard_sync_mode(DISABLED);
+    }
+
+    waveGenerator_.set_cross_mod(crossMod);
+    if (crossMod > 0.f) {
+      waveGenerator_.set_mode(NO_ANTIALIAS);
+      wave2Generator_.set_mode(NO_ANTIALIAS);
+    } else {
+      waveGenerator_.set_mode(ANTIALIAS);
+      wave2Generator_.set_mode(ANTIALIAS);
+    }
+  };
+
+  AddParameterListener("vco2Sync", [update_sync_cross](auto&, auto) { update_sync_cross(); });
+  AddParameterListener("crossMod", [update_sync_cross](auto&, auto) { update_sync_cross(); });
+  AddParameterListener("fineTune",
+                       [this](const juce::String&, const float value) {
+                         wave2Generator_.set_pitch_offset_semis(static_cast<double>(value));
+                       });
+
+  // Pulse Width
+  auto update_pw = [this, &apvts]() {
+    const int pulseWidthSource = static_cast<int>(apvts.getRawParameterValue("pulseWidthSource")->load());
+    const auto pulseWidth = static_cast<double>(apvts.getRawParameterValue("pulseWidth")->load());
+
+    const auto set_pw_type = [this](const PulseWidthModType type) {
+      waveGenerator_.set_pulse_width_mod_type(type);
+      wave2Generator_.set_pulse_width_mod_type(type);
+    };
+
+    switch (pulseWidthSource) {
+      case 0: set_pw_type(env2Minus); break;
+      case 1: set_pw_type(env2Plus); break;
+      case 2: set_pw_type(env1Minus); break;
+      case 3: set_pw_type(env1Plus); break;
+      case 4: set_pw_type(lfo); break;
+      case 5: set_pw_type(manual); break;
+      default:;
+    }
+    waveGenerator_.set_pulse_width_mod(pulseWidth);
+    wave2Generator_.set_pulse_width_mod(pulseWidth);
+  };
+  AddParameterListener("pulseWidthSource", [update_pw](auto&, auto) { update_pw(); });
+  AddParameterListener("pulseWidth", [update_pw](auto&, auto) { update_pw(); });
+
+  // Gain
+  AddParameterListener("vco1Level",
+                       [this](const juce::String&, const float value) {
+                         waveGenerator_.set_gain(static_cast<double>(value));
+                       });
+  AddParameterListener("vco2Level",
+                       [this](const juce::String&, const float value) {
+                         wave2Generator_.set_gain(static_cast<double>(value));
+                       });
+
+  // Filter Env Source
+  AddParameterListener("filterEnvSource",
+                       [this](const juce::String&, const float value) {
+                         if (static_cast<int>(value) == 0) {
+                           filter_dfb_.set_env_buffer(env1_buffer_);
+                           filter_tpt_.set_env_buffer(env1_buffer_);
+                         } else {
+                           filter_dfb_.set_env_buffer(env2_buffer_);
+                           filter_tpt_.set_env_buffer(env2_buffer_);
+                         }
+                       });
+}
+
+void OscillatorVoice::PrepareToPlay() {
+  InitializeAllParameters();
+  envelope_.Prepare(getSampleRate());
+  envelope2_.Prepare(getSampleRate());
+  filter_tpt_.InitializeAllParameters();
+  filter_dfb_.InitializeAllParameters();
 }
 
 bool OscillatorVoice::canPlaySound(juce::SynthesiserSound* sound) {
   return dynamic_cast<OscillatorSound*>(sound) != nullptr;
-}
-
-void OscillatorVoice::Configure(
-    const juce::AudioProcessorValueTreeState& apvts) {
-  filter_type_ = static_cast<int>(apvts.getRawParameterValue("vcfFilterType")->load());
-  filter_tpt_.Configure(apvts);
-  filter_dfb_.Configure(apvts);
-
-  // Configure ADSR envelope from parameters
-  envelope_.Prepare(getSampleRate());
-  envelope_.Configure(apvts.getRawParameterValue("adsrAttack")->load(),
-                      apvts.getRawParameterValue("adsrDecay")->load(),
-                      apvts.getRawParameterValue("adsrSustain")->load(),
-                      apvts.getRawParameterValue("adsrRelease")->load());
-  envelope2_.Prepare(getSampleRate());
-  envelope2_.Configure(apvts.getRawParameterValue("env2Attack")->load(),
-                       apvts.getRawParameterValue("env2Decay")->load(),
-                       apvts.getRawParameterValue("env2Sustain")->load(),
-                       apvts.getRawParameterValue("env2Release")->load());
-
-  envelope_.set_retrigger_constant_rate(
-      apvts.getRawParameterValue("env1RetriggerRate")->load() > 0.5f);
-  envelope2_.set_retrigger_constant_rate(
-      apvts.getRawParameterValue("env2RetriggerRate")->load() > 0.5f);
-
-  if (apvts.getRawParameterValue("vcoModOsc1")->load() > 0) {
-    waveGenerator_.set_pitch_bend_lfo_mod(
-        apvts.getRawParameterValue("vcoModLfoFreq")->load());
-    waveGenerator_.set_pitch_bend_env1_mod(
-        apvts.getRawParameterValue("vcoModEnv1Freq")->load());
-  } else {
-    waveGenerator_.set_pitch_bend_lfo_mod(0);
-    waveGenerator_.set_pitch_bend_env1_mod(0);
-  }
-
-  if (apvts.getRawParameterValue("vcoModOsc2")->load() > 0) {
-    wave2Generator_.set_pitch_bend_lfo_mod(
-        apvts.getRawParameterValue("vcoModLfoFreq")->load());
-    wave2Generator_.set_pitch_bend_env1_mod(
-        apvts.getRawParameterValue("vcoModEnv1Freq")->load());
-  } else {
-    wave2Generator_.set_pitch_bend_lfo_mod(0);
-    wave2Generator_.set_pitch_bend_env1_mod(0);
-  }
-
-  switch (static_cast<int>(apvts.getRawParameterValue("waveType")->load())) {
-    case 0:
-      waveGenerator_.set_wave_type(sine);
-      break;
-    case 1:
-      waveGenerator_.set_wave_type(sawFall);
-      break;
-    case 2:
-      waveGenerator_.set_wave_type(triangle);
-      break;
-    case 3:
-      waveGenerator_.set_wave_type(square);
-      break;
-    case 4:
-      waveGenerator_.set_wave_type(random);
-      break;
-    default:
-      break;
-  }
-
-  switch (static_cast<int>(apvts.getRawParameterValue("wave2Type")->load())) {
-    case 0:
-      wave2Generator_.set_wave_type(sine);
-      break;
-    case 1:
-      wave2Generator_.set_wave_type(sawFall);
-      break;
-    case 2:
-      wave2Generator_.set_wave_type(triangle);
-      break;
-    case 3:
-      wave2Generator_.set_wave_type(square);
-      break;
-    case 4:
-      wave2Generator_.set_wave_type(random);
-      break;
-    default:
-      break;
-  }
-  const auto hard_sync = apvts.getRawParameterValue("vco2Sync")->load() > 0.5f;
-  const float fine_tune = apvts.getRawParameterValue("fineTune")->load();
-  const float crossMod = apvts.getRawParameterValue("crossMod")->load();
-  // cross mod and hard sync can't be used together - cross mod disables hard sync
-  if (hard_sync && crossMod <= 0.f) {
-    waveGenerator_.set_hard_sync_mode(PRIMARY);
-    wave2Generator_.set_hard_sync_mode(SECONDARY);
-  } else {
-    waveGenerator_.set_hard_sync_mode(DISABLED);
-    wave2Generator_.set_hard_sync_mode(DISABLED);
-  }
-  // todo: fine tune not working correctly when hardsync off
-  wave2Generator_.set_pitch_offset_semis(static_cast<double>(fine_tune));
-
-  const int pulseWidthSource =
-      static_cast<int>(apvts.getRawParameterValue("pulseWidthSource")->load());
-  switch (pulseWidthSource) {
-    case 0:
-      waveGenerator_.set_pulse_width_mod_type(env2Minus);
-      wave2Generator_.set_pulse_width_mod_type(env2Minus);
-      break;
-    case 1:
-      waveGenerator_.set_pulse_width_mod_type(env2Plus);
-      wave2Generator_.set_pulse_width_mod_type(env2Plus);
-      break;
-    case 2:
-      waveGenerator_.set_pulse_width_mod_type(env1Minus);
-      wave2Generator_.set_pulse_width_mod_type(env1Minus);
-      break;
-    case 3:
-      waveGenerator_.set_pulse_width_mod_type(env1Plus);
-      wave2Generator_.set_pulse_width_mod_type(env1Plus);
-      break;
-    case 4:
-      waveGenerator_.set_pulse_width_mod_type(lfo);
-      wave2Generator_.set_pulse_width_mod_type(lfo);
-      break;
-    case 5:
-      waveGenerator_.set_pulse_width_mod_type(manual);
-      wave2Generator_.set_pulse_width_mod_type(manual);
-      break;
-  }
-  const double pulseWidth =
-      static_cast<double>(apvts.getRawParameterValue("pulseWidth")->load());
-  waveGenerator_.set_pulse_width_mod(pulseWidth);
-  wave2Generator_.set_pulse_width_mod(pulseWidth);
-
-
-  waveGenerator_.set_cross_mod(crossMod);
-  if (crossMod > 0.f) {
-    // todo: when turning crossmod back down the pitch mod gets "stuck"
-    // minblep AA is not compatible with FM
-    // todo: is this really true? I think there is some other issue...
-    waveGenerator_.set_mode(NO_ANTIALIAS);
-    wave2Generator_.set_mode(NO_ANTIALIAS);
-  } else {
-    waveGenerator_.set_mode(ANTIALIAS);
-    wave2Generator_.set_mode(ANTIALIAS);
-  }
-
-  const double vco1Level =
-      static_cast<double>(apvts.getRawParameterValue("vco1Level")->load());
-  waveGenerator_.set_gain(vco1Level);
-  const double vco2Level =
-      static_cast<double>(apvts.getRawParameterValue("vco2Level")->load());
-  wave2Generator_.set_gain(vco2Level);
-
-  // filter
-  const int filterEnvSource =
-      static_cast<int>(apvts.getRawParameterValue("filterEnvSource")->load());
-  if (filterEnvSource == 0) {
-    filter_env_buffer_ = &env1_buffer_;
-  } else {
-    filter_env_buffer_ = &env2_buffer_;
-  }
-  filter_dfb_.set_env_buffer(*filter_env_buffer_);
-  filter_tpt_.set_env_buffer(*filter_env_buffer_);
 }
 
 void OscillatorVoice::SetBlockSize(const int blockSize) {
