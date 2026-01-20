@@ -11,8 +11,16 @@
 
 namespace audio_plugin {
 
+enum class PluginProcessorParamId {
+  kLfoDelayTimeSeconds,
+  kLfoAttack,
+  kLfoRate,
+  kLfoWaveType,
+  kCount
+};
+
 class AudioPluginAudioProcessor : public juce::AudioProcessor,
-                                   public ParameterListenerManager<AudioPluginAudioProcessor> {
+                                   public ParameterListenerManager<AudioPluginAudioProcessor, PluginProcessorParamId> {
 public:
   AudioPluginAudioProcessor();
   ~AudioPluginAudioProcessor() override;

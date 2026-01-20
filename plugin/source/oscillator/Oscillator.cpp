@@ -36,52 +36,52 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
   filter_tpt_.set_sample_rate(getSampleRate() * kOversample);
   filter_dfb_.set_sample_rate(getSampleRate() * kOversample);
 
-  AddParameterListener("vcfFilterType",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("vcfFilterType", OscillatorVoiceParamId::kVcfFilterType,
+                       [this](const float value) {
                          filter_type_ = static_cast<int>(value);
                        });
 
   // ADSR 1
-  AddParameterListener("adsrAttack",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("adsrAttack", OscillatorVoiceParamId::kAdsrAttack,
+                       [this](const float value) {
                          envelope_.Configure(value, -1, -1, -1);
                        });
-  AddParameterListener("adsrDecay",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("adsrDecay", OscillatorVoiceParamId::kAdsrDecay,
+                       [this](const float value) {
                          envelope_.Configure(-1, value, -1, -1);
                        });
-  AddParameterListener("adsrSustain",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("adsrSustain", OscillatorVoiceParamId::kAdsrSustain,
+                       [this](const float value) {
                          envelope_.Configure(-1, -1, value, -1);
                        });
-  AddParameterListener("adsrRelease",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("adsrRelease", OscillatorVoiceParamId::kAdsrRelease,
+                       [this](const float value) {
                          envelope_.Configure(-1, -1, -1, value);
                        });
-  AddParameterListener("env1RetriggerRate",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("env1RetriggerRate", OscillatorVoiceParamId::kEnv1RetriggerRate,
+                       [this](const float value) {
                          envelope_.set_retrigger_constant_rate(value > 0.5f);
                        });
 
   // ADSR 2
-  AddParameterListener("env2Attack",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("env2Attack", OscillatorVoiceParamId::kEnv2Attack,
+                       [this](const float value) {
                          envelope2_.Configure(value, -1, -1, -1);
                        });
-  AddParameterListener("env2Decay",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("env2Decay", OscillatorVoiceParamId::kEnv2Decay,
+                       [this](const float value) {
                          envelope2_.Configure(-1, value, -1, -1);
                        });
-  AddParameterListener("env2Sustain",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("env2Sustain", OscillatorVoiceParamId::kEnv2Sustain,
+                       [this](const float value) {
                          envelope2_.Configure(-1, -1, value, -1);
                        });
-  AddParameterListener("env2Release",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("env2Release", OscillatorVoiceParamId::kEnv2Release,
+                       [this](const float value) {
                          envelope2_.Configure(-1, -1, -1, value);
                        });
-  AddParameterListener("env2RetriggerRate",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("env2RetriggerRate", OscillatorVoiceParamId::kEnv2RetriggerRate,
+                       [this](const float value) {
                          envelope2_.set_retrigger_constant_rate(value > 0.5f);
                        });
 
@@ -107,14 +107,14 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
     }
   };
 
-  AddParameterListener("vcoModOsc1", [update_vco_mod](auto&, auto) { update_vco_mod(); });
-  AddParameterListener("vcoModOsc2", [update_vco_mod](auto&, auto) { update_vco_mod(); });
-  AddParameterListener("vcoModLfoFreq", [update_vco_mod](auto&, auto) { update_vco_mod(); });
-  AddParameterListener("vcoModEnv1Freq", [update_vco_mod](auto&, auto) { update_vco_mod(); });
+  AddParameterListener("vcoModOsc1", OscillatorVoiceParamId::kVcoModOsc1, [update_vco_mod](auto) { update_vco_mod(); });
+  AddParameterListener("vcoModOsc2", OscillatorVoiceParamId::kVcoModOsc2, [update_vco_mod](auto) { update_vco_mod(); });
+  AddParameterListener("vcoModLfoFreq", OscillatorVoiceParamId::kVcoModLfoFreq, [update_vco_mod](auto) { update_vco_mod(); });
+  AddParameterListener("vcoModEnv1Freq", OscillatorVoiceParamId::kVcoModEnv1Freq, [update_vco_mod](auto) { update_vco_mod(); });
 
   // Wave Types
-  AddParameterListener("waveType",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("waveType", OscillatorVoiceParamId::kWaveType,
+                       [this](const float value) {
                          switch (static_cast<int>(value)) {
                            case 0: waveGenerator_.set_wave_type(sine); break;
                            case 1: waveGenerator_.set_wave_type(sawFall); break;
@@ -124,8 +124,8 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
                            default: DBG("unhandled default case");
                          }
                        });
-  AddParameterListener("wave2Type",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("wave2Type", OscillatorVoiceParamId::kWave2Type,
+                       [this](const float value) {
                          switch (static_cast<int>(value)) {
                            case 0: wave2Generator_.set_wave_type(sine); break;
                            case 1: wave2Generator_.set_wave_type(sawFall); break;
@@ -159,10 +159,10 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
     }
   };
 
-  AddParameterListener("vco2Sync", [update_sync_cross](auto&, auto) { update_sync_cross(); });
-  AddParameterListener("crossMod", [update_sync_cross](auto&, auto) { update_sync_cross(); });
-  AddParameterListener("fineTune",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("vco2Sync", OscillatorVoiceParamId::kVco2Sync, [update_sync_cross](auto) { update_sync_cross(); });
+  AddParameterListener("crossMod", OscillatorVoiceParamId::kCrossMod, [update_sync_cross](auto) { update_sync_cross(); });
+  AddParameterListener("fineTune", OscillatorVoiceParamId::kFineTune,
+                       [this](const float value) {
                          wave2Generator_.set_pitch_offset_semis(static_cast<double>(value));
                        });
 
@@ -188,22 +188,22 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
     waveGenerator_.set_pulse_width_mod(pulseWidth);
     wave2Generator_.set_pulse_width_mod(pulseWidth);
   };
-  AddParameterListener("pulseWidthSource", [update_pw](auto&, auto) { update_pw(); });
-  AddParameterListener("pulseWidth", [update_pw](auto&, auto) { update_pw(); });
+  AddParameterListener("pulseWidthSource", OscillatorVoiceParamId::kPulseWidthSource, [update_pw](auto) { update_pw(); });
+  AddParameterListener("pulseWidth", OscillatorVoiceParamId::kPulseWidth, [update_pw](auto) { update_pw(); });
 
   // Gain
-  AddParameterListener("vco1Level",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("vco1Level", OscillatorVoiceParamId::kVco1Level,
+                       [this](const float value) {
                          waveGenerator_.set_gain(static_cast<double>(value));
                        });
-  AddParameterListener("vco2Level",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("vco2Level", OscillatorVoiceParamId::kVco2Level,
+                       [this](const float value) {
                          wave2Generator_.set_gain(static_cast<double>(value));
                        });
 
   // Filter Env Source
-  AddParameterListener("filterEnvSource",
-                       [this](const juce::String&, const float value) {
+  AddParameterListener("filterEnvSource", OscillatorVoiceParamId::kFilterEnvSource,
+                       [this](const float value) {
                          if (static_cast<int>(value) == 0) {
                            filter_dfb_.set_env_buffer(env1_buffer_);
                            filter_tpt_.set_env_buffer(env1_buffer_);
@@ -261,6 +261,7 @@ void OscillatorVoice::controllerMoved([[maybe_unused]] int controllerNumber,
 void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                       [[maybe_unused]] int startSample,
                                       const int numSamples) {
+  ProcessDirtyParameters();
   const auto oversample_samples = numSamples * kOversample;
   ;
   const auto oversample_start_sample = startSample * kOversample;

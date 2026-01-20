@@ -8,6 +8,8 @@
 #include "../ParameterListenerManager.h"
 #include "../dsp/TanhADAA.h"
 
+#include "OTAFilterTPTNewtonRaphson.h"
+
 namespace audio_plugin {
 
 /**
@@ -16,7 +18,7 @@ namespace audio_plugin {
  * approach, thus it is not quite as analog accurate.
  */
 class OTAFilterDelayedFeedback
-    : public ParameterListenerManager<OTAFilterDelayedFeedback> {
+    : public ParameterListenerManager<OTAFilterDelayedFeedback, FilterParamId> {
  public:
   OTAFilterDelayedFeedback(juce::AudioProcessorValueTreeState& apvts,
                            const juce::AudioBuffer<float>& env_buffer,
