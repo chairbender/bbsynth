@@ -26,8 +26,7 @@ OTAFilterDelayedFeedback::OTAFilterDelayedFeedback(
       s2_{0},
       s3_{0},
       s4_{0},
-      dc_out_x1_{0},
-      dc_out_y1_{0} {
+      dc_blocker_{0.99f} {
   AddParameterListener("filterCutoffFreq", FilterParamId::kCutoffFreq,
                        [this](const float value) {
                          cutoff_freq_ = value;
@@ -196,21 +195,17 @@ void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
       // prevents the clipping inherent in the TanhADAA calculation
       // (happens at extreme g, res, drive values)
       const auto tanh_final_out_val =
-          tanh_final_out_.process((last_stage_output)*kOutputScale);
-      const auto dc_in = tanh_final_out_val;
-      const auto dc_out = Sanitize(dc_in - dc_out_x1_ + 0.99f * dc_out_y1_);
-      dc_out_x1_ = dc_in;
-      dc_out_y1_ = dc_out;
+          tanh_final_out_.process((last_stage_output) * kOutputScale);
       // it can very slightly clip, but that's within tolerable levels, so
       // we don't clamp here.
-      sample = dc_out;
+      sample = dc_blocker_.Process(tanh_final_out_val);
     }
   }
 }
 
 void OTAFilterDelayedFeedback::Reset() {
   s1_ = s2_ = s3_ = s4_ = 0;
-  dc_out_x1_ = dc_out_y1_ = 0;
+  dc_blocker_.Reset();
   tanh_final_out_.reset();
   tanh_feedback_.reset();
   for (auto& tanh : tanh_state_) tanh.reset();
