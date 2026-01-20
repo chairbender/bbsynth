@@ -9,13 +9,16 @@ namespace audio_plugin {
 void AnalogADSR::Prepare(const double sample_rate) {
   sample_rate_ = static_cast<float>(sample_rate);
 }
-void AnalogADSR::Configure(const float attack_seconds,
-                           const float decay_seconds,
-                           const float sustain_level,
-                           const float release_seconds) {
+void AnalogADSR::set_attack(const float attack_seconds) {
   attack_samples_ = static_cast<int>(attack_seconds * sample_rate_);
+}
+void AnalogADSR::set_decay(const float decay_seconds) {
   decay_samples_ = static_cast<int>(decay_seconds * sample_rate_);
+}
+void AnalogADSR::set_sustain(const float sustain_level) {
   sustain_level_ = sustain_level;
+}
+void AnalogADSR::set_release(const float release_seconds) {
   release_samples_ = static_cast<int>(release_seconds * sample_rate_);
 }
 

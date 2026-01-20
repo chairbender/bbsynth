@@ -28,6 +28,7 @@ class ParameterListenerManager {
     }
   }
 
+  // TODO: can we make the string compile-time constant associated with the enum?
   void AddParameterListener(const juce::String& param_id, EnumType enum_id,
                             std::function<void(float)> callback) {
     const auto index = static_cast<size_t>(enum_id);
@@ -78,7 +79,7 @@ class ParameterListenerManager {
   void InitializeAllParameters() {
     for (const auto& [param_id, listener] : parameter_listeners_) {
       // Trigger the listener which will set the dirty flag and latest value
-      listener->ParameterChanged(
+      listener->parameterChanged(
           param_id, apvts_.getRawParameterValue(param_id)->load());
     }
     // Immediately process them so the state is initialized
@@ -104,7 +105,7 @@ class ParameterListenerManager {
     explicit LambdaParameterListener(std::function<void(float)> callback)
         : on_parameter_changed_(std::move(callback)) {}
 
-    void ParameterChanged(const juce::String& /*parameterID*/,
+    void parameterChanged(const juce::String& /*parameterID*/,
                           const float newValue) override {
       on_parameter_changed_(newValue);
     }
