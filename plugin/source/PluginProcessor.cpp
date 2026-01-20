@@ -19,6 +19,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
               .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
               ),
+      ParameterListenerManager{apvts_},
       apvts_(*this, nullptr, "ParameterTree", CreateParameterLayout()),
       lfo_samples_until_start_{0},
       lfo_ramp_{0},
@@ -29,9 +30,46 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     synth.addVoice(new OscillatorVoice(lfo_buffer_));
   }
   synth.addSound(new OscillatorSound(apvts_));
+
+  AddParameterListener("lfoDelayTimeSeconds",
+                       [this](const juce::String&, const float value) {
+                         lfo_delay_time_s_ = value;
+                       });
+  AddParameterListener(
+      "lfoAttack", [this](const juce::String&, const float value) {
+        lfo_ramp_step_ = 1.f / (static_cast<float>(getSampleRate()) * value);
+      });
+  AddParameterListener(
+      "lfoRate", [this](const juce::String&, const float value) {
+        lfo_rate_ = value;
+        lfo_generator_.set_pitch_hz(static_cast<double>(value));
+      });
+  AddParameterListener("lfoWaveType", [this](const juce::String&, float value) {
+    switch (static_cast<int>(value)) {
+      case 0:
+        lfo_generator_.set_wave_type(sine);
+        break;
+      case 1:
+        lfo_generator_.set_wave_type(sawFall);
+        break;
+      case 2:
+        lfo_generator_.set_wave_type(triangle);
+        break;
+      case 3:
+        lfo_generator_.set_wave_type(square);
+        break;
+      case 4:
+        lfo_generator_.set_wave_type(random);
+        break;
+      default:
+        break;
+    }
+  });
 }
 
-AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {}
+AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {
+  ClearAllListeners(apvts_);
+}
 
 const juce::String AudioPluginAudioProcessor::getName() const {
   return JucePlugin_Name;
@@ -85,38 +123,6 @@ void AudioPluginAudioProcessor::changeProgramName(int index,
   juce::ignoreUnused(index, newName);
 }
 
-void AudioPluginAudioProcessor::ConfigureLFO() {
-  lfo_delay_time_s_ = static_cast<float>(
-      apvts_.getRawParameterValue("lfoDelayTimeSeconds")->load());
-  const float lfo_attack =
-      static_cast<float>(apvts_.getRawParameterValue("lfoAttack")->load());
-  lfo_ramp_step_ = 1.f / (static_cast<float>(getSampleRate()) * lfo_attack);
-
-  lfo_rate_ =
-      static_cast<float>(apvts_.getRawParameterValue("lfoRate")->load());
-  lfo_generator_.set_pitch_hz(static_cast<double>(lfo_rate_));
-
-  switch (
-      static_cast<int>(apvts_.getRawParameterValue("lfoWaveType")->load())) {
-    case 0:
-      lfo_generator_.set_wave_type(sine);
-      break;
-    case 1:
-      lfo_generator_.set_wave_type(sawFall);
-      break;
-    case 2:
-      lfo_generator_.set_wave_type(triangle);
-      break;
-    case 3:
-      lfo_generator_.set_wave_type(square);
-      break;
-    case 4:
-      lfo_generator_.set_wave_type(random);
-      break;
-    default:
-      break;
-  }
-}
 std::ranges::view auto AudioPluginAudioProcessor::GetVoices() {
   return std::views::iota(0, synth.getNumVoices()) |
          std::views::transform([this](auto i) {
@@ -144,12 +150,12 @@ void AudioPluginAudioProcessor::prepareToPlay(const double sampleRate,
       juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 1000.0f);
   hpf_.prepare(process_spec);
   hpf_.reset();
-  ConfigureLFO();
   tone_filter_.Prepare(sampleRate, samplesPerBlock);
   std::ranges::for_each(GetVoices(), [&](const auto voice) {
     voice->Configure(apvts_);
     voice->SetBlockSize(samplesPerBlock);
   });
+  InitializeAllParameters();
 }
 
 void AudioPluginAudioProcessor::releaseResources() {
@@ -215,9 +221,6 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     std::ranges::for_each(GetVoices(),
                           [this](const auto voice) { voice->Configure(apvts_); });
 
-    // lfo params
-    ConfigureLFO();
-
     // todo instead of clearing each block, just overwrite into it instead of
     // adding to it
     // TODO: do we actually need to do this?
@@ -267,7 +270,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     if (lfo_ramp_ < 0 && start_lfo_sample >= 0) {
       lfo_ramp_ = 0;
       const auto lfo_samples = std::span(lfo_buffer_.getWritePointer(0),
-                                         lfo_buffer_.getNumSamples());
+                                         static_cast<size_t>(lfo_buffer_.getNumSamples()));
       for (auto& lfo_sample : lfo_samples) {
         lfo_sample *= lfo_ramp_;
         lfo_ramp_ += lfo_ramp_step_;
@@ -527,11 +530,6 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
   return {parameterList.begin(), parameterList.end()};
 }
 
-void AudioPluginAudioProcessor::parameterChanged(
-    const juce::String& parameterID, float newValue) {
-  // todo if needed
-  juce::ignoreUnused(parameterID, newValue);
-}
 }  // namespace audio_plugin
 
 // This creates new instances of the plugin.
