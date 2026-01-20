@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 
+#include "../ParameterListenerManager.h"
 #include "../filter/OTAFilterDelayedFeedback.h"
 #include "../dsp/AnalogADSR.h"
 #include "../dsp/Downsampler.h"
@@ -17,15 +18,16 @@ struct OscillatorSound : juce::SynthesiserSound {
   bool appliesToChannel([[maybe_unused]] int midiChannelNumber) override;
 };
 
-struct OscillatorVoice : juce::SynthesiserVoice {
-  OscillatorVoice(const juce::AudioBuffer<float>& lfo_buffer);
+struct OscillatorVoice : juce::SynthesiserVoice,
+                         public ParameterListenerManager<OscillatorVoice> {
+  OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
+                  const juce::AudioBuffer<float>& lfo_buffer);
   bool canPlaySound(juce::SynthesiserSound* sound) override;
 
   /**
-   * Update parameters based on current state.
-   * Typically should be called at start of each block.
+   * Invokes all listeners and sub-component listeners.
    */
-  void Configure(const juce::AudioProcessorValueTreeState& apvts);
+  void PrepareToPlay();
 
   /**
    *
@@ -73,7 +75,6 @@ struct OscillatorVoice : juce::SynthesiserVoice {
   OTAFilterTPTNewtonRaphson filter_tpt_;
   OTAFilterDelayedFeedback filter_dfb_;
   int filter_type_ = 1;  // 0: DFB, 1: TPT, 2: Disabled
-  const juce::AudioBuffer<float>* filter_env_buffer_ = nullptr;
   Downsampler downsampler_;
   AnalogADSR envelope_;
   AnalogADSR envelope2_;

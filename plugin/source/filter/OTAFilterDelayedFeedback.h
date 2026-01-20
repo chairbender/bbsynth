@@ -5,6 +5,7 @@
 #include <array>
 #include <vector>
 
+#include "../ParameterListenerManager.h"
 #include "../dsp/TanhADAA.h"
 
 namespace audio_plugin {
@@ -14,9 +15,11 @@ namespace audio_plugin {
  * This has a one-sample delay for the feedback as it does not use a TPT
  * approach, thus it is not quite as analog accurate.
  */
-class OTAFilterDelayedFeedback {
+class OTAFilterDelayedFeedback
+    : public ParameterListenerManager<OTAFilterDelayedFeedback> {
  public:
-  OTAFilterDelayedFeedback(const juce::AudioBuffer<float>& env_buffer,
+  OTAFilterDelayedFeedback(juce::AudioProcessorValueTreeState& apvts,
+                           const juce::AudioBuffer<float>& env_buffer,
                            const juce::AudioBuffer<float>& lfo_buffer);
   /**
    * Perform in place filtering on the left channel only,
@@ -29,26 +32,18 @@ class OTAFilterDelayedFeedback {
     env_buffer_ = &env_buffer;
   }
 
-  /**
-   * Update params based on current state
-   */
-  void Configure(const juce::AudioProcessorValueTreeState& state);
-
-  /**
-   * Reset for next note
-   */
   void Reset();
   void set_sample_rate(double rate);
 
-  float cutoff_freq_;
-  float resonance_;
+  std::atomic<float> cutoff_freq_;
+  std::atomic<float> resonance_;
   // value of zero disables the distortion
-  float drive_;
-  float env_mod_;
-  float lfo_mod_;
-  int num_stages_;
-  std::array<float, 4> input_drive_scales_;
-  std::array<float, 4> state_drive_scales_;
+  std::atomic<float> drive_;
+  std::atomic<float> env_mod_;
+  std::atomic<float> lfo_mod_;
+  std::atomic<int> num_stages_;
+  std::array<std::atomic<float>, 4> input_drive_scales_;
+  std::array<std::atomic<float>, 4> state_drive_scales_;
 
  private:
   void FilterStage(float in, float& out, TanhADAA& tanh_in,

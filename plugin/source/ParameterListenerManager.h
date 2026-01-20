@@ -9,6 +9,9 @@
 
 namespace audio_plugin {
 
+/**
+ * Mixin to simplify registering parameter listeners using lambdas.
+ */
 template <typename Derived>
 class ParameterListenerManager {
  public:
