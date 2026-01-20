@@ -314,6 +314,7 @@ void WaveGenerator<IsLFO>::clear() {
   pitch_bend_target_ = pitch_bend_actual_ = 1.0;
   delta_base_ = 0.0;
   gain_last_[0] = gain_last_[1] = 0;
+  dc_blocker_.Reset();
 }
 
 // FAST RENDER (AP) :::::
@@ -355,27 +356,9 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
       // have a positive bias) adding together, which gets worse as the note
       // gets higher.
       if (dc_blocker_enabled_) {
-        const auto samples = std::span(wave.getRawDataPointer(), numSamples);
-
-        // Preserve last raw input of this block (before we overwrite samples)
-        const float lastInputRaw = samples[numSamples - 1];
-
-        // Use persistent states from previous block
-        auto xPrev = static_cast<float>(prev_buffer_last_sample_raw_);
-        auto yPrev = static_cast<float>(prev_buffer_last_sample_filtered_);
-
-        for (auto& sample : samples) {
-          constexpr float r = 0.995f;
-          const float x = sample;
-          const float y = (x - xPrev) + r * yPrev;
-          sample = y;
-          xPrev = x;
-          yPrev = y;
+        for (auto& sample : std::span(wave.getRawDataPointer(), numSamples)) {
+          sample = dc_blocker_.Process(sample);
         }
-
-        // Update states for next block
-        prev_buffer_last_sample_raw_ = static_cast<double>(lastInputRaw);
-        prev_buffer_last_sample_filtered_ = static_cast<double>(yPrev);
       }
     }
   }

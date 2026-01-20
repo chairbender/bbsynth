@@ -9,6 +9,7 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
 
+#include "../dsp/DCBlocker.h"
 #include "MinBlepGenerator.h"
 
 namespace audio_plugin {
@@ -152,8 +153,7 @@ private:
   double last_sample_delta_ = 0;
 
   // post-AA output (not defined unless AA enabled)
-  double prev_buffer_last_sample_filtered_ = 0;
-  double prev_buffer_last_sample_raw_ = 0;
+  DCBlocker dc_blocker_;
   bool dc_blocker_enabled_ = true;
 
   // PITCH BEND

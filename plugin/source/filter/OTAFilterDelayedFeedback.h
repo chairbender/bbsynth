@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "../ParameterListenerManager.h"
+#include "../dsp/DCBlocker.h"
 #include "../dsp/TanhADAA.h"
 
 #include "OTAFilterTPTNewtonRaphson.h"
@@ -57,7 +58,7 @@ class OTAFilterDelayedFeedback
   // integrator states
   float s1_, s2_, s3_, s4_;
   // dc blocker
-  float dc_out_x1_, dc_out_y1_;
+  DCBlocker dc_blocker_;
   // ADAA tanh
   std::array<TanhADAA, 4> tanh_in_;
   std::array<TanhADAA, 4> tanh_state_;

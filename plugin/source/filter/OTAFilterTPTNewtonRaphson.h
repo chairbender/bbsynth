@@ -87,9 +87,6 @@ class OTAFilterTPTNewtonRaphson
   mutable std::array<TanhADAA, 4> tanh_stages_;
   // Tanh ADAA for each stage's state
   mutable std::array<TanhADAA, 4> state_tanh_stages_;
-  // dc blocker
-  // todo: convert all my DC blockers to juse use juce builtin filters
-  //todo float dc_out_x1_, dc_out_y1_;
 };
 
 }  // namespace audio_plugin

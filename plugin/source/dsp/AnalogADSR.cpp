@@ -34,7 +34,6 @@ void AnalogADSR::NoteOn() {
   // the envelope value starts from its current value if it was
   // in the middle of playing rather than hard resetting back to the start.
   // This can be done as constant rate or constant time.
-  // todo: probably not thread safe
   state_ = State::attack;
   retrigger_level_ = last_level_;
 
@@ -112,27 +111,26 @@ void AnalogADSR::WriteStage(juce::AudioBuffer<float>& buffer,
 
     const auto buffer_span = std::span{buffer.getWritePointer(0) + start_sample,
                                        static_cast<size_t>(samples_to_write)};
+    const float target_actual = [](const auto* self) {
+      if constexpr (std::is_member_object_pointer_v<decltype(TargetVal)>) {
+        return (self->*TargetVal);
+      } else {
+        return TargetVal;
+      }
+    }(this);
+    const float start_actual = [](const auto* self) {
+      if constexpr (std::is_member_object_pointer_v<decltype(StartVal)>) {
+        return (self->*StartVal);
+      } else {
+        return StartVal;
+      }
+    }(this);
     for (auto& sample : buffer_span) {
       // scale time to 0,1 interval
       const float progress = (static_cast<float>(stage_samples_++) /
                               static_cast<float>((this->*ConfiguredStageSamples)));
       const auto num = (std::pow(2, Curve * progress) - 1);
       const auto unscaled = num / denom;
-      // now scale to target -> release (either of which may be a pointer to member or a constant)
-      const float start_actual = [](const auto* self) {
-        if constexpr (std::is_member_object_pointer_v<decltype(StartVal)>) {
-          return (self->*StartVal);
-        } else {
-          return StartVal;
-        }
-      }(this);
-      const float target_actual = [](const auto* self) {
-        if constexpr (std::is_member_object_pointer_v<decltype(TargetVal)>) {
-          return (self->*TargetVal);
-        } else {
-          return TargetVal;
-        }
-      }(this);
       // now scale the 0 - 1 interval to start - end
       const auto scaled =
           start_actual + (target_actual - start_actual) * static_cast<float>(unscaled);
