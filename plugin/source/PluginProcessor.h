@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <ranges>
 
+#include "ParameterListenerManager.h"
 #include "filter/ToneFilter.h"
 #include "juce_dsp/juce_dsp.h"
 #include "oscillator/WaveGenerator.h"
@@ -10,7 +11,8 @@
 
 namespace audio_plugin {
 
-class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::AudioProcessorValueTreeState::Listener {
+class AudioPluginAudioProcessor : public juce::AudioProcessor,
+                                   public ParameterListenerManager<AudioPluginAudioProcessor> {
 public:
   AudioPluginAudioProcessor();
   ~AudioPluginAudioProcessor() override;
@@ -47,10 +49,7 @@ public:
 
 private:
   static juce::AudioProcessorValueTreeState::ParameterLayout CreateParameterLayout();
-  void ConfigureLFO();
   std::ranges::view auto GetVoices();
-
-  void parameterChanged(const juce::String& name, float newValue) override;
 
   // todo: passing this around is a stupid way to do it. Let's find a better way...
   juce::AudioBuffer<float> lfo_buffer_;
@@ -61,15 +60,14 @@ private:
   juce::dsp::Limiter<float> main_limiter_;
   // how many samples remaining until LFO should start,
   // < 0  means LFO is not playing.
-  int lfo_samples_until_start_;
+  std::atomic<int> lfo_samples_until_start_;
   // short ramp up for the LFO so it starts smoothly
   // -1 means not ramping
-  float lfo_ramp_;
-  float lfo_ramp_step_;
-  // configured delay time
-  float lfo_delay_time_s_;
+  std::atomic<float> lfo_ramp_;
+  std::atomic<float> lfo_ramp_step_;
+  std::atomic<float> lfo_delay_time_s_;
   // configured rate
-  float lfo_rate_;
+  std::atomic<float> lfo_rate_;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessor)
 };
