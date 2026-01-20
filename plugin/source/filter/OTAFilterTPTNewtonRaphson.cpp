@@ -222,8 +222,8 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in,
                                                const float lfo_sample) {
   const float modulated_cutoff =
       juce::jlimit(kMinCutoff, kMaxCutoff,
-                   cutoff_freq_.load() + env_mod_.load() * env_sample * kMaxCutoff +
-                       lfo_mod_.load() * lfo_sample * kMaxCutoff);
+                   cutoff_freq_ + env_mod_ * env_sample * kMaxCutoff +
+                       lfo_mod_ * lfo_sample * kMaxCutoff);
 
   // Calculate TPT coefficient
   const float g = std::tanf(juce::MathConstants<float>::pi * modulated_cutoff /
@@ -232,7 +232,7 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in,
   const float G = g_clamped / (1.0f + g_clamped);
 
   // Resonance feedback amount (scaled for 4-pole)
-  const float k = std::clamp(resonance_.load(), 0.0f, 0.99f) * 4.0f;
+  const float k = std::clamp(resonance_, 0.0f, 0.99f) * 4.0f;
 
   // Newton-Raphson iteration to solve implicit equation
   // We're solving: out = F(input, out)
