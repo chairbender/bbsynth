@@ -239,8 +239,9 @@ void OscillatorVoice::startNote(const int midiNoteNumber,
                                 [[maybe_unused]] const float velocity,
                                 [[maybe_unused]] juce::SynthesiserSound* sound,
                                 [[maybe_unused]] int pitchWheelPos) {
-  waveGenerator_.set_pitch_semitone(midiNoteNumber, getSampleRate());
-  wave2Generator_.set_pitch_semitone(midiNoteNumber, getSampleRate());
+  const auto smooth = envelope_.IsActive();
+  waveGenerator_.set_pitch_semitone(midiNoteNumber, getSampleRate(), smooth);
+  wave2Generator_.set_pitch_semitone(midiNoteNumber, getSampleRate(), smooth);
   envelope_.NoteOn();
   envelope2_.NoteOn();
 }

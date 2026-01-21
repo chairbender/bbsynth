@@ -181,22 +181,27 @@ void WaveGenerator<IsLFO>::set_pulse_width_mod(const double pulse_width) {
 }
 
 template <bool IsLFO>
-void WaveGenerator<IsLFO>::set_delta_base(const double radians) {
+void WaveGenerator<IsLFO>::set_delta_base(const double radians, const bool smooth) {
   delta_base_ = pitch_offset_ * radians;
   if constexpr (!IsLFO) {
-    delta_base_smooth_.setTargetValue(delta_base_);
+    if (smooth) {
+      delta_base_smooth_.setTargetValue(delta_base_);
+    } else {
+      delta_base_smooth_.setCurrentAndTargetValue(delta_base_);
+    }
   }
 }
 
 template <bool IsLFO>
 void WaveGenerator<IsLFO>::set_pitch_semitone(const int midi_note_value,
-                                              const double sample_rate) {
+                                              const double sample_rate,
+                                              const bool smooth) {
   const double centerF = juce::MidiMessage::getMidiNoteInHertz(midi_note_value);
   const double cyclesPerSample = centerF / sample_rate;
   const float angleDelta = static_cast<float>(
       cyclesPerSample * 2.0 * juce::MathConstants<double>::twoPi);
 
-  set_delta_base(static_cast<double>(angleDelta));
+  set_delta_base(static_cast<double>(angleDelta), smooth);
 }
 
 template <bool IsLFO>
@@ -204,7 +209,7 @@ void WaveGenerator<IsLFO>::set_pitch_hz(const double freq) {
   const double cyclesPerSample = freq / sample_rate_;
   const float angleDelta = static_cast<float>(
       cyclesPerSample * 2.0 * juce::MathConstants<double>::twoPi);
-  set_delta_base(static_cast<double>(angleDelta));
+  set_delta_base(static_cast<double>(angleDelta), false);
 }
 
 template <bool IsLFO>
