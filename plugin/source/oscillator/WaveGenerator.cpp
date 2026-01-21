@@ -5,11 +5,9 @@ Used with permission:
 https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 */
 
-
 #include "WaveGenerator.h"
 
 #include "../Constants.h"
-
 
 // TODO: WaveGenerator is a template class so the standard practice is
 //   to put it all in the header file
@@ -69,7 +67,8 @@ inline double GetSquare(const double angle, const double pulse_width) {
 
 template <bool IsLFO>
 WaveGenerator<IsLFO>::WaveGenerator(
-    const juce::AudioBuffer<float>& lfo_buffer, const juce::AudioBuffer<float>& env1_buffer,
+    const juce::AudioBuffer<float>& lfo_buffer,
+    const juce::AudioBuffer<float>& env1_buffer,
     const juce::AudioBuffer<float>& env2_buffer,
     const juce::AudioBuffer<float>& modulator_buffer,
     juce::Array<float>& hard_sync_reset_sample_indices)
@@ -184,6 +183,9 @@ void WaveGenerator<IsLFO>::set_pulse_width_mod(const double pulse_width) {
 template <bool IsLFO>
 void WaveGenerator<IsLFO>::set_delta_base(const double radians) {
   delta_base_ = pitch_offset_ * radians;
+  if constexpr (!IsLFO) {
+    delta_base_smooth_.setTargetValue(delta_base_);
+  }
 }
 
 template <bool IsLFO>
@@ -294,6 +296,11 @@ template <bool IsLFO>
 void WaveGenerator<IsLFO>::PrepareToPlay(double new_sample_rate) {
   sample_rate_ = new_sample_rate;
 
+  if constexpr (!IsLFO) {
+    // TODO: parameterize the ramp length
+    delta_base_smooth_.reset(new_sample_rate, 0.02);
+  }
+
   // BUILD the appropriate BLEP step ....
   blep_generator_.BuildBlep();
 }
@@ -364,8 +371,8 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
   }
 
   // BUILD ::::
-  for (const auto sample : std::span(wave.getRawDataPointer(), numSamples) | 
-    std::views::stride(20)) {
+  for (const auto sample : std::span(wave.getRawDataPointer(), numSamples) |
+                               std::views::stride(20)) {
     // just adding a sample every 20 or so to the history
     history_.add(sample);
   }
@@ -481,8 +488,10 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
     // FOR CALCULATIONS,
     // note the current, actual delta (base pitch modified by pitch bends and
     // phase shifting)
+    const double current_delta_base =
+        IsLFO ? delta_base_ : delta_base_smooth_.getNextValue();
     actual_current_angle_delta_ =
-        delta_base_ * pitch_bend_actual_ + phaseShiftPerSample;
+        current_delta_base * pitch_bend_actual_ + phaseShiftPerSample;
 
     // LFO does not hard sync
     if constexpr (!IsLFO) {
@@ -491,11 +500,14 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
         // primary (unskewed) rollover
         // todo: currently ignoring what happens between start of this block
         //  and end of previous block
-        if (next_hard_sync_reset_sample > -2.f && static_cast<float>(i) >= next_hard_sync_reset_sample) {
+        if (next_hard_sync_reset_sample > -2.f &&
+            static_cast<float>(i) >= next_hard_sync_reset_sample) {
           // we will hard sync and generate a blep this sample
 
-          // TODO: I'm not sure the hard sync bleps are anti-aliasing exactly right.
-          //   Need to check more closely by making AA and oversampling toggle-able, and comparing behavior.
+          // TODO: I'm not sure the hard sync bleps are anti-aliasing exactly
+          // right.
+          //   Need to check more closely by making AA and oversampling
+          //   toggle-able, and comparing behavior.
           // ADD the blep ...
           MinBlepGenerator::BlepOffset blep;
           blep.offset = static_cast<double>(-next_hard_sync_reset_sample);
@@ -934,13 +946,20 @@ void WaveGenerator<IsLFO>::MoveAngleForward(int numSamples) {
 }
 
 template <bool IsLFO>
+double WaveGenerator<IsLFO>::delta_base() const {
+  return [&] {
+    if constexpr (!IsLFO) {
+      return delta_base_smooth_.getCurrentValue();
+    } else {
+      return delta_base_;
+    }
+  }();
+}
+template <bool IsLFO>
 void WaveGenerator<IsLFO>::MoveAngleForwardTo(double newAngle) {
   double delta = newAngle - current_angle_;
   if (delta < 0) delta = delta + 2 * juce::MathConstants<double>::twoPi;
-
-  double numSamples = delta / delta_base_;
-
-  MoveAngleForward(static_cast<int>(numSamples));
+  MoveAngleForward(static_cast<int>(delta / delta_base()));
 }
 
 template <bool IsLFO>
@@ -953,7 +972,8 @@ double WaveGenerator<IsLFO>::GetAngleAfter(
   // reset phase so there is no changing ...
   phase_angle_actual_ = phase_angle_target_;
 
-  return delta_base_ * samples_since_rollover + phase_angle_actual_;
+  const double current_delta_base = delta_base();
+  return current_delta_base * samples_since_rollover + phase_angle_actual_;
 }
 
 template <bool IsLFO>
@@ -961,7 +981,8 @@ double WaveGenerator<IsLFO>::GetRandom([[maybe_unused]] double angle) {
   double r = static_cast<double>(juce::Random::getSystemRandom().nextFloat());
 
   r = 2 * (r - 0.5);  // scale to -1 .. 1
-  r = juce::jlimit(-10 * delta_base_, 10 * delta_base_, r);
+  const double current_delta_base = delta_base();
+  r = juce::jlimit(-10 * current_delta_base, 10 * current_delta_base, r);
 
   last_sample_ += r;
 

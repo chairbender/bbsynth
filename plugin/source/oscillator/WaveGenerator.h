@@ -110,6 +110,7 @@ class WaveGenerator {
   void BuildWave(int numSamples);
 
   void MoveAngleForward(int numSamples);
+  double delta_base() const;
   void MoveAngleForwardTo(double newAngle);
   double GetAngleAfter(double samples_since_rollover);
   double skew_angle(double angle) const;
@@ -126,6 +127,7 @@ private:
    * Base phase increment (radians per sample) for this oscillator.
    */
   double delta_base_ = 0;
+  juce::SmoothedValue<double> delta_base_smooth_;
 
   /**
    * Relative pitch offset multiplier for this oscillator.

@@ -1,5 +1,5 @@
 // Unit test for MinBlepGenerator
-#include <../../plugin/source/oscillator/MinBlepGenerator.h>
+#include "oscillator/MinBlepGenerator.h"
 #include <gtest/gtest.h>
 
 #include <cmath>
