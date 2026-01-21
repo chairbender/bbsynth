@@ -79,8 +79,8 @@ class WaveGenerator {
    * Set the delta base (phase increment in radians per sample)
    * for this oscillator
    */
-  void set_delta_base(double radians);
-  void set_pitch_semitone(int midi_note_value, double sample_rate);
+  void set_delta_base(double radians, bool smooth);
+  void set_pitch_semitone(int midi_note_value, double sample_rate, bool smooth);
   void set_pitch_hz(double freq);
   double current_pitch_hz() const;
 
