@@ -138,7 +138,7 @@ class MinBlepGenerator {
       for (auto [n, time_sample] :
            std::views::enumerate(std::views::zip(realTime, imagTime))) {
         auto& [real_time_sample, imag_time_sample] = time_sample;
-        const double angle = -2.0 * juce::MathConstants<float>::pi *
+        const double angle = -2.0 * juce::MathConstants<double>::pi *
                              static_cast<double>(k) * static_cast<double>(n) /
                              static_cast<double>(realTime.size());
         const double cosAngle = cos(angle);
