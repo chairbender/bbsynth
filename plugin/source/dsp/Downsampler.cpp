@@ -58,68 +58,70 @@ void Downsampler::process(const juce::AudioBuffer<float>& input,
                           const int sourceStartSample,
                           const int sourceNumSamples,
                           const int destStartSample) {
-  // todo: refactor pointless
-  const int dest_start_sample = destStartSample;
   const int dest_num_samples = sourceNumSamples / oversamplingFactor_;
   if (stages_.empty()) {
     jassert(oversamplingFactor_ == 1);
-    output.addFrom(0, sourceStartSample, input, 0, sourceStartSample,
-                    sourceNumSamples);
+    output.addFrom(0, destStartSample, input, 0, sourceStartSample,
+                   sourceNumSamples);
     return;
   }
 
-  const juce::AudioBuffer<float>* currentInput = &input;
+  const juce::AudioBuffer<float>* current_input = &input;
+  int current_source_start_sample = sourceStartSample;
 
   for (auto [s, stage] : std::views::enumerate(stages_)) {
-    const int stageOutputSamples = dest_num_samples << (stages_.size() - 1 - s);
-    const int stageStartSample = dest_start_sample << (stages_.size() - 1 - s);
+    const int stage_output_samples = dest_num_samples << (stages_.size() - 1 - s);
+    const int stage_dest_start_sample =
+        destStartSample << (stages_.size() - 1 - s);
 
-    juce::AudioBuffer<float>* currentOutput;
-    if (s == stages_.size() - 1) {
-      currentOutput = &output;
+    juce::AudioBuffer<float>* current_output;
+    if (s == static_cast<int>(stages_.size() - 1)) {
+      current_output = &output;
     } else {
-      currentOutput = &internalBuffer_;
+      current_output = &internalBuffer_;
     }
 
-    auto* inputData = currentInput->getReadPointer(0);
-    auto* outputData = currentOutput->getWritePointer(0);
+    auto* input_data = current_input->getReadPointer(0);
+    auto* output_data = current_output->getWritePointer(0);
 
-    const auto numAlphas = static_cast<int>(stage.alphas.size());
-    const int delayedStages = numAlphas / 2;
-    const int directStages = numAlphas - delayedStages;
+    const auto num_alphas = static_cast<int>(stage.alphas.size());
+    const int delayed_stages = num_alphas / 2;
+    const int direct_stages = num_alphas - delayed_stages;
     const auto lv1 = std::span(stage.v1);
     float delay = stage.delay;
 
-    if (stageStartSample <= stageOutputSamples) {
-      for (const int i :
-           std::views::iota(stageStartSample, stageOutputSamples)) {
-        // Direct path cascaded allpass filters (even sample)
-        float inEven = inputData[(i << 1)];
-        for (auto [alpha, lv1_sample] : std::views::zip(stage.alphas, lv1) |
-                                            std::views::take(directStages)) {
-          const float out = alpha * inEven + lv1_sample;
-          lv1_sample = inEven - alpha * out;
-          inEven = out;
-        }
-        const float directOut = inEven;
+    for (const int i : std::views::iota(0, stage_output_samples)) {
+      const int read_idx = (current_source_start_sample + i) << 1;
+      const int write_idx = stage_dest_start_sample + i;
 
-        // Delayed path cascaded allpass filters (odd sample)
-        float inOdd = inputData[(i << 1) + 1];
-        for (auto [alpha, lv1_sample] : std::views::zip(stage.alphas, lv1) |
-                                            std::views::drop(directStages) |
-                                            std::views::take(delayedStages)) {
-          const float out = alpha * inOdd + lv1_sample;
-          lv1_sample = inOdd - alpha * out;
-          inOdd = out;
-        }
-
-        // Mix with 0.5 gain and manage one-sample delay between paths
-        outputData[i] += (delay + directOut) * 0.5f;
-        delay = inOdd;
+      // Direct path cascaded allpass filters (even sample)
+      float in_even = input_data[read_idx];
+      for (auto [alpha, lv1_sample] : std::views::zip(stage.alphas, lv1) |
+                                          std::views::take(direct_stages)) {
+        const float out = alpha * in_even + lv1_sample;
+        lv1_sample = in_even - alpha * out;
+        in_even = out;
       }
+      const float direct_out = in_even;
+
+      // Delayed path cascaded allpass filters (odd sample)
+      float in_odd = input_data[read_idx + 1];
+      for (auto [alpha, lv1_sample] : std::views::zip(stage.alphas, lv1) |
+                                          std::views::drop(direct_stages) |
+                                          std::views::take(delayed_stages)) {
+        const float out = alpha * in_odd + lv1_sample;
+        lv1_sample = in_odd - alpha * out;
+        in_odd = out;
+      }
+
+      // Mix with 0.5 gain and manage one-sample delay between paths
+      output_data[write_idx] += (delay + direct_out) * 0.5f;
+      delay = in_odd;
     }
+
     stage.delay = delay;
-    currentInput = currentOutput;
+    current_input = current_output;
+    current_source_start_sample = stage_dest_start_sample;
   }
 }
 }  // namespace audio_plugin
