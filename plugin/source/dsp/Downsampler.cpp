@@ -56,8 +56,10 @@ void Downsampler::prepare(const int max_block_size,
 void Downsampler::process(const juce::AudioBuffer<float>& input,
                           juce::AudioBuffer<float>& output,
                           const int sourceStartSample,
-                          const int sourceNumSamples) {
-  const int dest_start_sample = sourceStartSample / oversamplingFactor_;
+                          const int sourceNumSamples,
+                          const int destStartSample) {
+  // todo: refactor pointless
+  const int dest_start_sample = destStartSample;
   const int dest_num_samples = sourceNumSamples / oversamplingFactor_;
   if (stages_.empty()) {
     jassert(oversamplingFactor_ == 1);

@@ -260,8 +260,12 @@ void OscillatorVoice::controllerMoved([[maybe_unused]] int controllerNumber,
 }
 
 void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
-                                      [[maybe_unused]] int startSample,
+                                      const int startSample,
                                       const int numSamples) {
+  // TODO: early exit if we aren't active?
+  if (startSample != 0 || numSamples != 512) {
+    DBG("start: " + std::to_string(startSample) + ", numSamples: " + std::to_string(numSamples));
+  }
   ProcessDirtyParameters();
   const auto oversample_samples = numSamples * kOversample;
   ;
@@ -270,8 +274,10 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   // TODO: how does this interact with note on? Does this mean envelope always
   //  starts at start of a block even if it "should" start mid-block?
   // fill envelope buffers
-  envelope_.WriteEnvelopeToBuffer(env1_buffer_, startSample, numSamples);
-  envelope2_.WriteEnvelopeToBuffer(env2_buffer_, startSample, numSamples);
+  // todo: WaveGen is expecting the env to start at 0. Make it more explicit
+  //  and remove the start_sample param entirely
+  envelope_.WriteEnvelopeToBuffer(env1_buffer_, 0, numSamples);
+  envelope2_.WriteEnvelopeToBuffer(env2_buffer_, 0, numSamples);
 
   // note this will fill and process only the left channel since we want to work
   // in mono until the last moment the wave generator and filter are already
@@ -286,40 +292,44 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   //  we need to evaluate generator 1 first as gen2 depends on it (knowing the
   //  reset sample indices).
 
+  // TODO: Oversample buffer can just start at 0 since we control it. 
+  //   Assumptions need to be checked of who reads from it
   if (waveGenerator_.cross_mod() > 0) {
     // cross mod - need to run vco2 first so it can modulate vco1
     wave2_buffer_.clear(oversample_start_sample, oversample_samples);
-    wave2Generator_.RenderNextBlock(wave2_buffer_, oversample_start_sample,
+    wave2Generator_.RenderNextBlock(wave2_buffer_, 0,
                                     oversample_samples);
     oversample_buffer_.clear(oversample_start_sample, oversample_samples);
     // todo: Do we even need this intermediate wave2_buffer? What if we
     //  cross-mod from the oversample_buffer_ directly? if we're doing FM, we
     //  only use wave 2 for FM, we don't output it directly
-    waveGenerator_.RenderNextBlock(oversample_buffer_, oversample_start_sample,
+    waveGenerator_.RenderNextBlock(oversample_buffer_, 0,
                                    oversample_samples);
   } else {
     // no cross mod or hard sync, need to run generator 1 first as it
     // sets the reset points for generator 2
     oversample_buffer_.clear(oversample_start_sample, oversample_samples);
-    waveGenerator_.RenderNextBlock(oversample_buffer_, oversample_start_sample,
+    waveGenerator_.RenderNextBlock(oversample_buffer_, 0,
                                    oversample_samples);
-    wave2Generator_.RenderNextBlock(oversample_buffer_, oversample_start_sample,
+    wave2Generator_.RenderNextBlock(oversample_buffer_, 0,
                                     oversample_samples);
   }
 
   if (filter_type_ == 0) {
-    filter_dfb_.Process(oversample_buffer_, oversample_start_sample,
+    filter_dfb_.Process(oversample_buffer_, 0,
                         oversample_samples);
   } else if (filter_type_ == 1) {
-    filter_tpt_.Process(oversample_buffer_, oversample_start_sample,
+    filter_tpt_.Process(oversample_buffer_, 0,
                         oversample_samples);
   }
 
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
-  const auto data_span = std::span{oversample_buffer_.getWritePointer(0) + oversample_start_sample,
+  // TODO: oversample buffer could start at 0 always.
+  const auto data_span = std::span{oversample_buffer_.getWritePointer(0),
                                    static_cast<size_t>(oversample_samples)};
+  // we always start the env at 0 regardless of anything else
   const auto env1_data_span =
-      std::span{env1_buffer_.getReadPointer(0) + startSample, static_cast<size_t>(numSamples)};
+      std::span{env1_buffer_.getReadPointer(0), static_cast<size_t>(numSamples)};
 
   for (const auto [sample, env_sample] :
        std::views::zip(data_span | std::views::chunk(kOversample), env1_data_span)) {
@@ -334,8 +344,13 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     // wave2Generator_.set_volume(-120);
     clearCurrentNote();
   }
+  
+  if constexpr (kOversample == 1) {
+    outputBuffer.addFrom(0, startSample, oversample_buffer_.getReadPointer(0), numSamples);
+  } else {
+    downsampler_.process(oversample_buffer_, outputBuffer,
+                         0, oversample_samples, startSample);
+  }
 
-  downsampler_.process(oversample_buffer_, outputBuffer,
-                       oversample_start_sample, oversample_samples);
 }
 }  // namespace audio_plugin

@@ -15,7 +15,8 @@ public:
 
   void process(const juce::AudioBuffer<float> &input,
                juce::AudioBuffer<float> &output, int sourceStartSample,
-               int sourceNumSamples);
+               int sourceNumSamples,
+               int destStartSample);
 
 private:
   struct Stage {
