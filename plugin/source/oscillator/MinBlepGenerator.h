@@ -41,11 +41,9 @@ class MinBlepGenerator {
   juce::HeapBlock<FilterState> filter_states_;
   double ratio_{0.0}, last_ratio_{0.0};
 
-  // blep table size = 512
-  // TODO: Define as constant
-  static constexpr int kRingBufferSize{kOversample * 512 * 2};
+  static constexpr int kRingBufferSize{kOversample * kBlepTableSize * 2};
   std::array<float, kRingBufferSize> ring_buffer_{};
-  juce::AbstractFifo fifo_{kRingBufferSize};
+  int read_index_{0};
 
  public:
 
