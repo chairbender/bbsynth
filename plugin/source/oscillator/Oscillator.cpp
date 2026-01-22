@@ -262,14 +262,8 @@ void OscillatorVoice::controllerMoved([[maybe_unused]] int controllerNumber,
 void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                       const int startSample,
                                       const int numSamples) {
-  // TODO: early exit if we aren't active?
-  if (startSample != 0 || numSamples != 512) {
-    DBG("start: " + std::to_string(startSample) + ", numSamples: " + std::to_string(numSamples));
-  }
   ProcessDirtyParameters();
   const auto oversample_samples = numSamples * kOversample;
-  ;
-  const auto oversample_start_sample = startSample * kOversample;
 
   // TODO: how does this interact with note on? Does this mean envelope always
   //  starts at start of a block even if it "should" start mid-block?
@@ -294,12 +288,15 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 
   // TODO: Oversample buffer can just start at 0 since we control it. 
   //   Assumptions need to be checked of who reads from it
+  // TODO: wavegenerator renderNextBlock makes assumptions about where to read
+  //  from lfo / env buffers that need to be checked.
+  // TODO: for all these places where its always 0, omit even the option of passing a different value.
   if (waveGenerator_.cross_mod() > 0) {
     // cross mod - need to run vco2 first so it can modulate vco1
-    wave2_buffer_.clear(oversample_start_sample, oversample_samples);
+    wave2_buffer_.clear(0, oversample_samples);
     wave2Generator_.RenderNextBlock(wave2_buffer_, 0,
                                     oversample_samples);
-    oversample_buffer_.clear(oversample_start_sample, oversample_samples);
+    oversample_buffer_.clear(0, oversample_samples);
     // todo: Do we even need this intermediate wave2_buffer? What if we
     //  cross-mod from the oversample_buffer_ directly? if we're doing FM, we
     //  only use wave 2 for FM, we don't output it directly
@@ -308,7 +305,7 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   } else {
     // no cross mod or hard sync, need to run generator 1 first as it
     // sets the reset points for generator 2
-    oversample_buffer_.clear(oversample_start_sample, oversample_samples);
+    oversample_buffer_.clear(0, oversample_samples);
     waveGenerator_.RenderNextBlock(oversample_buffer_, 0,
                                    oversample_samples);
     wave2Generator_.RenderNextBlock(oversample_buffer_, 0,
