@@ -48,8 +48,6 @@ static void dumpArrayToCsv(const juce::Array<T>& buffer,
 
 MinBlepGenerator::MinBlepGenerator() : fifo_{kRingBufferSize} {
   ring_buffer_.fill(0.0f);
-  over_sampling_ratio_ = 16;
-  zero_crossings_ = 16;
   return_derivative_ = false;
   proportional_blep_freq_ = 0.5;  // defaults to NyQuist ....
 
@@ -115,9 +113,9 @@ void MinBlepGenerator::BuildBlep() const {
   // BUILD the BLEP
   juce::Array<double> buffer1;
 
-  const auto n = static_cast<int>(zero_crossings_ * 2 * over_sampling_ratio_);
+  constexpr auto n = static_cast<int>(kBlepZeroCrossings * 2 * kBlepOversampleRatio);
 
-  DBG("BUILD minBLEP - ratio " + juce::String(over_sampling_ratio_) + " -> " +
+  DBG("BUILD minBLEP - ratio " + juce::String(kBlepOversampleRatio) + " -> " +
       juce::String(n));
 
   // Generate symmetric sinc array with specified number of
@@ -125,8 +123,8 @@ void MinBlepGenerator::BuildBlep() const {
   for (const auto i : std::views::iota(0, n)) {
     // rescale from 0 - n-1 to -zeroCrossing to zeroCrossing
     const auto p = static_cast<float>(i) / static_cast<float>(n - 1) *
-                       ((static_cast<float>(zero_crossings_) * 2)) -
-                   static_cast<float>(zero_crossings_);
+                       ((static_cast<float>(kBlepZeroCrossings) * 2)) -
+                   static_cast<float>(kBlepZeroCrossings);
     buffer1.add(Sinc(static_cast<double>(p)));
   }
 
@@ -205,52 +203,58 @@ void MinBlepGenerator::BuildBlep() const {
   dumpArrayToCsv(minBlepDerivArray, "minblepDevarrNormSub.csv");
 }
 
+// TODO: FIFO needs to ACCUMULATE bleps that START in the current buffer until we are done generating the audio
+//  for the current buffer...not simply add values one after the other.
+//  NOT sure if FIFO is the right DS for this - what we need is really just a ring buffer
+//  (I have working example in sapf repo)
 void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
-  const double freqMultiple = over_sampling_ratio_ * proportional_blep_freq_;
+  // todo: these should be constexpr - they never change
+  constexpr double freq_multiple = kBlepOversampleRatio * kBlepProportionalFreq;
+  // blep lengths are the same - the blep is a bandlimited step (infinite freq)
+  //  all that changes is how loud the blep is to counteract the step
+  constexpr double blep_length = 512 / freq_multiple;
   const double exactBlepOffset = newBlep.offset;
 
+  // todo: pointless vars - use directly the arrays
   const auto& blepTable = minBlepArray;
   const auto& derivTable = minBlepDerivArray;
-
-  const int maxLength = static_cast<int>(std::ceil(static_cast<double>(blepTable.size()) / freqMultiple));
 
   int start1, size1, start2, size2;
   // Use current read position as the reference for the block start
   fifo_.prepareToRead(0, start1, size1, start2, size2);
   const int readIndex = start1;
 
+  // todo: may not be correct - how is this updated w.r.t. ring buffer index?
   const int firstSample = static_cast<int>(std::ceil(exactBlepOffset));
 
-  for (int i = 0; i < maxLength; ++i) {
+  const auto hasPosChange = std::abs(newBlep.pos_change_magnitude) > 0;
+  const auto hasVelChange = std::abs(newBlep.vel_change_magnitude) > 0;
+  for (int i = 0; i < blep_length; ++i) {
     const int outputSampleIdx = firstSample + i;
-    if (outputSampleIdx < 0) continue;
-
     const double t = static_cast<double>(outputSampleIdx) - exactBlepOffset;
-    const double currentBlepTableSampleExact = freqMultiple * t;
+    const double currentBlepTableSampleExact = freq_multiple * t;
 
-    if (currentBlepTableSampleExact >= static_cast<double>(blepTable.size() - 1)) break;
+    if (currentBlepTableSampleExact >= static_cast<double>(blepTable.size() - 1)) {
+      DBG("exceeded table size - should never happen");
+    };
 
-    bool blepValid = false;
     float correction = 0.0f;
 
     const int tableIdx = static_cast<int>(currentBlepTableSampleExact);
     const double frac = currentBlepTableSampleExact - tableIdx;
 
+    // lerp between the blep table subsamples
     // 0th order
-    if (std::abs(newBlep.pos_change_magnitude) > 0) {
+    if (hasPosChange) {
       const float val = blepTable[tableIdx] + static_cast<float>(frac * (blepTable[tableIdx + 1] - blepTable[tableIdx]));
       correction += val * static_cast<float>(newBlep.pos_change_magnitude);
-      blepValid = true;
     }
 
     // 1st order
-    if (std::abs(newBlep.vel_change_magnitude) > 0 && tableIdx < derivTable.size() - 1) {
+    if (hasVelChange) {
       const float val = derivTable[tableIdx] + static_cast<float>(frac * (derivTable[tableIdx + 1] - derivTable[tableIdx]));
       correction += val * static_cast<float>(newBlep.vel_change_magnitude);
-      blepValid = true;
     }
-
-    if (!blepValid && i > 10) break;
 
     if (correction != 0.0f) {
       const int writePos = (readIndex + outputSampleIdx) % kRingBufferSize;
@@ -258,7 +262,7 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
     }
   }
 
-  const int neededReady = firstSample + maxLength;
+  const int neededReady = firstSample + blep_length;
   const int currentReady = fifo_.getNumReady();
   if (neededReady > currentReady) {
     const int toAdd = std::min(neededReady - currentReady, fifo_.getFreeSpace());

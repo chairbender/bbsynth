@@ -517,7 +517,7 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
           //   toggle-able, and comparing behavior.
           // ADD the blep ...
           MinBlepGenerator::BlepOffset blep;
-          blep.offset = static_cast<double>(-next_hard_sync_reset_sample);
+          blep.offset = static_cast<double>(next_hard_sync_reset_sample);
 
           // CALCULATE the MAGNITUDE of ths 2nd ORDER (VEL) discontinuity
           // TRIG :: calculate the angle (rise/run) before and after the
@@ -726,7 +726,7 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
 
             if (crossed) {
               MinBlepGenerator::BlepOffset blep;
-              blep.offset = percAfterRoll - static_cast<double>(i + 1);
+              blep.offset = -(percAfterRoll - static_cast<double>(i + 1));
               blep.pos_change_magnitude = magnitude;
               blep.vel_change_magnitude = 0;
               blep_generator_.AddBlep(blep);
@@ -763,7 +763,7 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
              * part)
              */
             MinBlepGenerator::BlepOffset blep;
-            blep.offset = percAfterRoll - static_cast<double>(i + 1);
+            blep.offset = -(percAfterRoll - static_cast<double>(i + 1));;
 
             // MAGNITUDE of 1st order nonlinearity is 2 or -2 :::
             if (wave_type_ == sawRise)
@@ -808,7 +808,8 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
             }
 
             MinBlepGenerator::BlepOffset blep;
-            blep.offset = percAfterRoll - static_cast<double>(i + 1);
+            // todo: fix this weird calculation (for ALL offsets)
+            blep.offset = -(percAfterRoll - static_cast<double>(i + 1));;
 
             // SYMETRY :::::
             // since this is a triangle
