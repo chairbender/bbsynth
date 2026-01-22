@@ -205,67 +205,64 @@ void MinBlepGenerator::BuildBlep() const {
   dumpArrayToCsv(minBlepDerivArray, "minblepDevarrNormSub.csv");
 }
 
-void MinBlepGenerator::AddBlep(BlepOffset newBlep) {
+void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   const double freqMultiple = over_sampling_ratio_ * proportional_blep_freq_;
   const double exactBlepOffset = newBlep.offset;
 
   const auto& blepTable = minBlepArray;
   const auto& derivTable = minBlepDerivArray;
 
-  const int maxLength = static_cast<int>(static_cast<double>(blepTable.size()) / freqMultiple) + 1;
+  const int maxLength = static_cast<int>(std::ceil(static_cast<double>(blepTable.size()) / freqMultiple));
 
   int start1, size1, start2, size2;
-  fifo_.prepareToWrite(kRingBufferSize, start1, size1, start2, size2);
-  const int writeIndex = start1;
+  // Use current read position as the reference for the block start
+  fifo_.prepareToRead(0, start1, size1, start2, size2);
+  const int readIndex = start1;
 
-  for (int p = 0; p < maxLength; ++p) {
-    const double outputSamplesSinceBlep = exactBlepOffset + static_cast<double>(p) + 1;
-    if (outputSamplesSinceBlep < 0) continue;
+  const int firstSample = static_cast<int>(std::ceil(exactBlepOffset));
 
-    const double currentBlepTableSampleExact = freqMultiple * outputSamplesSinceBlep;
-    const double depthLimited = proportional_blep_freq_;
-    const double currentBlepDerivTableSampleExact = depthLimited * over_sampling_ratio_ * outputSamplesSinceBlep;
+  for (int i = 0; i < maxLength; ++i) {
+    const int outputSampleIdx = firstSample + i;
+    if (outputSampleIdx < 0) continue;
+
+    const double t = static_cast<double>(outputSampleIdx) - exactBlepOffset;
+    const double currentBlepTableSampleExact = freqMultiple * t;
+
+    if (currentBlepTableSampleExact >= static_cast<double>(blepTable.size() - 1)) break;
 
     bool blepValid = false;
     float correction = 0.0f;
 
+    const int tableIdx = static_cast<int>(currentBlepTableSampleExact);
+    const double frac = currentBlepTableSampleExact - tableIdx;
+
     // 0th order
-    int tableIdx = static_cast<int>(currentBlepTableSampleExact);
-    if (std::abs(newBlep.pos_change_magnitude) > 0 && tableIdx < blepTable.size() - 1) {
-      double frac = currentBlepTableSampleExact - tableIdx;
-      float val = blepTable[tableIdx] + static_cast<float>(frac * (blepTable[tableIdx + 1] - blepTable[tableIdx]));
+    if (std::abs(newBlep.pos_change_magnitude) > 0) {
+      const float val = blepTable[tableIdx] + static_cast<float>(frac * (blepTable[tableIdx + 1] - blepTable[tableIdx]));
       correction += val * static_cast<float>(newBlep.pos_change_magnitude);
       blepValid = true;
     }
 
     // 1st order
-    int derivIdx = static_cast<int>(currentBlepDerivTableSampleExact);
-    if (std::abs(newBlep.vel_change_magnitude) > 0 && derivIdx < derivTable.size() - 1) {
-      double frac = currentBlepDerivTableSampleExact - derivIdx;
-      float val = derivTable[derivIdx] + static_cast<float>(frac * (derivTable[derivIdx + 1] - derivTable[derivIdx]));
+    if (std::abs(newBlep.vel_change_magnitude) > 0 && tableIdx < derivTable.size() - 1) {
+      const float val = derivTable[tableIdx] + static_cast<float>(frac * (derivTable[tableIdx + 1] - derivTable[tableIdx]));
       correction += val * static_cast<float>(newBlep.vel_change_magnitude);
       blepValid = true;
     }
 
-    if (!blepValid && p > 10) break;
+    if (!blepValid && i > 10) break;
 
     if (correction != 0.0f) {
-      int writePos = (writeIndex + p) % kRingBufferSize;
+      const int writePos = (readIndex + outputSampleIdx) % kRingBufferSize;
       ring_buffer_[static_cast<size_t>(writePos)] += correction;
     }
   }
 
-  int currentReady = fifo_.getNumReady();
-  if (maxLength > currentReady) {
-    int toAdd = maxLength - currentReady;
-    toAdd = std::min(toAdd, fifo_.getFreeSpace());
+  const int neededReady = firstSample + maxLength;
+  const int currentReady = fifo_.getNumReady();
+  if (neededReady > currentReady) {
+    const int toAdd = std::min(neededReady - currentReady, fifo_.getFreeSpace());
     fifo_.finishedWrite(toAdd);
-  }
-}
-
-void MinBlepGenerator::AddBlepArray(const juce::Array<BlepOffset>& newBleps) {
-  for (const auto& blep : newBleps) {
-    AddBlep(blep);
   }
 }
 
@@ -286,8 +283,6 @@ void MinBlepGenerator::ProcessBlock(float* buffer, int numSamples) {
   // PROCESS BLEPS :::::
   ProcessCurrentBleps(buffer, numSamples);
 }
-
-void MinBlepGenerator::RescaleBlepsToBuffer(const float*, const int, const float) {}
 
 void MinBlepGenerator::ProcessCurrentBleps(float* buffer,
                                            const int numSamples) {

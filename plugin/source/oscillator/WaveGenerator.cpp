@@ -336,14 +336,16 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
     const int numSamples) {
   jassert(sample_rate_ != 0.);
 
-  if (delta_base_ == 0.0) return;
-
-  // todo FIX !!!!
-  if (volume_ == 0. && gain_last_[0] == 0. && gain_last_[1] == 0. &&
-      blep_generator_.IsClear())
+  if (delta_base_ == 0.0 && volume_ == 0. && gain_last_[0] == 0. &&
+      gain_last_[1] == 0. && blep_generator_.IsClear())
     return;
 
-  BuildWave(numSamples);
+  if (delta_base_ == 0.0) {
+    if (wave.size() != numSamples) wave.resize(numSamples);
+    juce::FloatVectorOperations::clear(wave.getRawDataPointer(), numSamples);
+  } else {
+    BuildWave(numSamples);
+  }
 
   // ADD BAND-LIMITED (minBLEP) transitions :::
   // LFO doesn't do blepping, so no need for this in such cases
