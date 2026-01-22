@@ -228,7 +228,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     lfo_buffer_.clear(0, 0, lfo_buffer_.getNumSamples());
 
     // TODO: refactor the LFO logic so it doesn't clutter up this. Use state var
-    // to track the LFO state. should LFO countdown start?
+    //  to track the LFO state.
+    // check if LFO countdown should start?
+    // TODO: channel pressure message spam likely causing dropouts here - process more efficiently
     int start_lfo_sample = -1;
     if (lfo_samples_until_start_ < 0) {
       for (const auto metadata : midiMessages) {
