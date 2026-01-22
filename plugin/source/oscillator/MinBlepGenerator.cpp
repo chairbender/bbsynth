@@ -46,7 +46,7 @@ static void dumpArrayToCsv(const juce::Array<T>& buffer,
   csv.flush();
 }
 
-MinBlepGenerator::MinBlepGenerator() : fifo_{kRingBufferSize} {
+MinBlepGenerator::MinBlepGenerator() : read_index_{0} {
   ring_buffer_.fill(0.0f);
   return_derivative_ = false;
   proportional_blep_freq_ = 0.5;  // defaults to NyQuist ....
@@ -93,10 +93,13 @@ juce::Array<float> MinBlepGenerator::min_blep_deriv_array() {
 
 void MinBlepGenerator::Clear() {
   ring_buffer_.fill(0.0f);
-  fifo_.reset();
+  read_index_ = 0;
 }
 bool MinBlepGenerator::IsClear() const {
-  return fifo_.getNumReady() == 0;
+  for (const auto& sample : ring_buffer_) {
+    if (std::abs(sample) > 1e-6f) return false;
+  }
+  return true;
 }
 
 // todo below calculation seems sus - there is more straightforward impl in
@@ -208,35 +211,45 @@ void MinBlepGenerator::BuildBlep() const {
 //  NOT sure if FIFO is the right DS for this - what we need is really just a ring buffer
 //  (I have working example in sapf repo)
 void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
-  // todo: these should be constexpr - they never change
-  constexpr double freq_multiple = kBlepOversampleRatio * kBlepProportionalFreq;
+  // this determines how fast we step through the (oversampled) blep table
+  // per output sample - it scales output samples into kernel samples (the
+  // blep table is the kernel)
+  constexpr double kFreqMultiple = kBlepOversampleRatio * kBlepProportionalFreq;
+  // how long the blep should last for the current sample rate
   // blep lengths are the same - the blep is a bandlimited step (infinite freq)
   //  all that changes is how loud the blep is to counteract the step
-  constexpr double blep_length = 512 / freq_multiple;
+  // TODO: sample rate can vary - shouldn't this not be constexpr?
+  constexpr double kBlepLength = kBlepTableSize / kFreqMultiple;
   const double exactBlepOffset = newBlep.offset;
+  // todo: isn't there a bettter function for this?
+  const double blep_frac = exactBlepOffset - std::floor(exactBlepOffset);
 
   // todo: pointless vars - use directly the arrays
   const auto& blepTable = minBlepArray;
   const auto& derivTable = minBlepDerivArray;
 
-  int start1, size1, start2, size2;
-  // Use current read position as the reference for the block start
-  fifo_.prepareToRead(0, start1, size1, start2, size2);
-  const int readIndex = start1;
+  // TODO: missing blep depth limiting
 
-  // todo: may not be correct - how is this updated w.r.t. ring buffer index?
-  const int firstSample = static_cast<int>(std::ceil(exactBlepOffset));
+  const int firstSample = static_cast<int>(std::floor(exactBlepOffset));
 
-  const auto hasPosChange = std::abs(newBlep.pos_change_magnitude) > 0;
-  const auto hasVelChange = std::abs(newBlep.vel_change_magnitude) > 0;
-  for (int i = 0; i < blep_length; ++i) {
+  // ignore overly small bleps
+  const auto hasPosChange = std::abs(newBlep.pos_change_magnitude) > 1e-9;
+  const auto hasVelChange = std::abs(newBlep.vel_change_magnitude) > 1e-9;
+  // TODO: use template and loop the tables separately depending on the type of blep
+  for (int i = 0; i < kBlepLength; ++i) {
+
+    // TODO: need to make sure we are applying this old logic below comment
+    // figure out how many output samples (p) have transpired
+    // since the blep - this will be negative if we haven't yet reached the
+    // blep. +1 because the blep needs to be mixed in starting on the LOW
+    // SAMPLE
+
     const int outputSampleIdx = firstSample + i;
-    const double t = static_cast<double>(outputSampleIdx) - exactBlepOffset;
-    const double currentBlepTableSampleExact = freq_multiple * t;
+    // TODO: might be off by one errors here related to the lerp logic
+    //convert to an index in the oversampled blep table
+    const double currentBlepTableSampleExact = (i * kFreqMultiple) + blep_frac;
 
-    if (currentBlepTableSampleExact >= static_cast<double>(blepTable.size() - 1)) {
-      DBG("exceeded table size - should never happen");
-    };
+    jassert(currentBlepTableSampleExact < (blepTable.size() - 1));
 
     float correction = 0.0f;
 
@@ -256,61 +269,32 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
       correction += val * static_cast<float>(newBlep.vel_change_magnitude);
     }
 
-    if (correction != 0.0f) {
-      const int writePos = (readIndex + outputSampleIdx) % kRingBufferSize;
-      ring_buffer_[static_cast<size_t>(writePos)] += correction;
-    }
-  }
-
-  const int neededReady = firstSample + blep_length;
-  const int currentReady = fifo_.getNumReady();
-  if (neededReady > currentReady) {
-    const int toAdd = std::min(neededReady - currentReady, fifo_.getFreeSpace());
-    fifo_.finishedWrite(toAdd);
+    const int writePos = (read_index_ + outputSampleIdx) % kRingBufferSize;
+    ring_buffer_[static_cast<size_t>(writePos)] += correction;
   }
 }
 
 // REAL TIME ::::: the core functions :::::
 void MinBlepGenerator::ProcessBlock(float* buffer, int numSamples) {
-  // look for non-linearities ....
   jassert(numSamples > 0);
-
-  // NON-LINEARITIES :::::
-  // This is for processing detected nonlinearities about which we ONLY know the
-  // POSITION process_nonlinearities(buffer, numSamples, nonlinearities);
-
-  // GRAB the final value ....
-  // just in case there is a nonlinearity at sample 0 of the next block ...
-  // MUST be done BEFORE we ADD the bleps
-  last_value_ = buffer[numSamples - 1];
 
   // PROCESS BLEPS :::::
   ProcessCurrentBleps(buffer, numSamples);
+
+  // GRAB the final value ....
+  // just in case there is a nonlinearity at sample 0 of the next block ...
+  last_value_ = buffer[numSamples - 1];
 }
 
 void MinBlepGenerator::ProcessCurrentBleps(float* buffer,
                                            const int numSamples) {
-  const int available = fifo_.getNumReady();
-  if (available == 0) return;
-
-  const int to_read = std::min(available, numSamples);
-  int start1, size1, start2, size2;
-  fifo_.prepareToRead(to_read, start1, size1, start2, size2);
-
-  if (size1 > 0) {
-    for (int i = 0; i < size1; ++i) {
-      buffer[i] += ring_buffer_[static_cast<size_t>(start1 + i)];
-      ring_buffer_[static_cast<size_t>(start1 + i)] = 0.0f;
-    }
-  }
-  if (size2 > 0) {
-    for (int i = 0; i < size2; ++i) {
-      buffer[size1 + i] += ring_buffer_[static_cast<size_t>(start2 + i)];
-      ring_buffer_[static_cast<size_t>(start2 + i)] = 0.0f;
-    }
+  for (int i = 0; i < numSamples; ++i) {
+    const size_t index = static_cast<size_t>((read_index_ + i) % kRingBufferSize);
+    buffer[i] += ring_buffer_[index];
+    ring_buffer_[index] = 0.0f;
   }
 
-  fifo_.finishedRead(to_read);
+  read_index_ = (read_index_ + numSamples) % kRingBufferSize;
 }
 
 }  // namespace audio_plugin
