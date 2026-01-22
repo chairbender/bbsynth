@@ -17,6 +17,8 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 #include <array>
 #include <ranges>
 
+#include "../Constants.h"
+
 namespace audio_plugin {
 
 class MinBlepGenerator {
@@ -39,13 +41,13 @@ class MinBlepGenerator {
   juce::HeapBlock<FilterState> filter_states_;
   double ratio_{0.0}, last_ratio_{0.0};
 
-  static constexpr int kRingBufferSize{6000};
+  // blep table size = 512
+  // TODO: Define as constant
+  static constexpr int kRingBufferSize{kOversample * 512 * 2};
   std::array<float, kRingBufferSize> ring_buffer_{};
   juce::AbstractFifo fifo_{kRingBufferSize};
 
  public:
-  double over_sampling_ratio_;
-  int zero_crossings_;
 
   float last_value_;
   float last_delta_;  // previous derivative ...
@@ -56,8 +58,8 @@ class MinBlepGenerator {
                             // blep (for first der. discontinuities)
 
   struct BlepOffset {
+    // index in current buffer where the blep starts
     double offset = 0;
-    double freqMultiple = 0;
     double pos_change_magnitude = 0;
     double vel_change_magnitude = 0;
   };
