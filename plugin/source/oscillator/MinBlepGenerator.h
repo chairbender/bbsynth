@@ -359,12 +359,9 @@ class MinBlepGenerator {
   void set_limiting_freq(float proportionOfSamplingRate);
 
   void BuildBlep() const;
-  void AddBlep(BlepOffset newBlep);
-  void AddBlepArray(const juce::Array<BlepOffset>& newBleps);
+  void AddBlep(const BlepOffset& newBlep);
 
   void ProcessBlock(float* buffer, int numSamples);
-  void RescaleBlepsToBuffer(const float* buffer, int numSamples,
-                            float shiftBlepsBy = 0);
   void ProcessCurrentBleps(float* buffer, int numSamples);
 };
 
