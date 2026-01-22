@@ -3,7 +3,7 @@
 #include <ranges>
 
 namespace audio_plugin {
-constexpr auto kOversample = 2;
+constexpr auto kOversample = 1;
 // at drive slider of "0" we still want SOME drive - the "natural" drive of the OTA.
 // Having 0 actual drive creates instability;
 constexpr auto kMinDrive = .5f;
