@@ -46,7 +46,8 @@ static void dumpArrayToCsv(const juce::Array<T>& buffer,
   csv.flush();
 }
 
-MinBlepGenerator::MinBlepGenerator() {
+MinBlepGenerator::MinBlepGenerator() : fifo_{kRingBufferSize} {
+  ring_buffer_.fill(0.0f);
   over_sampling_ratio_ = 16;
   zero_crossings_ = 16;
   return_derivative_ = false;
@@ -93,12 +94,11 @@ juce::Array<float> MinBlepGenerator::min_blep_deriv_array() {
 }
 
 void MinBlepGenerator::Clear() {
-  jassert(currentActiveBlepOffsets.size() == 0);
-
-  currentActiveBlepOffsets.clear();
+  ring_buffer_.fill(0.0f);
+  fifo_.reset();
 }
 bool MinBlepGenerator::IsClear() const {
-  return currentActiveBlepOffsets.isEmpty();
+  return fifo_.getNumReady() == 0;
 }
 
 // todo below calculation seems sus - there is more straightforward impl in
@@ -186,6 +186,8 @@ void MinBlepGenerator::BuildBlep() const {
         static_cast<float>(ramp / static_cast<double>(n - 1));
   }
 
+  DBG(min_blep_array().size());
+
   // todo assert fails here - problem?
   // jassert(fabsf(minBlepDerivArray[0]) < 0.01f);
   // todo assert here fails - problem?
@@ -204,27 +206,67 @@ void MinBlepGenerator::BuildBlep() const {
 }
 
 void MinBlepGenerator::AddBlep(BlepOffset newBlep) {
-  jassert(newBlep.offset <= 0);
+  const double freqMultiple = over_sampling_ratio_ * proportional_blep_freq_;
+  const double exactBlepOffset = newBlep.offset;
 
-  newBlep.freqMultiple = over_sampling_ratio_ * proportional_blep_freq_;
-  currentActiveBlepOffsets.add(newBlep);
+  const auto& blepTable = minBlepArray;
+  const auto& derivTable = minBlepDerivArray;
+
+  const int maxLength = static_cast<int>(static_cast<double>(blepTable.size()) / freqMultiple) + 1;
+
+  int start1, size1, start2, size2;
+  fifo_.prepareToWrite(kRingBufferSize, start1, size1, start2, size2);
+  const int writeIndex = start1;
+
+  for (int p = 0; p < maxLength; ++p) {
+    const double outputSamplesSinceBlep = exactBlepOffset + static_cast<double>(p) + 1;
+    if (outputSamplesSinceBlep < 0) continue;
+
+    const double currentBlepTableSampleExact = freqMultiple * outputSamplesSinceBlep;
+    const double depthLimited = proportional_blep_freq_;
+    const double currentBlepDerivTableSampleExact = depthLimited * over_sampling_ratio_ * outputSamplesSinceBlep;
+
+    bool blepValid = false;
+    float correction = 0.0f;
+
+    // 0th order
+    int tableIdx = static_cast<int>(currentBlepTableSampleExact);
+    if (std::abs(newBlep.pos_change_magnitude) > 0 && tableIdx < blepTable.size() - 1) {
+      double frac = currentBlepTableSampleExact - tableIdx;
+      float val = blepTable[tableIdx] + static_cast<float>(frac * (blepTable[tableIdx + 1] - blepTable[tableIdx]));
+      correction += val * static_cast<float>(newBlep.pos_change_magnitude);
+      blepValid = true;
+    }
+
+    // 1st order
+    int derivIdx = static_cast<int>(currentBlepDerivTableSampleExact);
+    if (std::abs(newBlep.vel_change_magnitude) > 0 && derivIdx < derivTable.size() - 1) {
+      double frac = currentBlepDerivTableSampleExact - derivIdx;
+      float val = derivTable[derivIdx] + static_cast<float>(frac * (derivTable[derivIdx + 1] - derivTable[derivIdx]));
+      correction += val * static_cast<float>(newBlep.vel_change_magnitude);
+      blepValid = true;
+    }
+
+    if (!blepValid && p > 10) break;
+
+    if (correction != 0.0f) {
+      int writePos = (writeIndex + p) % kRingBufferSize;
+      ring_buffer_[static_cast<size_t>(writePos)] += correction;
+    }
+  }
+
+  int currentReady = fifo_.getNumReady();
+  if (maxLength > currentReady) {
+    int toAdd = maxLength - currentReady;
+    toAdd = std::min(toAdd, fifo_.getFreeSpace());
+    fifo_.finishedWrite(toAdd);
+  }
 }
 
 void MinBlepGenerator::AddBlepArray(const juce::Array<BlepOffset>& newBleps) {
-  currentActiveBlepOffsets.addArray(newBleps, 0, newBleps.size());
-}
-
-juce::Array<MinBlepGenerator::BlepOffset> MinBlepGenerator::GetNextBleps() {
-  juce::Array<MinBlepGenerator::BlepOffset> newBleps;
-  newBleps.addArray(currentActiveBlepOffsets, 0,
-                    currentActiveBlepOffsets.size());
-
-  jassert(newBleps.size() == currentActiveBlepOffsets.size());
-
-  // CLEAR the array ...
-  currentActiveBlepOffsets.clearQuick();
-
-  return newBleps;
+  for (const auto& blep : newBleps) {
+    AddBlep(blep);
+  }
 }
 
 // REAL TIME ::::: the core functions :::::
@@ -241,315 +283,35 @@ void MinBlepGenerator::ProcessBlock(float* buffer, int numSamples) {
   // MUST be done BEFORE we ADD the bleps
   last_value_ = buffer[numSamples - 1];
 
-  // todo: what is this even and do we even care?
-  // Hmmm .... once in a while there is a nonlinearity at the edge ....
-  // inwhich case, we probably shouldn't update the delta ...
-  if (static_cast<int>(currentActiveBlepOffsets.getLast().offset) !=
-      -(numSamples - 1)) {
-    last_delta_ = buffer[numSamples - 1] - buffer[numSamples - 2];
-  } else  // hacky .... hmmm ...
-  {
-    last_delta_ = buffer[numSamples - 2] - buffer[numSamples - 3];
-  }
-
   // PROCESS BLEPS :::::
   ProcessCurrentBleps(buffer, numSamples);
 }
 
-std::ranges::view auto MinBlepGenerator::ReverseActiveBlepOffsets() {
-  // if we used enumerate here, the indices wouldn't be reversed, only the values would,
-  // so we use zip and iota instead
-  return std::views::zip(
-    std::views::iota(0, currentActiveBlepOffsets.size()) | std::views::reverse,
-    std::views::reverse(currentActiveBlepOffsets));
-}
+void MinBlepGenerator::RescaleBlepsToBuffer(const float*, const int, const float) {}
 
-void MinBlepGenerator::RescaleBlepsToBuffer(const float* buffer,
-                                            const int numSamples,
-                                            const float shiftBlepsBy) {
-  // MUST be big enough to hold the entire wave after all ... and safety factor
-  // of 2
-  jassert(currentActiveBlepOffsets.size() < 1000);
-
-  // reverse so we can remove if needed as we iterate
-  for (auto [i, blep] : ReverseActiveBlepOffsets()) {
-    // confusingly, the nonlinearities actually occurred 1 sample BEFORE the
-    // number we get this is because the detector detects that one JUST OCCURED,
-    // and then adds it with the fractional offset from the last sample
-
-    // SCALE FREQ (to this bleps prop freq)
-    blep.freqMultiple = over_sampling_ratio_ * proportional_blep_freq_;
-
-    // MODIFY :::: the exact offset ...
-    // since this is an effect ... it manifests 1 sample later than the
-    // discontinuity
-    const float exactOffset = static_cast<float>(
-        -blep.offset +
-        static_cast<double>(
-            shiftBlepsBy));  // +1 here is NEEDED for flanger/chorus !!
-    blep.offset =
-        blep.offset -
-        static_cast<double>(shiftBlepsBy);  // starts compensating on the sample
-                                            // AFTER the blep ....
-
-    // ACTIVE blep .... (not upcoming)
-    if (exactOffset < 0) continue;
-
-    // CHECK :::: further away than 1 buffer ... should never happen
-    if (exactOffset > static_cast<float>(numSamples)) {
-      // LFOs have nonlinearities that affect the audio 1 sample later
-      // ... so we can get edge cases here ....
-      // simply roll it over to the next buffer ...
-      DBG("OUT OF RANGE NONLINEARITY ??? " + juce::String(exactOffset));
-      blep.offset =
-          static_cast<double>(exactOffset - static_cast<float>(numSamples));
-      continue;
-    }
-
-    // CALCULATE the MAGNITUDE of the nonlinearity
-    float magnitude_position = 0;
-    float magnitude_velocity = 0;
-    {
-      float currentDelta = 0;
-      // CALCULATE the integer (sample) offset, and the fractional (subsample)
-      // offset
-      double intOffset = static_cast<int>(exactOffset);
-      const double fraction = modf(static_cast<double>(exactOffset), &intOffset);
-
-      // UNLESS we're on the edge case, we get the most recent value from the
-      // buffer ...
-      if (intOffset > 0) last_value_ = buffer[static_cast<int>(intOffset) - 1];
-
-      // 1st order (velocity)
-      // MUST do this one first - since the 0th order may change the LastValue
-      {
-        // FIND the last and next deltas ... and compute the difference ....
-        if (intOffset >= 2)
-          last_delta_ = buffer[static_cast<int>(intOffset) - 1] -
-                        buffer[static_cast<int>(intOffset) - 2];
-        else if (intOffset >= 1)
-          last_delta_ = buffer[static_cast<int>(intOffset) - 1] - last_value_;
-
-        // DEFAULT :: assume flat ...
-        currentDelta = 0;
-
-        if (intOffset + 1 < numSamples)
-          currentDelta = buffer[static_cast<int>(intOffset) + 1] -
-                         buffer[static_cast<int>(intOffset)];
-
-        // CALCULATE change in velocity
-        const double change_in_delta =
-            static_cast<double>(currentDelta - last_delta_);
-        const double prop_depth = proportional_blep_freq_;
-
-        // magnitude_velocity = -4*change_in_delta*(1/propDepth);
-        // jassert(magnitude_velocity <= 1);
-
-        // actualCurrentAngleDelta below is added to compensate for higher order
-        // nonlinearities 66 here was experimentally determined ...
-        magnitude_velocity = static_cast<float>(
-            64.7 * change_in_delta * (1 / prop_depth) * change_in_delta);
-      }
-
-      // 0th order (position)
-      {
-        // CALCULATE the magnitude of the 0 order nonlinearity *change in
-        // position*
-        const float extrapolated_last_pos = static_cast<float>(
-            static_cast<double>(last_value_ + last_delta_) * fraction);
-        const float extrapolated_jump_pos = static_cast<float>(
-            static_cast<double>(buffer[static_cast<int>(intOffset)] -
-                                currentDelta) *
-            (1 - fraction));
-        magnitude_position = extrapolated_last_pos - extrapolated_jump_pos;
-      }
-    }
-
-    // TOO SMALL :::
-    /// no need to compensating for tiny discontinuities
-    if (fabsf(magnitude_position) < .001f &&
-        fabsf(magnitude_velocity) < .001f) {
-      currentActiveBlepOffsets.remove(i);
-      continue;
-    }
-
-    // NEGLIGIBLE MAGNITUDES :::
-    /// zero out any tiny effects here, so we don't waste time calculating them
-    if (fabsf(magnitude_position) < .001f) magnitude_position = 0;
-    if (fabsf(magnitude_velocity) < .001f) magnitude_velocity = 0;
-
-    // ADD ::::
-    // GAIN factors ... how big of a discontinutiy are we talking about ?
-    blep.pos_change_magnitude = static_cast<double>(magnitude_position);
-    blep.vel_change_magnitude = static_cast<double>(magnitude_velocity);
-  }
-}
-
-/**
- * Applies a correction, looked up from the appropriate blep or blamp
- * correction table (oversampled), at a specified index + subsample within
- * that table, using lerp to interp between the samples of the correction table.
- * The correction is added to the given outputSampleIdx within outputBuffer.
- */
-static void lerpCorrection(float* outputBuffer,
-                           const juce::Array<float>& correctionTable,
-                           const int correctionSample,
-                           const double correctionSubSample,
-                           const double discontinuityMagnitude,
-                           const int outputSampleIdx) {
-  // We have the subsample within the blep table, not just the sample, so we'll
-  // use that with linear interpolation to ensure we get an even more accuracte
-  // blep value to mix in.
-  const float blepSampleBefore =
-      correctionTable.getRawDataPointer()[correctionSample];
-  float blepSampleAfter = blepSampleBefore;
-
-  if (static_cast<int>(correctionSample) + 1 < correctionTable.size())
-    blepSampleAfter =
-        correctionTable
-            .getRawDataPointer()[static_cast<int>(correctionSample) + 1];
-
-  const float delta = blepSampleAfter - blepSampleBefore;
-  float exactValue =
-      static_cast<float>(static_cast<double>(blepSampleBefore) +
-                         correctionSubSample * static_cast<double>(delta));
-
-  // SCALE by the discontinuity magnitude
-  exactValue *= static_cast<float>(discontinuityMagnitude);
-
-  // todo: for debug only
-  std::cout << exactValue << std::endl;
-
-  // ADD to the thruput
-  outputBuffer[static_cast<int>(outputSampleIdx)] += exactValue;
-}
-
-// TODO: this approach was what I originally copied and does work, but
-//  I think a much more efficient approach would not actively track "ongoing
-//  bleps.". Instead, we would use a ring buffer sized 2x the length of the blep
-//  signal. When a blep is detected, it would simply be scaled _and added to the
-//  ring buffer_ When the buffer advances, it would zero out the "old" part of
-//  the buffer being expanded to. This way, rather than constantly track bleps,
-//  we simply accumulate everything in a buffer and Ultimately add that buffer
-//  to the signal. Note it has to deal with both scaling and frequency
-//  correction. But frequency should have a lower bound as below that bound we
-//  no longer have aliasing, and higher frequency only makes the signal shorter,
-//  so we can definitely size the ring buffer so that it will accommodate the
-//  longest possible blep.
 void MinBlepGenerator::ProcessCurrentBleps(float* buffer,
                                            const int numSamples) {
-  blepTracking.clear();
-  blepTracking.addArray(buffer, numSamples);
-  // PROCESS ALL BLEPS -
-  // for each offset, mix a portion of the blep array with the output ....
-  // backwards so we can remove if needed as we iterate
-  // we skip the first blep for some reason
-  for (auto [i, blep] : ReverseActiveBlepOffsets()) {
+  const int available = fifo_.getNumReady();
+  if (available == 0) return;
 
-    // this determines how fast we step through the (oversampled) blep table
-    // per output sample - it scales output samples into kernel samples (the
-    // blep table is the kernel)
-    const double freqMultiple = blep.freqMultiple;
-    // remember this will be negative when the blep occurred this buffer (as
-    // opposed to a recent previous buffer) and the magnitude (ignoring the
-    // negative sign) is the index it occurred at in this buffer.
-    const double exactBlepOffset = blep.offset;
+  const int to_read = std::min(available, numSamples);
+  int start1, size1, start2, size2;
+  fifo_.prepareToRead(to_read, start1, size1, start2, size2);
 
-    // mix the minBLEP table into the buffer at the point where the blep occurs
-    // within the current buffer.
-    // To do this, we first have to step through the current buffer until we
-    // reach a point where the blep has occurred (which will already be true if
-    // the blep happened in a recent previous buffer).
-    for (const auto p : std::views::iota(0, numSamples)) {
-      // figure out how many output samples (p) have transpired
-      // since the blep - this will be negative if we haven't yet reached the
-      // blep. +1 because the blep needs to be mixed in starting on the LOW
-      // SAMPLE
-      const auto outputSamplesSinceBlep =
-          exactBlepOffset + static_cast<double>(p) + 1;
-
-      // by scaling by freqMultiple, we convert to a lookup on the blep table
-      // (which is oversampled). Think of it as a "blep sample". It's a double
-      // because we also preserve the fractional part (subsample). Again, this
-      // number is negative and basically meaningless if we haven't yet reached
-      // the blep todo we shouldn't even bother to calculate until we've passed
-      // the blep
-      const double currentBlepTableSampleExact =
-          freqMultiple * outputSamplesSinceBlep;
-      double currentBlepTableSample = 0;
-      // the fractional part of the "blep sample" we need.
-      const double currentBlepTableSubSample =
-          modf(currentBlepTableSampleExact, &currentBlepTableSample);
-
-      // LIMIT the correction applied for velocity discontinuity
-      // otherwise, it can get TOO large (for example at high freqs) and ends up
-      // over-correcting. This limiting is done by reducing how fast we advance
-      // through the BLAMP table - adjusting the scaling factor that converts
-      // from output sample idx to blamp lookup idx.
-      const double depthLimited =
-          proportional_blep_freq_;  // jlimit<double>(.1, 1,
-                                    // proportionalBlepFreq);
-      const double currentBlepDerivTableSampleExact =
-          depthLimited * over_sampling_ratio_ *
-          (exactBlepOffset + static_cast<double>(p) + 1);
-      double currentBlepDerivTableSample = 0;
-      const double currentBlepDerivTableSubSample =
-          modf(currentBlepDerivTableSampleExact, &currentBlepDerivTableSample);
-
-      // DONE ... we reached the place where this blep should end (which may be
-      // after multiple bufferfulls of applying the blep)
-      if (static_cast<int>(currentBlepTableSampleExact) > minBlepArray.size() &&
-          static_cast<int>(currentBlepDerivTableSampleExact) >
-              minBlepArray.size())
-        break;
-
-      // BLEP has not yet occurred ...
-      if (currentBlepTableSampleExact < 0) continue;
-
-      // 0TH ORDER (POSITION DISCONTINUITY) COMPENSATION ::::
-      // we reached the location of this blep or we are somewhere after it
-      // We need to mix in the corresponding value in the blep table. E.g.
-      // if blep occurred 3 samples ago we should mix in sample 3 of the blep
-      // table. But that's not quite the case - the blep table is oversampled,
-      // so we need to convert the index to one on the blep table (using the
-      // subsample information we preserved about the blep). We also don't want
-      // to mix the blep in at its full value - we scale the blep based on how
-      // big the original blep discontinuity was.
-      if (fabs(blep.pos_change_magnitude) > 0 &&
-          currentBlepTableSample < minBlepArray.size()) {
-        lerpCorrection(buffer, minBlepArray,
-                       static_cast<int>(currentBlepTableSample),
-                       currentBlepTableSubSample, blep.pos_change_magnitude,
-                       static_cast<int>(p));
-      }
-
-      // 1ST ORDER COMPENSATION ::::
-      /// add the BLEP DERIVATIVE to compensate for discontinuties in the
-      /// VELOCITY - this is BLAMP basically.
-      if (fabs(blep.vel_change_magnitude) > 0 &&
-          currentBlepDerivTableSampleExact < minBlepDerivArray.size()) {
-        lerpCorrection(buffer, minBlepDerivArray,
-                       static_cast<int>(currentBlepDerivTableSample),
-                       currentBlepDerivTableSubSample,
-                       blep.vel_change_magnitude, static_cast<int>(p));
-      }
+  if (size1 > 0) {
+    for (int i = 0; i < size1; ++i) {
+      buffer[i] += ring_buffer_[static_cast<size_t>(start1 + i)];
+      ring_buffer_[static_cast<size_t>(start1 + i)] = 0.0f;
     }
-
-    // UPDATE ::::
-    blep.offset = blep.offset + static_cast<double>(numSamples);
-    if (blep.offset * freqMultiple > minBlepArray.size()) {
-      currentActiveBlepOffsets.remove(i);
-    } else
-      currentActiveBlepOffsets.setUnchecked(i, blep);
+  }
+  if (size2 > 0) {
+    for (int i = 0; i < size2; ++i) {
+      buffer[size1 + i] += ring_buffer_[static_cast<size_t>(start2 + i)];
+      ring_buffer_[static_cast<size_t>(start2 + i)] = 0.0f;
+    }
   }
 
-  // log before, after, and difference
-  // TODO: FOr debugging only
-  // for (const auto i : std::views::iota(0, numSamples)) {
-  //   const auto before = blepTracking[i];
-  //   const auto after = buffer[i];
-  //   std::cout << before << "," << (after-before) << "," << after << std::endl;
-  // }
+  fifo_.finishedRead(to_read);
 }
 
 }  // namespace audio_plugin
