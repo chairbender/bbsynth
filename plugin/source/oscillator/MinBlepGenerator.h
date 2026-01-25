@@ -79,6 +79,8 @@ class MinBlepGenerator {
   };
 
   juce::Array<BlepOffset, juce::CriticalSection> currentActiveBlepOffsets;
+  // TODO: for debugging only
+  juce::Array<float> blepTracking;
 
   MinBlepGenerator();
   ~MinBlepGenerator();

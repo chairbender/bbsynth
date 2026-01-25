@@ -435,6 +435,8 @@ static void lerpCorrection(float* outputBuffer,
 //  longest possible blep.
 void MinBlepGenerator::ProcessCurrentBleps(float* buffer,
                                            const int numSamples) {
+  blepTracking.clear();
+  blepTracking.addArray(buffer, numSamples);
   // PROCESS ALL BLEPS -
   // for each offset, mix a portion of the blep array with the output ....
   // backwards so we can remove if needed as we iterate
@@ -536,6 +538,14 @@ void MinBlepGenerator::ProcessCurrentBleps(float* buffer,
       currentActiveBlepOffsets.remove(i);
     } else
       currentActiveBlepOffsets.setUnchecked(i, blep);
+  }
+
+  // log before, after, and difference
+  // TODO: FOr debugging only
+  for (const auto i : std::views::iota(0, numSamples)) {
+    const auto before = blepTracking[i];
+    const auto after = buffer[i];
+    std::cout << before << "," << (after-before) << "," << after << std::endl;
   }
 }
 
