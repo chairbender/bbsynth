@@ -108,12 +108,6 @@ bool MinBlepGenerator::IsClear() const {
   return true;
 }
 
-// todo below calculation seems sus - there is more straightforward impl in
-// cardinal
-//  that we could try to use instead. The generated minBlepArray doesn't seem
-//  right - values are WAY too big. Could be rounding or precision error caused
-//  by my changes?
-
 // MIN BLEP - freq domain calc
 void MinBlepGenerator::BuildBlep() const {
   // ALREADY built - so return ...
@@ -173,17 +167,14 @@ void MinBlepGenerator::BuildBlep() const {
   dumpArrayToCsv(minBlepDerivArray, "minblepDevarr.csv");
 
   // Normalize
-  double maxVal =
+  const double maxVal =
       static_cast<double>(minBlepArray.getUnchecked(static_cast<int>(n - 1)));
   juce::FloatVectorOperations::multiply(minBlepArray.getRawDataPointer(),
                                         static_cast<float>(1.0 / maxVal), n);
 
   // Normalize ...
-  float max = juce::FloatVectorOperations::findMaximum(
+  const float max = juce::FloatVectorOperations::findMaximum(
       minBlepDerivArray.getRawDataPointer(), n);
-  // todo assert fails - problem?
-  // jassert(fabs(static_cast<double>(max - minBlepDerivArray.getLast())) <
-  // 0.0001);
   juce::FloatVectorOperations::multiply(minBlepDerivArray.getRawDataPointer(),
                                         1.0f / max, minBlepDerivArray.size());
 
@@ -194,11 +185,6 @@ void MinBlepGenerator::BuildBlep() const {
   }
 
   DBG(min_blep_array().size());
-
-  // todo assert fails here - problem?
-  // jassert(fabsf(minBlepDerivArray[0]) < 0.01f);
-  // todo assert here fails - problem?
-  // jassert(fabsf(minBlepDerivArray[static_cast<int>(n - 1)]) < 0.01f);
 
   // SUBTRACT 1 and invert so the signal (so it goes 1->0)
   juce::FloatVectorOperations::add(minBlepArray.getRawDataPointer(), -1.f,
@@ -216,9 +202,15 @@ void MinBlepGenerator::BuildBlep() const {
 void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // this determines how fast we step through the (oversampled) blep table
   // per output sample - it scales output samples into kernel samples (the
-  // blep table is the kernel)
-  // TODO: parameter toggle between fixed multiple and scaling based on freq
-  const auto freq_multiple = aa_scaling_ ? 8 : kBlepOversampleRatio * proportional_blep_freq_;
+  // blep table is the kernel).
+  // We give the ability to have it respond to the frequency of the oscillator,
+  // which slightly attenuates the higher partials of the sound.
+  // When it's off, it stays fixed at the nyquist.
+  // My understanding is, having it on supposedly makes it sound more "analog",
+  // imitating the limitations of analog hardware such as op-amp slew rate limits.
+  // IMHO, when it's on, it sounds more like a cheap children's toy, but
+  // that's why we make it a parameter! (It's entirely possible I've implemented it wrong)
+  const auto freq_multiple = kBlepOversampleRatio * (aa_scaling_ ? proportional_blep_freq_ : .5);
   // how long the blep should last for the current sample rate
   // blep lengths are the same - the blep is a bandlimited step (infinite freq)
   //  all that changes is how loud the blep is to counteract the step
