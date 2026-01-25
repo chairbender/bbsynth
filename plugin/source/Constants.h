@@ -6,7 +6,8 @@ namespace audio_plugin {
 constexpr auto kOversample = 1;
 constexpr double kBlepOversampleRatio = 16;
 constexpr double kBlepZeroCrossings = 16;
-// proportion of sample rate
+// proportion of sample rate.
+// TODO: Try adjusting to .125 and see what happens
 constexpr auto kBlepProportionalFreq = 0.5;
 // todo: may change depending on values in MinBlepGenerator
 constexpr auto kBlepTableSize = 512;
