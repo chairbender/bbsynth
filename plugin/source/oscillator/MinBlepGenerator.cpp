@@ -212,7 +212,18 @@ void MinBlepGenerator::BuildBlep() const {
 //  NOT sure if FIFO is the right DS for this - what we need is really just a ring buffer
 //  (I have working example in sapf repo)
 void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
-  ;
+  // this determines how fast we step through the (oversampled) blep table
+  // per output sample - it scales output samples into kernel samples (the
+  // blep table is the kernel)
+  // It is dynamic because we change it depending on the frequency of the note.
+  // TODO: shouldn't technically be needed but giving it a try since the other
+  //  impl does it.
+  const auto freq_multiple = kBlepOversampleRatio * proportional_blep_freq_;
+  // how long the blep should last for the current sample rate
+  // blep lengths are the same - the blep is a bandlimited step (infinite freq)
+  //  all that changes is how loud the blep is to counteract the step
+  const int blep_out_length = static_cast<int>(kBlepTableSize / freq_multiple);
+
   const double blep_out_start_idx_exact = newBlep.offset;
   // todo: isn't there a bettter function for this?
   const double blep_out_start_idx_frac = blep_out_start_idx_exact - std::floor(blep_out_start_idx_exact);
@@ -226,7 +237,7 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // being added only on our sample 6. At that point, we are already .66 (1-.33) of the way into
   // the blep (downsampled), = .66*kFreqMultiple samples into the oversampled blep table.
   // This simplifies the loop calculation - we can simply add kFreqMultiple * (iteration count) to this value.
-  const auto blep_table_start_idx_exact = (1 - blep_out_start_idx_frac) * kFreqMultiple;
+  const auto blep_table_start_idx_exact = (1 - blep_out_start_idx_frac) * freq_multiple;
   // TODO: use template and loop the tables separately depending on the type of blep
   // todo: should be -1 for interp of last sample?
   // we start at 1 because the blep always starts somewhere between samples,
@@ -234,7 +245,7 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // where the blep ACTUALLY occurred.
   // For example if blep starts at out sample 3.34, sample 3 will have no blep, sample 4 WILL have blep,
   // so there's nothing to compute for sample 3
-  for (const int out_sample_offset : std::views::iota(1, kBlepOutLength)) {
+  for (const int out_sample_offset : std::views::iota(1, blep_out_length)) {
     // what output buffer sample are we currently determining the output for?
     const int output_sample_idx = first_blep_out_idx + out_sample_offset;
     // where exactly are we within the blep for this output sample?
@@ -248,7 +259,7 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
     // On the next out sample, 7, we have moved +1 in the out sample buffer, but kFreqMultiple in the
     // oversampled blep table. So (.66*kFreqMultiple) + kFreqMultiple will be the exact position in the blep table.
     // On sample 8, it's (.66*kFreqMultiple) + kFreqMultiple*2, and then *3, and so on.
-    const auto blep_table_idx_exact = (out_sample_offset - 1) * kFreqMultiple + blep_table_start_idx_exact;
+    const auto blep_table_idx_exact = (out_sample_offset - 1) * freq_multiple + blep_table_start_idx_exact;
     // we will need to interpolate between indices of the blep table
     const auto blep_table_idx_1 = static_cast<int>(blep_table_idx_exact);
     // this is the reason we iterate up to kBlepOutLength - 1, otherwise

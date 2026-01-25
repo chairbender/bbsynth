@@ -11,15 +11,6 @@ constexpr double kBlepZeroCrossings = 16;
 constexpr auto kBlepProportionalFreq = 0.5;
 // todo: may change depending on values in MinBlepGenerator
 constexpr auto kBlepTableSize = 512;
-// this determines how fast we step through the (oversampled) blep table
-// per output sample - it scales output samples into kernel samples (the
-// blep table is the kernel)
-constexpr int kFreqMultiple = static_cast<int>(kBlepOversampleRatio * kBlepProportionalFreq);
-// how long the blep should last for the current sample rate
-// blep lengths are the same - the blep is a bandlimited step (infinite freq)
-//  all that changes is how loud the blep is to counteract the step
-// TODO: sample rate can vary - shouldn't this not be constexpr?
-constexpr int kBlepOutLength = kBlepTableSize / kFreqMultiple;
 // at drive slider of "0" we still want SOME drive - the "natural" drive of the OTA.
 // Having 0 actual drive creates instability;
 constexpr auto kMinDrive = .5f;

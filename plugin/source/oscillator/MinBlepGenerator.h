@@ -55,7 +55,6 @@ class MinBlepGenerator {
   float last_delta_;  // previous derivative ...
 
   // Tweaking the Blep F
-  // TODO: old code used to use this, but we AREN'T using it right now and instead have a fixed freq
   double proportional_blep_freq_;
   bool return_derivative_;  // set this to return the FIRST DERIVATIVE of the
                             // blep (for first der. discontinuities)
