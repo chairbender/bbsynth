@@ -260,13 +260,17 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // ".33 downsampled" actually means .33 * freq_multiple. And
   // even though the table is discrete, we use the decimal portion
   // of the "index" to help interpolate between blep table values.
-  const double blep_out_start_idx_exact = newBlep.offset - 1;
+  // to prevent issues that happen around offsets at sample 0,
+  // we add 1 to some values then subtract when needed
+  constexpr auto avoid_negative_offset = 1;
+  const double blep_out_start_idx_exact = newBlep.offset - 1 + avoid_negative_offset;
   double first_blep_out_idx;
   const auto blep_out_start_idx_frac = std::modf(blep_out_start_idx_exact, &first_blep_out_idx);
   // in the example, this ends up as 30 due to the + 1, which is where we want to start
   // mixing in the blep signal
   // (at blep table sample (downsampled) index .66)
-  first_blep_out_idx++;
+  // we don't need to do anything since offset is already +1.
+  // first_blep_out_idx = first_blep_out_idx + 1 - avoid_negative_offset -i.e. no-op;
   // Saves some calculation. As noted in the example, if blep occurs at
   // 30.33, then it should "start" on sample 29.33, but the first actual
   // output we produce for the blep will be at sample 30, and we will be at
