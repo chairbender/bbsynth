@@ -344,13 +344,7 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
     if (wave.size() != numSamples) wave.resize(numSamples);
     juce::FloatVectorOperations::clear(wave.getRawDataPointer(), numSamples);
   } else {
-    BuildWave(numSamples);
-  }
-
-  // ADD BAND-LIMITED (minBLEP) transitions :::
-  // LFO doesn't do blepping, so no need for this in such cases
-  if constexpr (!IsLFO) {
-    if (mode_ == ANTIALIAS) {
+    if constexpr (!IsLFO) {
       // Since we KNOW the intended F ... relative to F(sampling)
       // We can tweak the minBLEP to limit any harmonic above 4*(desired F)
 
@@ -362,6 +356,15 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
 
       blep_generator_.set_limiting_freq(
           static_cast<float>(relativeFreq));  // up to the 2nd harmonic ..
+    }
+    BuildWave(numSamples);
+  }
+
+  // ADD BAND-LIMITED (minBLEP) transitions :::
+  // LFO doesn't do blepping, so no need for this in such cases
+  if constexpr (!IsLFO) {
+    if (mode_ == ANTIALIAS) {
+
       blep_generator_.ProcessBlock(wave.getRawDataPointer(), numSamples);
 
       // dc blocker (1st-order high-pass): y[n] = x[n] - x[n-1] + R*y[n-1]
