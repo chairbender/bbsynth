@@ -111,6 +111,17 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
   AddParameterListener("vcoModOsc2", OscillatorVoiceParamId::kVcoModOsc2, [update_vco_mod](auto) { update_vco_mod(); });
   AddParameterListener("vcoModLfoFreq", OscillatorVoiceParamId::kVcoModLfoFreq, [update_vco_mod](auto) { update_vco_mod(); });
   AddParameterListener("vcoModEnv1Freq", OscillatorVoiceParamId::kVcoModEnv1Freq, [update_vco_mod](auto) { update_vco_mod(); });
+  AddParameterListener("antiAlias", OscillatorVoiceParamId::kAntiAlias,
+                       [this](const float value) {
+                         const auto mode = value > 0.5f ? ANTIALIAS : NO_ANTIALIAS;
+                         waveGenerator_.set_mode(mode);
+                         wave2Generator_.set_mode(mode);
+                       });
+  AddParameterListener("antiAliasKeyScaling", OscillatorVoiceParamId::kAntiAliasKeyScaling,
+                       [this](const float value) {
+                         waveGenerator_.set_aa_key_scaling(value > 0);
+                         wave2Generator_.set_aa_key_scaling(value > 0);
+                       });
 
   // Wave Types
   AddParameterListener("waveType", OscillatorVoiceParamId::kWaveType,

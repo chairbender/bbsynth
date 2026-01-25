@@ -318,6 +318,10 @@ template <bool IsLFO>
 void WaveGenerator<IsLFO>::set_hard_sync_mode(const HardSyncMode mode) {
   hard_sync_mode_ = mode;
 }
+template <bool IsLFO>
+void WaveGenerator<IsLFO>::set_aa_key_scaling(bool enable) {
+  blep_generator_.set_aa_key_scaling(enable);
+}
 
 template <bool IsLFO>
 void WaveGenerator<IsLFO>::clear() {
@@ -336,19 +340,15 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
     const int numSamples) {
   jassert(sample_rate_ != 0.);
 
-  if (delta_base_ == 0.0) return;
-
-  // todo FIX !!!!
-  if (volume_ == 0. && gain_last_[0] == 0. && gain_last_[1] == 0. &&
-      blep_generator_.IsClear())
+  if (delta_base_ == 0.0 && volume_ == 0. && gain_last_[0] == 0. &&
+      gain_last_[1] == 0. && blep_generator_.IsClear())
     return;
 
-  BuildWave(numSamples);
-
-  // ADD BAND-LIMITED (minBLEP) transitions :::
-  // LFO doesn't do blepping, so no need for this in such cases
-  if constexpr (!IsLFO) {
-    if (mode_ == ANTIALIAS) {
+  if (delta_base_ == 0.0) {
+    if (wave.size() != numSamples) wave.resize(numSamples);
+    juce::FloatVectorOperations::clear(wave.getRawDataPointer(), numSamples);
+  } else {
+    if constexpr (!IsLFO) {
       // Since we KNOW the intended F ... relative to F(sampling)
       // We can tweak the minBLEP to limit any harmonic above 4*(desired F)
 
@@ -360,6 +360,15 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
 
       blep_generator_.set_limiting_freq(
           static_cast<float>(relativeFreq));  // up to the 2nd harmonic ..
+    }
+    BuildWave(numSamples);
+  }
+
+  // ADD BAND-LIMITED (minBLEP) transitions :::
+  // LFO doesn't do blepping, so no need for this in such cases
+  if constexpr (!IsLFO) {
+    if (mode_ == ANTIALIAS) {
+
       blep_generator_.ProcessBlock(wave.getRawDataPointer(), numSamples);
 
       // dc blocker (1st-order high-pass): y[n] = x[n] - x[n-1] + R*y[n-1]
@@ -515,7 +524,7 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
           //   toggle-able, and comparing behavior.
           // ADD the blep ...
           MinBlepGenerator::BlepOffset blep;
-          blep.offset = static_cast<double>(-next_hard_sync_reset_sample);
+          blep.offset = static_cast<double>(next_hard_sync_reset_sample);
 
           // CALCULATE the MAGNITUDE of ths 2nd ORDER (VEL) discontinuity
           // TRIG :: calculate the angle (rise/run) before and after the
@@ -724,7 +733,7 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
 
             if (crossed) {
               MinBlepGenerator::BlepOffset blep;
-              blep.offset = percAfterRoll - static_cast<double>(i + 1);
+              blep.offset = -(percAfterRoll - static_cast<double>(i + 1));
               blep.pos_change_magnitude = magnitude;
               blep.vel_change_magnitude = 0;
               blep_generator_.AddBlep(blep);
@@ -761,7 +770,7 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
              * part)
              */
             MinBlepGenerator::BlepOffset blep;
-            blep.offset = percAfterRoll - static_cast<double>(i + 1);
+            blep.offset = -(percAfterRoll - static_cast<double>(i + 1));
 
             // MAGNITUDE of 1st order nonlinearity is 2 or -2 :::
             if (wave_type_ == sawRise)
@@ -806,7 +815,8 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
             }
 
             MinBlepGenerator::BlepOffset blep;
-            blep.offset = percAfterRoll - static_cast<double>(i + 1);
+            // todo: fix this weird calculation (for ALL offsets)
+            blep.offset = -(percAfterRoll - static_cast<double>(i + 1));;
 
             // SYMETRY :::::
             // since this is a triangle
