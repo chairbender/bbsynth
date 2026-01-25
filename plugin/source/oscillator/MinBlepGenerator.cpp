@@ -73,6 +73,8 @@ MinBlepGenerator::~MinBlepGenerator() {
   //
 }
 
+
+
 void MinBlepGenerator::set_limiting_freq(float proportionOfSamplingRate) {
   //
   // Instead of limiting to the sampling F,
@@ -85,6 +87,9 @@ void MinBlepGenerator::set_limiting_freq(float proportionOfSamplingRate) {
   proportionOfSamplingRate =
       juce::jlimit<float>(0.0001f, 1.0f, proportionOfSamplingRate);
   proportional_blep_freq_ = static_cast<double>(proportionOfSamplingRate);
+}
+void MinBlepGenerator::set_aa_key_scaling(const bool enable) {
+  aa_scaling_ = enable;
 }
 
 juce::Array<float> MinBlepGenerator::min_blep_array() { return minBlepArray; }
@@ -213,7 +218,7 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // per output sample - it scales output samples into kernel samples (the
   // blep table is the kernel)
   // TODO: parameter toggle between fixed multiple and scaling based on freq
-  const auto freq_multiple = 8; // TODO: restore kBlepOversampleRatio * proportional_blep_freq_;
+  const auto freq_multiple = aa_scaling_ ? 8 : kBlepOversampleRatio * proportional_blep_freq_;
   // how long the blep should last for the current sample rate
   // blep lengths are the same - the blep is a bandlimited step (infinite freq)
   //  all that changes is how loud the blep is to counteract the step

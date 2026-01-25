@@ -117,6 +117,11 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
                          waveGenerator_.set_mode(mode);
                          wave2Generator_.set_mode(mode);
                        });
+  AddParameterListener("antiAliasKeyScaling", OscillatorVoiceParamId::kAntiAliasKeyScaling,
+                       [this](const float value) {
+                         waveGenerator_.set_aa_key_scaling(value > 0);
+                         wave2Generator_.set_aa_key_scaling(value > 0);
+                       });
 
   // Wave Types
   AddParameterListener("waveType", OscillatorVoiceParamId::kWaveType,
