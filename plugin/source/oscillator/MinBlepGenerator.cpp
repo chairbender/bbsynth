@@ -212,8 +212,7 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // this determines how fast we step through the (oversampled) blep table
   // per output sample - it scales output samples into kernel samples (the
   // blep table is the kernel)
-  // It is dynamic because we change it depending on the frequency of the note.
-  // TODO: decide if we want to scale AA based on the note freq or not. Let's make it a toggle-able parameter
+  // TODO: parameter toggle between fixed multiple and scaling based on freq
   const auto freq_multiple = 8; // TODO: restore kBlepOversampleRatio * proportional_blep_freq_;
   // how long the blep should last for the current sample rate
   // blep lengths are the same - the blep is a bandlimited step (infinite freq)
