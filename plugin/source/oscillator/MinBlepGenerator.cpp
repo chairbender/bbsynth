@@ -208,7 +208,6 @@ void MinBlepGenerator::BuildBlep() const {
 }
 
 
-// todo: all below comments hav some wrong assumptions and should be update
 void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // this determines how fast we step through the (oversampled) blep table
   // per output sample - it scales output samples into kernel samples (the
