@@ -318,6 +318,10 @@ template <bool IsLFO>
 void WaveGenerator<IsLFO>::set_hard_sync_mode(const HardSyncMode mode) {
   hard_sync_mode_ = mode;
 }
+template <bool IsLFO>
+void WaveGenerator<IsLFO>::set_aa_key_scaling(bool enable) {
+  blep_generator_.set_aa_key_scaling(enable);
+}
 
 template <bool IsLFO>
 void WaveGenerator<IsLFO>::clear() {

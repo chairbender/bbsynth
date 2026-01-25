@@ -66,6 +66,8 @@ class WaveGenerator {
 
   double cross_mod() const;
   void set_hard_sync_mode(HardSyncMode mode);
+  // see MinBlepGenerator.h
+  void set_aa_key_scaling(bool enable);
   // Enable/disable the post-BLEP DC blocker (1st-order high-pass) used in
   // ANTIALIAS mode
   void set_dc_blocker_enabled(bool enabled);

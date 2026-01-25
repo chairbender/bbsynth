@@ -58,6 +58,14 @@ class MinBlepGenerator {
   double proportional_blep_freq_;
   bool return_derivative_;  // set this to return the FIRST DERIVATIVE of the
                             // blep (for first der. discontinuities)
+  // when true, aa responds to proportional blep freq.
+  // when false, aa is fixed at nyquist.
+  // generally, aa scaling may sound more "analog" as it mimicks the limitations
+  // of the original analog oscillators (not able to perfectly output
+  // all partials of the oscillator due to factors like slew rate limits in op amps,
+  // parasitic capacitance, and component bandwidth limitations).
+  // But, it's provided as a toggle so we can see for ourselves if that's true!
+  bool aa_scaling_;
 
   struct BlepOffset {
     // index in current buffer where the blep starts
@@ -361,6 +369,7 @@ class MinBlepGenerator {
 
   // CUSTOM ::::
   void set_limiting_freq(float proportionOfSamplingRate);
+  void set_aa_key_scaling(bool enable);
 
   void BuildBlep() const;
   void AddBlep(const BlepOffset& newBlep);

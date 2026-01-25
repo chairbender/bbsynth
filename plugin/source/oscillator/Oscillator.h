@@ -45,7 +45,8 @@ enum class OscillatorVoiceParamId {
   kVco2Level,
   kFilterEnvSource,
   kAntiAlias,
-  kCount
+  kAntiAliasKeyScaling,
+  kCount,
 };
 
 struct OscillatorVoice : juce::SynthesiserVoice,
