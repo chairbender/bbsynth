@@ -281,7 +281,9 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
       correction += static_cast<float>(val * newBlep.vel_change_magnitude);
     }
 
-    const int writePos = (read_index_ + output_sample_idx - 1) % kRingBufferSize;
+    std::cout << correction << "\n";
+
+    const int writePos = (read_index_ + output_sample_idx) % kRingBufferSize;
     ring_buffer_[static_cast<size_t>(writePos)] += correction;
   }
 }
@@ -301,7 +303,7 @@ void MinBlepGenerator::ProcessBlock(float* buffer, const int numSamples) {
 
 void MinBlepGenerator::ProcessCurrentBleps(float* buffer,
                                            const int numSamples) {
-  if (std::abs(buffer[0]) < 0.00001f) return;
+  //if (std::abs(buffer[0]) < 0.00001f) return;
   for (int i = 0; i < numSamples; ++i) {
     const auto index = static_cast<size_t>((read_index_ + i) % kRingBufferSize);
     const float before = buffer[i];
@@ -309,7 +311,7 @@ void MinBlepGenerator::ProcessCurrentBleps(float* buffer,
     buffer[i] += ring_val;
     const float after = buffer[i];
     ring_buffer_[index] = 0.0f;
-    //todo: std::cout << before << "," << ring_val << "," << after << "\n";
+    //std::cout << before << "," << ring_val << "," << after << "\n";
   }
 
   // todo: should use addWithRamp to batch-add instead of above
