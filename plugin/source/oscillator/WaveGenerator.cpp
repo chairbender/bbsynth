@@ -763,7 +763,7 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
              * part)
              */
             MinBlepGenerator::BlepOffset blep;
-            blep.offset = -(percAfterRoll - static_cast<double>(i + 1));;
+            blep.offset = -(percAfterRoll - static_cast<double>(i + 1));
 
             // MAGNITUDE of 1st order nonlinearity is 2 or -2 :::
             if (wave_type_ == sawRise)
