@@ -360,7 +360,6 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
       relativeFreq *= kBlepOvertoneDepth;  // ie - up to the 3nd harmonic (2*2*2
       // -> 8x fundamental)
 
-      // TODO: we aren't currently actually using this
       blep_generator_.set_limiting_freq(
           static_cast<float>(relativeFreq));  // up to the 2nd harmonic ..
       blep_generator_.ProcessBlock(wave.getRawDataPointer(), numSamples);
