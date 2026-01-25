@@ -207,10 +207,6 @@ void MinBlepGenerator::BuildBlep() const {
   dumpArrayToCsv(minBlepDerivArray, "minblepDevarrNormSub.csv");
 }
 
-// TODO: FIFO needs to ACCUMULATE bleps that START in the current buffer until we are done generating the audio
-//  for the current buffer...not simply add values one after the other.
-//  NOT sure if FIFO is the right DS for this - what we need is really just a ring buffer
-//  (I have working example in sapf repo)
 void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // this determines how fast we step through the (oversampled) blep table
   // per output sample - it scales output samples into kernel samples (the
