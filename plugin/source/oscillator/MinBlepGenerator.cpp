@@ -417,6 +417,9 @@ static void lerpCorrection(float* outputBuffer,
   // SCALE by the discontinuity magnitude
   exactValue *= static_cast<float>(discontinuityMagnitude);
 
+  // todo: for debug only
+  std::cout << exactValue << std::endl;
+
   // ADD to the thruput
   outputBuffer[static_cast<int>(outputSampleIdx)] += exactValue;
 }
@@ -542,11 +545,11 @@ void MinBlepGenerator::ProcessCurrentBleps(float* buffer,
 
   // log before, after, and difference
   // TODO: FOr debugging only
-  for (const auto i : std::views::iota(0, numSamples)) {
-    const auto before = blepTracking[i];
-    const auto after = buffer[i];
-    std::cout << before << "," << (after-before) << "," << after << std::endl;
-  }
+  // for (const auto i : std::views::iota(0, numSamples)) {
+  //   const auto before = blepTracking[i];
+  //   const auto after = buffer[i];
+  //   std::cout << before << "," << (after-before) << "," << after << std::endl;
+  // }
 }
 
 }  // namespace audio_plugin
