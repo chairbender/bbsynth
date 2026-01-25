@@ -234,8 +234,7 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // where the blep ACTUALLY occurred.
   // For example if blep starts at out sample 3.34, sample 3 will have no blep, sample 4 WILL have blep,
   // so there's nothing to compute for sample 3
-  // -1 because the last sample needs interpolation, so we need to stop one before the end of the blep table
-  for (const int out_sample_offset : std::views::iota(1, kBlepOutLength-1)) {
+  for (const int out_sample_offset : std::views::iota(1, kBlepOutLength)) {
     // what output buffer sample are we currently determining the output for?
     const int output_sample_idx = first_blep_out_idx + out_sample_offset;
     // where exactly are we within the blep for this output sample?
@@ -254,7 +253,7 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
     const auto blep_table_idx_1 = static_cast<int>(blep_table_idx_exact);
     // this is the reason we iterate up to kBlepOutLength - 1, otherwise
     // this +1 would exceed the blep table bounds
-    const auto blep_table_idx_2 = blep_table_idx_1 + 1;
+    const auto blep_table_idx_2 = std::min(blep_table_idx_1 + 1, kBlepTableSize - 1);
     const auto blep_table_frac = blep_table_idx_exact - blep_table_idx_1;
     // blep start 5 - 5.33 - 6. blep table NaN - 0 - .33*8 = 2.64 So idx exact = 2.64, interp between table 2/3 (.33 + (out_idx - 1))) * 8
     // sample 5.33 - 6 - 7. at 6, we at 2.64. At 7, we + 8
@@ -281,7 +280,7 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
       correction += static_cast<float>(val * newBlep.vel_change_magnitude);
     }
 
-    std::cout << correction << "\n";
+    //std::cout << correction << "\n";
 
     const int writePos = (read_index_ + output_sample_idx) % kRingBufferSize;
     ring_buffer_[static_cast<size_t>(writePos)] += correction;
