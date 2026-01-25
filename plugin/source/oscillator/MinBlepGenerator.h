@@ -42,6 +42,10 @@ class MinBlepGenerator {
   double ratio_{0.0}, last_ratio_{0.0};
 
   static constexpr int kRingBufferSize{kOversample * kBlepTableSize * 2};
+  /** ring buffer containing the current blep signals to apply
+   * readIndex indicates the position in the ring_buffer_ that aligns with
+   * the current output buffer index 0.
+   * **/
   std::array<float, kRingBufferSize> ring_buffer_{};
   int read_index_{0};
 

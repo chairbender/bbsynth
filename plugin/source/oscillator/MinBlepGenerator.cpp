@@ -13,6 +13,7 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 #include <fstream>
 #include <ranges>
 #include <span>
+#include <generator>
 
 namespace audio_plugin {
 
@@ -211,71 +212,82 @@ void MinBlepGenerator::BuildBlep() const {
 //  NOT sure if FIFO is the right DS for this - what we need is really just a ring buffer
 //  (I have working example in sapf repo)
 void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
-  // this determines how fast we step through the (oversampled) blep table
-  // per output sample - it scales output samples into kernel samples (the
-  // blep table is the kernel)
-  constexpr double kFreqMultiple = kBlepOversampleRatio * kBlepProportionalFreq;
-  // how long the blep should last for the current sample rate
-  // blep lengths are the same - the blep is a bandlimited step (infinite freq)
-  //  all that changes is how loud the blep is to counteract the step
-  // TODO: sample rate can vary - shouldn't this not be constexpr?
-  constexpr double kBlepLength = kBlepTableSize / kFreqMultiple;
-  const double exactBlepOffset = newBlep.offset;
+  ;
+  const double blep_out_start_idx_exact = newBlep.offset;
   // todo: isn't there a bettter function for this?
-  const double blep_frac = exactBlepOffset - std::floor(exactBlepOffset);
-
-  // todo: pointless vars - use directly the arrays
-  const auto& blepTable = minBlepArray;
-  const auto& derivTable = minBlepDerivArray;
-
-  // TODO: missing blep depth limiting
-
-  const int firstSample = static_cast<int>(std::floor(exactBlepOffset));
-
+  const double blep_out_start_idx_frac = blep_out_start_idx_exact - std::floor(blep_out_start_idx_exact);
+  const int first_blep_out_idx = static_cast<int>(std::floor(blep_out_start_idx_exact));
   // ignore overly small bleps
   const auto hasPosChange = std::abs(newBlep.pos_change_magnitude) > 1e-9;
   const auto hasVelChange = std::abs(newBlep.vel_change_magnitude) > 1e-9;
+  // we'll need this later. Since we never start exactly on the blep start,
+  // this tells us how far into the oversampled blep table do we start
+  // For example, if blep starts at out sample 5.33, that means the blep starts
+  // being added only on our sample 6. At that point, we are already .66 (1-.33) of the way into
+  // the blep (downsampled), = .66*kFreqMultiple samples into the oversampled blep table.
+  // This simplifies the loop calculation - we can simply add kFreqMultiple * (iteration count) to this value.
+  const auto blep_table_start_idx_exact = (1 - blep_out_start_idx_frac) * kFreqMultiple;
   // TODO: use template and loop the tables separately depending on the type of blep
-  for (int i = 0; i < kBlepLength; ++i) {
-
-    // TODO: need to make sure we are applying this old logic below comment
-    // figure out how many output samples (p) have transpired
-    // since the blep - this will be negative if we haven't yet reached the
-    // blep. +1 because the blep needs to be mixed in starting on the LOW
-    // SAMPLE
-
-    const int outputSampleIdx = firstSample + i;
-    // TODO: might be off by one errors here related to the lerp logic
-    //convert to an index in the oversampled blep table
-    const double currentBlepTableSampleExact = (i * kFreqMultiple) + blep_frac;
-
-    jassert(currentBlepTableSampleExact < (blepTable.size() - 1));
-
+  // todo: should be -1 for interp of last sample?
+  // we start at 1 because the blep always starts somewhere between samples,
+  // so we end up always starting to add the blep at the NEXT output sample from
+  // where the blep ACTUALLY occurred.
+  // For example if blep starts at out sample 3.34, sample 3 will have no blep, sample 4 WILL have blep,
+  // so there's nothing to compute for sample 3
+  // -1 because the last sample needs interpolation, so we need to stop one before the end of the blep table
+  for (const int out_sample_offset : std::views::iota(1, kBlepOutLength-1)) {
+    // what output buffer sample are we currently determining the output for?
+    const int output_sample_idx = first_blep_out_idx + out_sample_offset;
+    // where exactly are we within the blep for this output sample?
+    // remember, the blep started BETWEEN output samples, so this will be between
+    // indices within the (oversampled) blep table as well
+    // For example -
+    // If the blep occurred at out sample 5.33...
+    // The FIRST sample we start adding blep will be 6. (out_sample_offset = 1, the first iteration of this loop).
+    // The actual blep table position at that point will be .66 (downsampled)
+    //    = .66*kFreqMultiple samples into the oversampled blep table.
+    // On the next out sample, 7, we have moved +1 in the out sample buffer, but kFreqMultiple in the
+    // oversampled blep table. So (.66*kFreqMultiple) + kFreqMultiple will be the exact position in the blep table.
+    // On sample 8, it's (.66*kFreqMultiple) + kFreqMultiple*2, and then *3, and so on.
+    const auto blep_table_idx_exact = (out_sample_offset - 1) * kFreqMultiple + blep_table_start_idx_exact;
+    // we will need to interpolate between indices of the blep table
+    const auto blep_table_idx_1 = static_cast<int>(blep_table_idx_exact);
+    // this is the reason we iterate up to kBlepOutLength - 1, otherwise
+    // this +1 would exceed the blep table bounds
+    const auto blep_table_idx_2 = blep_table_idx_1 + 1;
+    const auto blep_table_frac = blep_table_idx_exact - blep_table_idx_1;
+    // blep start 5 - 5.33 - 6. blep table NaN - 0 - .33*8 = 2.64 So idx exact = 2.64, interp between table 2/3 (.33 + (out_idx - 1))) * 8
+    // sample 5.33 - 6 - 7. at 6, we at 2.64. At 7, we + 8
     float correction = 0.0f;
-
-    const int tableIdx = static_cast<int>(currentBlepTableSampleExact);
-    const double frac = currentBlepTableSampleExact - tableIdx;
-
-    // lerp between the blep table subsamples
     // 0th order
     if (hasPosChange) {
-      const float val = blepTable[tableIdx] + static_cast<float>(frac * (blepTable[tableIdx + 1] - blepTable[tableIdx]));
-      correction += val * static_cast<float>(newBlep.pos_change_magnitude);
+      const auto blep_sample_1 = minBlepArray[blep_table_idx_1];
+      const auto blep_sample_2 = minBlepArray[blep_table_idx_2];
+      const auto delta = blep_sample_2 - blep_sample_1;
+      const auto val = blep_sample_1 + delta * blep_table_frac;
+      correction += static_cast<float>(val * newBlep.pos_change_magnitude);
     }
 
     // 1st order
     if (hasVelChange) {
-      const float val = derivTable[tableIdx] + static_cast<float>(frac * (derivTable[tableIdx + 1] - derivTable[tableIdx]));
-      correction += val * static_cast<float>(newBlep.vel_change_magnitude);
+      // note the original impl claimed it limited this correction somehow,
+      // but AFAICT the "limiting" actually had an identical result, it was
+      // just using differently-named variables that ultimately produced
+      // the same result
+      const auto blep_sample_1 = minBlepDerivArray[blep_table_idx_1];
+      const auto blep_sample_2 = minBlepDerivArray[blep_table_idx_2];
+      const auto delta = blep_sample_2 - blep_sample_1;
+      const auto val = blep_sample_1 + delta * blep_table_frac;
+      correction += static_cast<float>(val * newBlep.vel_change_magnitude);
     }
 
-    const int writePos = (read_index_ + outputSampleIdx) % kRingBufferSize;
+    const int writePos = (read_index_ + output_sample_idx) % kRingBufferSize;
     ring_buffer_[static_cast<size_t>(writePos)] += correction;
   }
 }
 
 // REAL TIME ::::: the core functions :::::
-void MinBlepGenerator::ProcessBlock(float* buffer, int numSamples) {
+void MinBlepGenerator::ProcessBlock(float* buffer, const int numSamples) {
   jassert(numSamples > 0);
 
   // PROCESS BLEPS :::::
@@ -289,10 +301,13 @@ void MinBlepGenerator::ProcessBlock(float* buffer, int numSamples) {
 void MinBlepGenerator::ProcessCurrentBleps(float* buffer,
                                            const int numSamples) {
   for (int i = 0; i < numSamples; ++i) {
-    const size_t index = static_cast<size_t>((read_index_ + i) % kRingBufferSize);
+    const auto index = static_cast<size_t>((read_index_ + i) % kRingBufferSize);
     buffer[i] += ring_buffer_[index];
     ring_buffer_[index] = 0.0f;
   }
+
+  // todo: should use addWithRamp to batch-add instead of above
+  // todo: more efficient to batch clear ring_buffer after advancing read index
 
   read_index_ = (read_index_ + numSamples) % kRingBufferSize;
 }
