@@ -218,7 +218,7 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // It is dynamic because we change it depending on the frequency of the note.
   // TODO: shouldn't technically be needed but giving it a try since the other
   //  impl does it.
-  const auto freq_multiple = kBlepOversampleRatio * proportional_blep_freq_;
+  const auto freq_multiple = 8; // TODO: restore kBlepOversampleRatio * proportional_blep_freq_;
   // how long the blep should last for the current sample rate
   // blep lengths are the same - the blep is a bandlimited step (infinite freq)
   //  all that changes is how loud the blep is to counteract the step
@@ -291,7 +291,7 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
       correction += static_cast<float>(val * newBlep.vel_change_magnitude);
     }
 
-    //std::cout << correction << "\n";
+    std::cout << correction << "\n";
 
     const int writePos = (read_index_ + output_sample_idx) % kRingBufferSize;
     ring_buffer_[static_cast<size_t>(writePos)] += correction;
