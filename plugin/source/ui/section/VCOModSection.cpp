@@ -44,6 +44,20 @@ VCOModSection::VCOModSection(AudioPluginAudioProcessor& processor)
       std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
           processor_.apvts_, "vcoModOsc2", vco_mod_osc2_button_);
 
+  anti_alias_button_.setButtonText("AA");
+  anti_alias_button_.setClickingTogglesState(true);
+  addAndMakeVisible(anti_alias_button_);
+  anti_alias_attachment_ =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          processor_.apvts_, "antiAlias", anti_alias_button_);
+
+  aa_key_scaling_button_.setButtonText("AA Scaling");
+  aa_key_scaling_button_.setClickingTogglesState(true);
+  addAndMakeVisible(aa_key_scaling_button_);
+  aa_key_scaling_attachment_ =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          processor_.apvts_, "antiAliasKeyScaling", aa_key_scaling_button_);
+
   pulse_width_label_.setText("Pulse Width", juce::dontSendNotification);
   addAndMakeVisible(pulse_width_label_);
   pulse_width_slider_.setSliderStyle(juce::Slider::LinearBarVertical);
@@ -110,10 +124,13 @@ void VCOModSection::resized() {
   section_grid.performLayout(section_bounds.toNearestInt());
 
   auto button_area = section_grid.items[7].currentBounds;
-  button_area.removeFromBottom(button_area.getHeight() / 2);
   vco_mod_osc1_button_.setBounds(
+      button_area.removeFromTop(button_area.getHeight() / 3).toNearestInt());
+  vco_mod_osc2_button_.setBounds(
       button_area.removeFromTop(button_area.getHeight() / 2).toNearestInt());
-  vco_mod_osc2_button_.setBounds(button_area.toNearestInt());
+  anti_alias_button_.setBounds(
+      button_area.removeFromTop(button_area.getHeight() / 2).toNearestInt());
+  aa_key_scaling_button_.setBounds(button_area.toNearestInt());
 
   auto radio_area = section_grid.items[9].currentBounds.toNearestInt();
   const auto button_height =

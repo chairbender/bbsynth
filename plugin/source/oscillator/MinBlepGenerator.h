@@ -14,7 +14,10 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
 
+#include <array>
 #include <ranges>
+
+#include "../Constants.h"
 
 namespace audio_plugin {
 
@@ -36,16 +39,17 @@ class MinBlepGenerator {
   };
   int num_channels_ = 2;
   juce::HeapBlock<FilterState> filter_states_;
-  double ratio_, last_ratio_;
+  double ratio_{0.0}, last_ratio_{0.0};
 
-  /**
-   * @return i, BlepOffset in reverse (note that i will start high and decrease)
-   */
-  std::ranges::view auto ReverseActiveBlepOffsets();
+  static constexpr int kRingBufferSize{kOversample * kBlepTableSize * 2};
+  /** ring buffer containing the current blep signals to apply
+   * readIndex indicates the position in the ring_buffer_ that aligns with
+   * the current output buffer index 0.
+   * **/
+  std::array<float, kRingBufferSize> ring_buffer_{};
+  int read_index_{0};
 
  public:
-  double over_sampling_ratio_;
-  int zero_crossings_;
 
   float last_value_;
   float last_delta_;  // previous derivative ...
@@ -54,33 +58,21 @@ class MinBlepGenerator {
   double proportional_blep_freq_;
   bool return_derivative_;  // set this to return the FIRST DERIVATIVE of the
                             // blep (for first der. discontinuities)
+  // when true, aa responds to proportional blep freq.
+  // when false, aa is fixed at nyquist.
+  // generally, aa scaling may sound more "analog" as it mimicks the limitations
+  // of the original analog oscillators (not able to perfectly output
+  // all partials of the oscillator due to factors like slew rate limits in op amps,
+  // parasitic capacitance, and component bandwidth limitations).
+  // But, it's provided as a toggle so we can see for ourselves if that's true!
+  bool aa_scaling_;
 
   struct BlepOffset {
-    /**
-     * This is a value representing a sample index (integer part) + subsample
-     * (fractional part). But what is offset from is a little unintuitive...
-     * Consider just the integer part for now:
-     * When the blep occured in the current buffer, this will be a negative
-     * value where the magnitude of the value matches the index the blep
-     * occurred at. It's set up so that as you walk through the current buffer
-     * (i + offset) = 0 when you've reached the sample where the blep happend,
-     * and gets more positive as you continue to step through samples. This is
-     * used to convert to a lookup against the blep table so we know what part
-     * of the blep table we should be mixing in for a given offset in output
-     * samples from the start of the blep. The sign flips to positive once we
-     * start processing the next buffer of audio, and (todo presumably) the
-     * magnitude at that point represents how many samples ago the blep occurred
-     * (so the blep tail is processed when it spans multiple buffers).
-     */
+    // index in current buffer where the blep starts
     double offset = 0;
-    double freqMultiple = 0;
     double pos_change_magnitude = 0;
     double vel_change_magnitude = 0;
   };
-
-  juce::Array<BlepOffset, juce::CriticalSection> currentActiveBlepOffsets;
-  // TODO: for debugging only
-  juce::Array<float> blepTracking;
 
   MinBlepGenerator();
   ~MinBlepGenerator();
@@ -377,16 +369,15 @@ class MinBlepGenerator {
 
   // CUSTOM ::::
   void set_limiting_freq(float proportionOfSamplingRate);
+  void set_aa_key_scaling(bool enable);
 
   void BuildBlep() const;
-  void AddBlep(BlepOffset newBlep);
-  void AddBlepArray(const juce::Array<BlepOffset>& newBleps);
-
-  juce::Array<BlepOffset> GetNextBleps();
+  void ApplyBlep(int blep_out_length, int first_blep_out_idx,
+                 double freq_multiple, double blep_table_start_idx_exact,
+                 double magnitude, const juce::Array<float>& lookup);
+  void AddBlep(const BlepOffset& newBlep);
 
   void ProcessBlock(float* buffer, int numSamples);
-  void RescaleBlepsToBuffer(const float* buffer, int numSamples,
-                            float shiftBlepsBy = 0);
   void ProcessCurrentBleps(float* buffer, int numSamples);
 };
 
