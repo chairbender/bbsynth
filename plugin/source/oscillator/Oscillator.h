@@ -44,6 +44,7 @@ enum class OscillatorVoiceParamId {
   kVco1Level,
   kVco2Level,
   kFilterEnvSource,
+  kAntiAlias,
   kCount
 };
 

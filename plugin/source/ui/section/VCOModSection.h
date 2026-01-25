@@ -25,10 +25,13 @@ class VCOModSection : public juce::Component {
   // VCO picker - osc1, osc2, or both
   juce::ToggleButton vco_mod_osc1_button_;
   juce::ToggleButton vco_mod_osc2_button_;
+  juce::ToggleButton anti_alias_button_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
       vco_mod_osc1_attachment_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
       vco_mod_osc2_attachment_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
+      anti_alias_attachment_;
 
   // pulse width
   juce::Slider pulse_width_slider_;

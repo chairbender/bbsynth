@@ -413,6 +413,8 @@ AudioPluginAudioProcessor::CreateParameterLayout() {
       "vcoModOsc1", "Freq Mod Osc 1", true));
   parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
       "vcoModOsc2", "Freq Mod Osc 2", true));
+  parameterList.push_back(std::make_unique<juce::AudioParameterBool>(
+      "antiAlias", "Anti-Alias", true));
   parameterList.push_back(std::make_unique<juce::AudioParameterFloat>(
       "pulseWidth", "Pulse Width", juce::NormalisableRange(0.f, 1.f, .01f),
       0.5f));
