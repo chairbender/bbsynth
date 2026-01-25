@@ -372,6 +372,9 @@ class MinBlepGenerator {
   void set_aa_key_scaling(bool enable);
 
   void BuildBlep() const;
+  void ApplyBlep(int blep_out_length, int first_blep_out_idx,
+                 double freq_multiple, double blep_table_start_idx_exact,
+                 double magnitude, const juce::Array<float>& lookup);
   void AddBlep(const BlepOffset& newBlep);
 
   void ProcessBlock(float* buffer, int numSamples);

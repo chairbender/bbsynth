@@ -11,9 +11,10 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 #include "MinBlepGenerator.h"
 
 #include <fstream>
+#include <generator>
 #include <ranges>
 #include <span>
-#include <generator>
+#include <juce_dsp/juce_dsp.h>
 
 namespace audio_plugin {
 
@@ -197,6 +198,39 @@ void MinBlepGenerator::BuildBlep() const {
   dumpArrayToCsv(minBlepArray, "minbleparrNormSub.csv");
   dumpArrayToCsv(minBlepDerivArray, "minblepDevarrNormSub.csv");
 }
+void MinBlepGenerator::ApplyBlep(const int blep_out_length,
+  const int first_blep_out_idx,
+  const double freq_multiple,
+  const double blep_table_start_idx_exact,
+  const double magnitude,
+  const juce::Array<float>& lookup) {
+  for (const int out_sample_offset : std::views::iota(0, blep_out_length)) {
+    // what output buffer sample are we currently determining the output for?
+    const int output_sample_idx = first_blep_out_idx + out_sample_offset;
+    // where exactly are we within the blep for this output sample?
+    // Following the example, the out sample 30 should start
+    // with the blep table value at index (interpolated) .66 * freq_multiple.
+    // On sample 31, it should be (.66*freq_multiple) + freq_multiple, and so on
+    // sample 32, .66 * freq_multiple + 2*freq_multiple and so on.
+    const auto blep_table_idx_exact = out_sample_offset * freq_multiple + blep_table_start_idx_exact;
+    // we will need to interpolate between indices of the blep table, so
+    // let's calculate the indices
+    const auto blep_table_idx_1 = static_cast<int>(blep_table_idx_exact);
+    // at the end of the table, we stop interpolating
+    // todo: not sure if this is the optimal edge case behavior, but seems to work fine
+    const auto blep_table_idx_2 = std::min(blep_table_idx_1 + 1, kBlepTableSize - 1);
+    const auto blep_table_frac = blep_table_idx_exact - blep_table_idx_1;
+    float correction = 0.0f;
+    const auto blep_sample_1 = lookup[blep_table_idx_1];
+    const auto blep_sample_2 = lookup[blep_table_idx_2];
+    const auto delta = blep_sample_2 - blep_sample_1;
+    const auto val = blep_sample_1 + delta * blep_table_frac;
+    correction += static_cast<float>(val * magnitude);
+
+    const int writePos = (read_index_ + output_sample_idx) % kRingBufferSize;
+    ring_buffer_[static_cast<size_t>(writePos)] += correction;
+  }
+}
 
 
 void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
@@ -227,15 +261,12 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // even though the table is discrete, we use the decimal portion
   // of the "index" to help interpolate between blep table values.
   const double blep_out_start_idx_exact = newBlep.offset - 1;
-  // todo: isn't there a bettter function for this?
-  const double blep_out_start_idx_frac = blep_out_start_idx_exact - std::floor(blep_out_start_idx_exact);
+  double first_blep_out_idx;
+  const auto blep_out_start_idx_frac = std::modf(blep_out_start_idx_exact, &first_blep_out_idx);
   // in the example, this ends up as 30 due to the + 1, which is where we want to start
   // mixing in the blep signal
   // (at blep table sample (downsampled) index .66)
-  const int first_blep_out_idx = static_cast<int>(std::floor(blep_out_start_idx_exact)) + 1;
-  // ignore overly small bleps
-  const auto hasPosChange = std::abs(newBlep.pos_change_magnitude) > 1e-9;
-  const auto hasVelChange = std::abs(newBlep.vel_change_magnitude) > 1e-9;
+  first_blep_out_idx++;
   // Saves some calculation. As noted in the example, if blep occurs at
   // 30.33, then it should "start" on sample 29.33, but the first actual
   // output we produce for the blep will be at sample 30, and we will be at
@@ -243,47 +274,18 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // From there on, we advance + freq_multiple for every out sample through the table
   // This simplifies the loop calculation - we can simply add freq_multiple * (iteration count) to this value.
   const auto blep_table_start_idx_exact = (1 - blep_out_start_idx_frac) * freq_multiple;
-  // TODO: use template and loop the tables separately depending on the type of blep
-  for (const int out_sample_offset : std::views::iota(0, blep_out_length)) {
-    // what output buffer sample are we currently determining the output for?
-    const int output_sample_idx = first_blep_out_idx + out_sample_offset;
-    // where exactly are we within the blep for this output sample?
-    // Following the example, the out sample 30 should start
-    // with the blep table value at index (interpolated) .66 * freq_multiple.
-    // On sample 31, it should be (.66*freq_multiple) + freq_multiple, and so on
-    // sample 32, .66 * freq_multiple + 2*freq_multiple and so on.
-    const auto blep_table_idx_exact = out_sample_offset * freq_multiple + blep_table_start_idx_exact;
-    // we will need to interpolate between indices of the blep table, so
-    // let's calculate the indices
-    const auto blep_table_idx_1 = static_cast<int>(blep_table_idx_exact);
-    // at the end of the table, we stop interpolating
-    // todo: not sure if this is the optimal edge case behavior, but seems to work fine
-    const auto blep_table_idx_2 = std::min(blep_table_idx_1 + 1, kBlepTableSize - 1);
-    const auto blep_table_frac = blep_table_idx_exact - blep_table_idx_1;
-    float correction = 0.0f;
-    // 0th order
-    if (hasPosChange) {
-      const auto blep_sample_1 = minBlepArray[blep_table_idx_1];
-      const auto blep_sample_2 = minBlepArray[blep_table_idx_2];
-      const auto delta = blep_sample_2 - blep_sample_1;
-      const auto val = blep_sample_1 + delta * blep_table_frac;
-      correction += static_cast<float>(val * newBlep.pos_change_magnitude);
-    }
 
-    // 1st order
-    if (hasVelChange) {
-      // TODO: some depth limiting should maybe be done here by applying the
-      //   proportional freq scaling being applied twice. I'm struggling
-      //  to follow the original.
-      const auto blep_sample_1 = minBlepDerivArray[blep_table_idx_1];
-      const auto blep_sample_2 = minBlepDerivArray[blep_table_idx_2];
-      const auto delta = blep_sample_2 - blep_sample_1;
-      const auto val = blep_sample_1 + delta * blep_table_frac;
-      correction += static_cast<float>(val * newBlep.vel_change_magnitude);
-    }
+  if (newBlep.pos_change_magnitude > 1e-9) {
+    ApplyBlep(blep_out_length, static_cast<int>(first_blep_out_idx),
+      freq_multiple, blep_table_start_idx_exact, newBlep.pos_change_magnitude, minBlepArray);
+  }
 
-    const int writePos = (read_index_ + output_sample_idx) % kRingBufferSize;
-    ring_buffer_[static_cast<size_t>(writePos)] += correction;
+  // TODO: some depth limiting should maybe be done here by applying the
+  //   proportional freq scaling being applied twice. I'm struggling
+  //  to follow the original.
+  if (newBlep.vel_change_magnitude > 1e-9) {
+    ApplyBlep(blep_out_length, static_cast<int>(first_blep_out_idx),
+      freq_multiple, blep_table_start_idx_exact, newBlep.vel_change_magnitude, minBlepDerivArray);
   }
 }
 
@@ -302,15 +304,23 @@ void MinBlepGenerator::ProcessBlock(float* buffer, const int numSamples) {
 
 void MinBlepGenerator::ProcessCurrentBleps(float* buffer,
                                            const int numSamples) {
-  for (int i = 0; i < numSamples; ++i) {
-    const auto index = static_cast<size_t>((read_index_ + i) % kRingBufferSize);
-    const float ring_val = ring_buffer_[index];
-    buffer[i] += ring_val;
-    ring_buffer_[index] = 0.0f;
-  }
+  // since it's a ring buffer, we might go past the end,
+  // so we may need to split this into 2 parts
+  // part 1
+  const auto ring_start = ring_buffer_.data() + read_index_;
+  const auto ring_samples_remaining = kRingBufferSize - read_index_;
+  const auto num_samples_part_1 = std::min(ring_samples_remaining, numSamples);
+  juce::FloatVectorOperations::add(buffer, ring_start, num_samples_part_1);
+  juce::FloatVectorOperations::clear(ring_start, num_samples_part_1);
 
-  // todo: should use addWithRamp to batch-add instead of above
-  // todo: more efficient to batch clear ring_buffer after advancing read index
+  // part 2 if needed
+  if (ring_samples_remaining < numSamples) {
+    const auto num_samples_part_2 = numSamples - num_samples_part_1;
+    const auto ring_start_2 = ring_buffer_.data();
+    juce::FloatVectorOperations::add(buffer + num_samples_part_1, ring_start_2,
+      num_samples_part_2);
+    juce::FloatVectorOperations::clear(ring_start_2, num_samples_part_2);
+  }
 
   read_index_ = (read_index_ + numSamples) % kRingBufferSize;
 }
