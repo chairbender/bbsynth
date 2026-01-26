@@ -1,3 +1,49 @@
+# BBSynth
+
+A virtual analog synth attempting to implement and compare a variety of
+virtual analog synthesis techniques. It's also my first ever
+attempt at a virtual instrument project in general, so it lets me
+hack away and implement whatever I'm curious about at the moment.
+
+For example, how bad does it sound to have no anti-aliasing vs
+minBlep vs oversampling? How does it sound when our filter
+has 1-sample delay vs zero delay? Those are all questions I'm curious
+about.
+
+I suppose it's also a decent (amateurish) collection of virtual analog
+synthesis techniques all in one place, for those looking to
+implement their own.
+
+Techniques covered:
+- OTA Filter emulation
+- Anti-aliasing
+- Analog Envelope Generators
+- Anti-aliased Hard sync
+- Basic FM (jupiter 8 calls it "cross mod")
+- Other filter model emulations (Moog ladder filter, etc...)
+- Analog imperfection emulation (voice dispersion, etc...) (coming soon)
+- Skeumorphic UI using Blender + image strips (coming soon)
+
+I have always been curious about how different virtual analog techniques
+compare to each other, and this project is an attempt to do just that.
+There are also various fine-tuning parameters that are often
+hidden in commercial synths, which I would like to expose.
+
+Are these even correct implementations of the techniques?
+I don't know. Take them with a grain of salt. Do they
+sound interesting and fairly correct to me? Yes. (Note I also have
+pretty severe tinnitus...)
+
+The general starting reference was the Jupiter 8 synth because 
+it's fairly simple in terms of features (ignoring the sequencing and
+keyboard configuration and the fact that, well, it's an analog synth and
+we're in the digital realm) 
+and allows me to focus on the synthesis techniques. Also, there
+are a few patches on the original that I quite like.
+(No, I don't have one of my own.)
+
+Made with JUCE (hence the AGPLv3 license).
+
 # Setup Notes
 
 on PopOS, with clang++-20, had to sudo apt install g++ libstdc++-12-dev
