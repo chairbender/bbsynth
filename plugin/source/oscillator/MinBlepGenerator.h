@@ -55,7 +55,6 @@ class MinBlepGenerator {
   float last_delta_;  // previous derivative ...
 
   // Tweaking the Blep F
-  double proportional_blep_freq_;
   bool return_derivative_;  // set this to return the FIRST DERIVATIVE of the
                             // blep (for first der. discontinuities)
   // when true, aa responds to proportional blep freq.
@@ -68,10 +67,14 @@ class MinBlepGenerator {
   bool aa_scaling_;
 
   struct BlepOffset {
+    explicit BlepOffset(const double proportional_blep_freq) :
+      proportional_blep_freq_{proportional_blep_freq} {}
     // index in current buffer where the blep starts
-    double offset = 0;
-    double pos_change_magnitude = 0;
-    double vel_change_magnitude = 0;
+    double offset_ = 0;
+    double pos_change_magnitude_ = 0;
+    double vel_change_magnitude_ = 0;
+    // tweak / tune based on the frequency (default to .5 - nyquist)
+    double proportional_blep_freq_ = .5;
   };
 
   MinBlepGenerator();

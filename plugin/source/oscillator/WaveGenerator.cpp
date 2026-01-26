@@ -212,6 +212,7 @@ void WaveGenerator<IsLFO>::set_pitch_hz(const double freq) {
   set_delta_base(static_cast<double>(angleDelta), false);
 }
 
+// TODO: not right - doesn't use delta_base_/smooth_ - will give 0 until after processing a block
 template <bool IsLFO>
 double WaveGenerator<IsLFO>::current_pitch_hz() const {
   // float angleDelta = cyclesPerSample * 2.0 * double_Pi;
@@ -300,6 +301,7 @@ juce::Array<float> WaveGenerator<IsLFO>::history() {
 template <bool IsLFO>
 void WaveGenerator<IsLFO>::PrepareToPlay(double new_sample_rate) {
   sample_rate_ = new_sample_rate;
+  nyquist_ = new_sample_rate / 2.;
 
   if constexpr (!IsLFO) {
     // TODO: parameterize the ramp length
@@ -353,13 +355,14 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
       // We can tweak the minBLEP to limit any harmonic above 4*(desired F)
 
       // TUNE the blep ....
-      double freq = current_pitch_hz();               // Current, playing, Freq
-      double relativeFreq = 2 * freq / sample_rate_;  // 2 for Nyquist ...
-      relativeFreq *= kBlepOvertoneDepth;  // ie - up to the 3nd harmonic (2*2*2
-      // -> 8x fundamental)
-
-      blep_generator_.set_limiting_freq(
-          static_cast<float>(relativeFreq));  // up to the 2nd harmonic ..
+      // TODO: this isn't sample-accurate - LFO and such will vary the pitch
+      // const double freq = current_pitch_hz();               // Current, playing, Freq
+      // double relativeFreq = 2 * freq / sample_rate_;  // 2 for Nyquist ...
+      // relativeFreq *= kBlepOvertoneDepth;  // ie - up to the 3nd harmonic (2*2*2
+      // // -> 8x fundamental)
+      //
+      // blep_generator_.set_limiting_freq(
+      //     static_cast<float>(relativeFreq));  // up to the 2nd harmonic ..
     }
     BuildWave(numSamples);
   }
@@ -523,13 +526,13 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
           //   Need to check more closely by making AA and oversampling
           //   toggle-able, and comparing behavior.
           // ADD the blep ...
-          MinBlepGenerator::BlepOffset blep;
-          blep.offset = static_cast<double>(next_hard_sync_reset_sample);
+          auto blep{CreateBlep()};
+          blep.offset_ = static_cast<double>(next_hard_sync_reset_sample);
 
           // CALCULATE the MAGNITUDE of ths 2nd ORDER (VEL) discontinuity
           // TRIG :: calculate the angle (rise/run) before and after the
           // rollover
-          double delta = .0000001;  // MIN
+          const double delta = .0000001;  // MIN
 
           // what percent (0 to 1) into the sample did the reset occur at?
           // todo: at least I think that's what this was calculating
@@ -552,7 +555,7 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
           const double value_after_zero = GetValueAt(skew_angle(delta));
 
           // CALCULATE the MAGNITUDE of ths 1st ORDER (POS) discontinuity
-          blep.pos_change_magnitude = value_at_roll - GetValueAt(skew_angle(0));
+          blep.pos_change_magnitude_ = value_at_roll - GetValueAt(skew_angle(0));
 
           // CALCULATE the skewed angular change AFTER the rollover
           const double angle_delta_after_roll =
@@ -565,11 +568,11 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
           const double change_in_delta =
               (angle_delta_after_roll - angle_delta_before_roll) *
               (1 / (2 * delta));
-          const double depth_limited = blep_generator_.proportional_blep_freq_;
+          const double depth_limited = blep.proportional_blep_freq_;
 
           // actualCurrentAngleDelta below is added to compensate for higher
           // order nonlinearities 66 here was experimentally determined ...
-          blep.vel_change_magnitude = 66 * change_in_delta *
+          blep.vel_change_magnitude_ = 66 * change_in_delta *
                                       (1 / depth_limited) *
                                       actual_current_angle_delta_;
 
@@ -732,10 +735,10 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
             }
 
             if (crossed) {
-              MinBlepGenerator::BlepOffset blep;
-              blep.offset = -(percAfterRoll - static_cast<double>(i + 1));
-              blep.pos_change_magnitude = magnitude;
-              blep.vel_change_magnitude = 0;
+              auto blep{CreateBlep()};
+              blep.offset_ = -(percAfterRoll - static_cast<double>(i + 1));
+              blep.pos_change_magnitude_ = magnitude;
+              blep.vel_change_magnitude_ = 0;
               blep_generator_.AddBlep(blep);
             }
           };
@@ -769,17 +772,17 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
              * an exact subsample (sample = integer part, subsample = fractional
              * part)
              */
-            MinBlepGenerator::BlepOffset blep;
-            blep.offset = -(percAfterRoll - static_cast<double>(i + 1));
+            auto blep{CreateBlep()};
+            blep.offset_ = -(percAfterRoll - static_cast<double>(i + 1));
 
             // MAGNITUDE of 1st order nonlinearity is 2 or -2 :::
             if (wave_type_ == sawRise)
-              blep.pos_change_magnitude = -2;
+              blep.pos_change_magnitude_ = -2;
             else
-              blep.pos_change_magnitude = 2;
+              blep.pos_change_magnitude_ = 2;
 
             // NO CHANGE to slope - 0
-            blep.vel_change_magnitude = 0;
+            blep.vel_change_magnitude_ = 0;
 
             // ADD
             blep_generator_.AddBlep(blep);
@@ -814,9 +817,8 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
               percAfterRoll = aboveNonlinearity / actualCurrentAngleDeltaSkewed;
             }
 
-            MinBlepGenerator::BlepOffset blep;
-            // todo: fix this weird calculation (for ALL offsets)
-            blep.offset = -(percAfterRoll - static_cast<double>(i + 1));;
+            auto blep{CreateBlep()};
+            blep.offset_ = static_cast<double>(i + 1) - percAfterRoll;
 
             // SYMETRY :::::
             // since this is a triangle
@@ -824,24 +826,22 @@ void WaveGenerator<IsLFO>::BuildWave(const int numSamples) {
             // get the abs distance from 1
             // and scale that to find the angle ....
 
-            double nextValue = GetValueAt(current_angle_skewed_);
-            double averageValue = (last_sample_ + nextValue) / 2;
-            double slope = 1 - fabs(averageValue);
+            const double nextValue = GetValueAt(current_angle_skewed_);
+            const double averageValue = (last_sample_ + nextValue) / 2;
+            const double slope = 1 - fabs(averageValue);
             jassert(slope < 1);
 
             double sign = 1;
             if (averageValue > 0) sign = -1;
 
-            blep.pos_change_magnitude = 0;
+            blep.pos_change_magnitude_ = 0;
 
             // SCALE the vel magnitude inversely with play speed
-            double depthLimited =
-                blep_generator_
-                    .proportional_blep_freq_;  // jlimit<double>(.1, .5,
-            // myBlepGenerator.proportionalBlepFreq);
+            const double depthLimited =
+                blep.proportional_blep_freq_;  // jlimit<double>(.1, .5,
 
             // Assume nominal delta for all waves ... so ...
-            blep.vel_change_magnitude = sign * 121 * slope * (1 / depthLimited);
+            blep.vel_change_magnitude_ = sign * 121 * slope * (1 / depthLimited);
 
             // ADD
             blep_generator_.AddBlep(blep);
@@ -1005,6 +1005,44 @@ double WaveGenerator<IsLFO>::GetRandom([[maybe_unused]] double angle) {
   last_sample_ = juce::jlimit(-1.0, 1.0, last_sample_);
 
   return last_sample_;
+}
+/**
+ *  TODO: not sure this matches the original intention, the old logic is hard to follow...
+ *
+ * The goal is to limit the frequencies to 4x the fundamental.
+ * So for a tone of 440 hz, we want to cutoff frequencies above
+ * 1760.
+ * We set the propoprtional freq based on that.
+ * For example, at a sample rate of 44100 hz, if proportional blep freq is
+ * set to .5, we'll limit anything above the nyquist (and this is the upper
+ * bound on the proportional freq as anything above that would cause
+ * aliasing).
+ * So we work backwards from that to calculate the proportional blep
+ * freq we want.
+ * Additionally, because the blep table is 16x oversampled,
+ * we don't want the proportional freq to go lower than 1/16
+ * (1/16 = .0625 proportional freq means we step through the blep table
+ * 1-1. Any less than that and we're being more precise than the blep table
+ * can represent).
+ */
+template <bool IsLFO>
+MinBlepGenerator::BlepOffset WaveGenerator<IsLFO>::CreateBlep() const {
+  // calculate freq multiple based on current freq
+  const double freq = current_pitch_hz();
+  // don't exceed nyquist
+  const double target_cutoff_freq = freq * 4.;
+  if (target_cutoff_freq >= nyquist_) {
+    // exceeded nyquist - limit to nyquist
+    return MinBlepGenerator::BlepOffset{.5};
+  }
+
+  const auto proportional_blep_freq =
+    target_cutoff_freq / sample_rate_;
+  if (proportional_blep_freq <= .0625) {
+    return MinBlepGenerator::BlepOffset{.0625};
+  }
+
+  return MinBlepGenerator::BlepOffset{proportional_blep_freq};
 }
 }  // namespace audio_plugin
 

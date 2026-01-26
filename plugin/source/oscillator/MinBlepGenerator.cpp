@@ -51,7 +51,6 @@ static void dumpArrayToCsv(const juce::Array<T>& buffer,
 MinBlepGenerator::MinBlepGenerator() : read_index_{0} {
   ring_buffer_.fill(0.0f);
   return_derivative_ = false;
-  proportional_blep_freq_ = 0.5;  // defaults to NyQuist ....
 
   last_value_ = 0;
   last_delta_ = 0;
@@ -74,21 +73,6 @@ MinBlepGenerator::~MinBlepGenerator() {
   //
 }
 
-
-
-void MinBlepGenerator::set_limiting_freq(float proportionOfSamplingRate) {
-  //
-  // Instead of limiting to the sampling F,
-  // We bring the maximum allowable F down to some known quantity
-  // Doing this we can "tune" the blep to some desired F
-  // So .... making wave-generators better ....
-
-  // SINCE the buffer is only resized to 8x, we can only use blep adjustments
-  // down to 0.125
-  proportionOfSamplingRate =
-      juce::jlimit<float>(0.0001f, 1.0f, proportionOfSamplingRate);
-  proportional_blep_freq_ = static_cast<double>(proportionOfSamplingRate);
-}
 void MinBlepGenerator::set_aa_key_scaling(const bool enable) {
   aa_scaling_ = enable;
 }
@@ -244,7 +228,7 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // imitating the limitations of analog hardware such as op-amp slew rate limits.
   // IMHO, when it's on, it sounds more like a cheap children's toy, but
   // that's why we make it a parameter! (It's entirely possible I've implemented it wrong)
-  const auto freq_multiple = kBlepOversampleRatio * (aa_scaling_ ? proportional_blep_freq_ : .5);
+  const auto freq_multiple = kBlepOversampleRatio * (aa_scaling_ ? newBlep.proportional_blep_freq_ : .5);
   // how long the blep should last for the current sample rate
   // blep lengths are the same - the blep is a bandlimited step (infinite freq)
   //  all that changes is how loud the blep is to counteract the step
@@ -263,7 +247,7 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // to prevent issues that happen around offsets at sample 0,
   // we add 1 to some values then subtract when needed
   constexpr auto avoid_negative_offset = 1;
-  const double blep_out_start_idx_exact = newBlep.offset - 1 + avoid_negative_offset;
+  const double blep_out_start_idx_exact = newBlep.offset_ - 1 + avoid_negative_offset;
   double first_blep_out_idx;
   const auto blep_out_start_idx_frac = std::modf(blep_out_start_idx_exact, &first_blep_out_idx);
   // in the example, this ends up as 30 due to the + 1, which is where we want to start
@@ -279,17 +263,17 @@ void MinBlepGenerator::AddBlep(const BlepOffset& newBlep) {
   // This simplifies the loop calculation - we can simply add freq_multiple * (iteration count) to this value.
   const auto blep_table_start_idx_exact = (1 - blep_out_start_idx_frac) * freq_multiple;
 
-  if (newBlep.pos_change_magnitude > 1e-9) {
+  if (newBlep.pos_change_magnitude_ > 1e-9) {
     ApplyBlep(blep_out_length, static_cast<int>(first_blep_out_idx),
-      freq_multiple, blep_table_start_idx_exact, newBlep.pos_change_magnitude, minBlepArray);
+      freq_multiple, blep_table_start_idx_exact, newBlep.pos_change_magnitude_, minBlepArray);
   }
 
   // TODO: some depth limiting should maybe be done here by applying the
   //   proportional freq scaling being applied twice. I'm struggling
   //  to follow the original.
-  if (newBlep.vel_change_magnitude > 1e-9) {
+  if (newBlep.vel_change_magnitude_ > 1e-9) {
     ApplyBlep(blep_out_length, static_cast<int>(first_blep_out_idx),
-      freq_multiple, blep_table_start_idx_exact, newBlep.vel_change_magnitude, minBlepDerivArray);
+      freq_multiple, blep_table_start_idx_exact, newBlep.vel_change_magnitude_, minBlepDerivArray);
   }
 }
 

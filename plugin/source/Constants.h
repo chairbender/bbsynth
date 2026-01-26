@@ -6,8 +6,6 @@ namespace audio_plugin {
 constexpr auto kOversample = 2;
 constexpr double kBlepOversampleRatio = 16;
 constexpr double kBlepZeroCrossings = 16;
-// proportion of sample rate.
-constexpr auto kBlepProportionalFreq = 0.5;
 // todo: may change depending on values in MinBlepGenerator
 constexpr auto kBlepTableSize = 512;
 // at drive slider of "0" we still want SOME drive - the "natural" drive of the OTA.

@@ -36,6 +36,9 @@ enum PulseWidthModType {
    so each factor of 2 is an octave.
    This default of 128 seems fairly high.
  */
+// TODO: in the original, this was actually controllable via a param to see the
+// effect.
+//  let's add our own param to do the same
 constexpr auto kBlepOvertoneDepth = 128;
 
 enum WaveType {
@@ -52,15 +55,16 @@ enum WaveMode { ANTIALIAS, BUILD_AA, NO_ANTIALIAS };
 
 template <bool IsLFO>
 class WaveGenerator {
-
-  public:
+ public:
   WaveGenerator(const juce::AudioBuffer<float>& lfo_buffer,
                 const juce::AudioBuffer<float>& env1_buffer,
                 const juce::AudioBuffer<float>& env2_buffer,
                 const juce::AudioBuffer<float>& modulator_buffer,
-                juce::Array<float>& hard_sync_reset_sample_indices) requires (!IsLFO);
+                juce::Array<float>& hard_sync_reset_sample_indices)
+    requires(!IsLFO);
 
-  WaveGenerator() requires IsLFO;
+  WaveGenerator()
+    requires IsLFO;
 
   void PrepareToPlay(double new_sample_rate);
 
@@ -122,9 +126,13 @@ class WaveGenerator {
   void set_pitch_bend_env1_mod(float mod);
   double GetRandom([[maybe_unused]] double angle);
 
-private:
+ private:
   MinBlepGenerator blep_generator_;
-
+  /**
+   * create a blep with the proportional blep freq
+   * properly initialized to the current frequency
+   */
+  MinBlepGenerator::BlepOffset CreateBlep() const;
   /**
    * Base phase increment (radians per sample) for this oscillator.
    */
@@ -162,7 +170,8 @@ private:
 
   // PITCH BEND
   double pitch_bend_target_ = 0;
-  // todo: why is this a field persisted between blocks? Same question with some of these other fields.
+  // todo: why is this a field persisted between blocks? Same question with some
+  // of these other fields.
   double pitch_bend_actual_ = 0;
   // amount of effect the LFO has on the pitch
   double pitch_bend_lfo_mod_ = 0;
@@ -180,6 +189,7 @@ private:
 
   double skew_ = 0;  // [-1, 1]
   double sample_rate_ = 0;
+  double nyquist_ = 0;
 
   juce::Array<float> wave;  // hmmm ... faster to make this a pointer I bet ....
   juce::Array<float>
@@ -190,19 +200,23 @@ private:
   double phase_angle_actual_ =
       0;  // the target angle to get to (used for phase shifting)
 
-  [[no_unique_address]] std::conditional_t<IsLFO, std::monostate,const juce::AudioBuffer<float>&> lfo_buffer_;
-  [[no_unique_address]] std::conditional_t<IsLFO, std::monostate,const juce::AudioBuffer<float>&> env1_buffer_;
-  [[no_unique_address]] std::conditional_t<IsLFO, std::monostate,const juce::AudioBuffer<float>&> env2_buffer_;
-  [[no_unique_address]] std::conditional_t<IsLFO, std::monostate,const juce::AudioBuffer<float>&> modulator_buffer_;
+  [[no_unique_address]] std::conditional_t<
+      IsLFO, std::monostate, const juce::AudioBuffer<float>&> lfo_buffer_;
+  [[no_unique_address]] std::conditional_t<
+      IsLFO, std::monostate, const juce::AudioBuffer<float>&> env1_buffer_;
+  [[no_unique_address]] std::conditional_t<
+      IsLFO, std::monostate, const juce::AudioBuffer<float>&> env2_buffer_;
+  [[no_unique_address]] std::conditional_t<
+      IsLFO, std::monostate, const juce::AudioBuffer<float>&> modulator_buffer_;
   // see same field name on Oscillator
-  [[no_unique_address]] std::conditional_t<IsLFO, std::monostate,juce::Array<float>&> hard_sync_reset_sample_indices_;
+  [[no_unique_address]] std::conditional_t<IsLFO, std::monostate,
+                                           juce::Array<float>&>
+      hard_sync_reset_sample_indices_;
 
   // what role is this oscillator serving in hard sync?
   HardSyncMode hard_sync_mode_ = DISABLED;
 
   WaveType wave_type_;
   WaveMode mode_;
-
-
 };
 }  // namespace audio_plugin
