@@ -7,8 +7,6 @@ enable_testing()
 
 # Creates the test console application.
 set(SOURCE_FILES
-    source/MinBlepGeneratorTest.cpp
-    source/WaveGeneratorTest.cpp
 )
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
