@@ -1007,7 +1007,8 @@ double WaveGenerator<IsLFO>::GetRandom([[maybe_unused]] double angle) {
   return last_sample_;
 }
 /**
- *  TODO: not sure this matches the original intention, the old logic is hard to follow...
+ *  TODO: not sure this matches the original intention, the old logic is hard to
+ * follow...
  *
  * The goal is to limit the frequencies to 4x the fundamental.
  * So for a tone of 440 hz, we want to cutoff frequencies above
