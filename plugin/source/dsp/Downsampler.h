@@ -1,32 +1,31 @@
 #pragma once
 
-#include <juce_dsp/juce_dsp.h>
-#include <vector>
+#include "../Constants.h"
+#include "../juce_modified/juce_Oversampling.h"
 
+/**
+ * Simple convenience wrapper for our modified OversamplingDownsampling
+ * class.
+ * Workflow:
+ * - Prepare in prepareToPlay to set max block size.
+ * - Get oversampled buffer with GetOverSampleBuffer.
+ * - Write oversampled audio into buffer
+ * - Downsample with Downsample, passing the buffer back to Downsampler.
+ */
 namespace audio_plugin {
-// Because we generate at oversampled rate and don't use upsampling,
-// juce's Oversampler cannot be used since it requires a very specific
-// workflow that starts with upsampling.
-// This class handles downsampling by any power of 2 using multi-stage
-// polyphase IIR downsampling (adapted from juce's Oversampler).
 class Downsampler {
 public:
-  void prepare(int max_block_size, int oversamplingFactor);
+  void Prepare(int max_block_size);
+  juce::dsp::AudioBlock<const float> GetOverSampleBuffer(
+      const juce::dsp::ProcessContextReplacing<float> &context);
 
-  void process(const juce::AudioBuffer<float> &input,
-               juce::AudioBuffer<float> &output, int sourceStartSample,
-               int sourceNumSamples,
-               int destStartSample);
+  void Downsample(const juce::dsp::ProcessContextReplacing<float> &context);
 
 private:
-  struct Stage {
-    std::vector<float> alphas;
-    std::vector<float> v1;
-    float delay { 0.0f };
-  };
+  // TODO: make below parameterized, so you can try different oversampling methods and factor as well
+  //  as switching to max quality when desired.
+  juce::dsp::OversamplingDownsampling<float> downsampler_{1, kOversample,
+  juce::dsp::OversamplingDownsampling<float>::filterHalfBandFIREquiripple, false};
 
-  std::vector<Stage> stages_;
-  int oversamplingFactor_ { 1 };
-  juce::AudioBuffer<float> internalBuffer_;
 };
 }

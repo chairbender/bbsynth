@@ -160,6 +160,18 @@ public:
     */
     void processSamplesDown (AudioBlock<SampleType>& outputBlock) noexcept;
 
+    /** Get empty buffer into which already-oversampled data can be written,
+     * which can then be passed to processSamplesDown after writing the data.
+     *
+     * oversampling.reset (new dsp::Oversampling<float> (numChannels, 2,
+     * dsp::Oversampling<float>::filterHalfBandFIREquiripple, false));
+     *
+     * (thanks to wavesequencer - see more explanation for usage here:
+     *  https://forum.juce.com/t/how-to-use-juce-oversampling/36750/2 )
+     */
+    AudioBlock<const SampleType> getUnprocessedUpsampleBlock(
+        const AudioBlock<const SampleType>& inputBlock) noexcept;
+
     //==============================================================================
     /** Adds a new oversampling stage to the Oversampling class, multiplying the
         current oversampling factor by two. This is used with the default constructor

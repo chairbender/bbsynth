@@ -238,7 +238,7 @@ bool OscillatorVoice::canPlaySound(juce::SynthesiserSound* sound) {
 }
 
 void OscillatorVoice::SetBlockSize(const int blockSize) {
-  downsampler_.prepare(blockSize, kOversample);
+  downsampler_.Prepare(blockSize);
   const auto oversample_samples = blockSize * kOversample;
   oversample_buffer_.setSize(1, oversample_samples, false, true);
   wave2_buffer_.setSize(1, oversample_samples, false, true);
@@ -356,7 +356,7 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   if constexpr (kOversample == 1) {
     outputBuffer.addFrom(0, startSample, oversample_buffer_.getReadPointer(0), numSamples);
   } else {
-    downsampler_.process(oversample_buffer_, outputBuffer,
+    downsampler_.Process(oversample_buffer_, outputBuffer,
                          0, oversample_samples, startSample);
   }
 

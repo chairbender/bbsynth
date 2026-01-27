@@ -116,6 +116,7 @@ struct OversamplingDummy final : public OversamplingDownsampling<SampleType>::Ov
         outputBlock.copyFrom (ParentType::getProcessedSamples (outputBlock.getNumSamples()));
     }
 
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OversamplingDummy)
 };
 
@@ -763,6 +764,26 @@ void OversamplingDownsampling<SampleType>::processSamplesDown (AudioBlock<Sample
         auto context = ProcessContextReplacing<SampleType> (outputBlock);
         delay.process (context);
     }
+}
+
+template <typename SampleType>
+AudioBlock<const SampleType>
+OversamplingDownsampling<SampleType>::getUnprocessedUpsampleBlock(
+    const AudioBlock<const SampleType>& inputBlock) noexcept
+{
+  jassert (! stages.isEmpty());
+
+  if (! isReady)
+    return {};
+
+  auto audioBlock = inputBlock;
+
+  for (auto* stage : stages)
+  {
+    audioBlock = stage->getProcessedSamples (audioBlock.getNumSamples() * stage->factor);
+  }
+
+  return audioBlock;
 }
 
 template <typename SampleType>
