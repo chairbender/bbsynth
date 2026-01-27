@@ -51,6 +51,11 @@ on PopOS, with clang++-20, had to sudo apt install g++ libstdc++-12-dev
 style guide
 https://google.github.io/styleguide/cppguide.html
 
+# Notices / Attribution
+
+- JUCE is used in this project (AGPLv3)
+- Some files are modified from the JUCE library - all of them live under `plugin/source/juce_modified`
+- 
 # 🐺 WolfSound's Audio Plugin Template
 
 ![Cmake workflow success badge](https://github.com/JanWilczek/audio-plugin-template/actions/workflows/cmake.yml/badge.svg)
