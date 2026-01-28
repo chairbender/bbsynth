@@ -223,7 +223,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // adding to it
     // TODO: do we actually need to do this?
     lfo_buffer_.clear(0, 0, lfo_buffer_.getNumSamples());
-    const juce::dsp::AudioBlock<float> lfo_block{lfo_buffer_};
+    const juce::dsp::AudioBlock<float> lfo_block{lfo_buffer_.getArrayOfWritePointers(),
+    1, static_cast<size_t>(lfo_buffer_.getNumSamples())};
 
     // TODO: refactor the LFO logic so it doesn't clutter up this. Use state var
     //  to track the LFO state.

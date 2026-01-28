@@ -356,7 +356,8 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     wave2_buffer_.clear(0, oversample_samples);
     // no downsampling needed - it's just used for cross mod and not actually
     // output
-    const juce::dsp::AudioBlock<float> wave2_block{wave2_buffer_};
+    const juce::dsp::AudioBlock<float> wave2_block{wave2_buffer_.getArrayOfWritePointers(),
+    1, static_cast<size_t>(oversample_samples)};
     wave2Generator_.RenderNextBlock(wave2_block, 0, oversample_samples);
     oversample_buffer.clear();
     // todo: Do we even need this intermediate wave2_buffer? What if we
@@ -404,7 +405,7 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                          numSamples);
   } else {
     juce::dsp::AudioBlock<float> outputBlock{
-        outputBuffer.getArrayOfWritePointers(), 0,
+        outputBuffer.getArrayOfWritePointers(), 1,
         static_cast<size_t>(startSample), static_cast<size_t>(numSamples)};
     downsampler_.Downsample(outputBlock);
   }
