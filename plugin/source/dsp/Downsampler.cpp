@@ -7,15 +7,14 @@ void Downsampler::Prepare(const int max_block_size) {
   downsampler_.initProcessing (static_cast<size_t>(max_block_size));
 
 }
-// TODO: not sure if better to pass by const reference, not sure about const float, etc...
-//   just trying to get it working first...
-inline juce::dsp::AudioBlock<const float> Downsampler::GetOverSampleBuffer(
-    const juce::dsp::ProcessContextReplacing<float> &context) {
-  return downsampler_.getUnprocessedUpsampleBlock (context.getInputBlock());
+
+juce::dsp::AudioBlock<float> Downsampler::GetOverSampleBuffer(
+    const juce::dsp::AudioBlock<float>& inputBlock) {
+  return downsampler_.getUnprocessedUpsampleBlock(inputBlock);
 }
-void Downsampler::Downsample(
-    const juce::dsp::ProcessContextReplacing<float> &context) {
-  downsampler_.processSamplesDown(context.getOutputBlock());
+
+void Downsampler::Downsample(juce::dsp::AudioBlock<float>& inputBlock) {
+  downsampler_.processSamplesDown(inputBlock);
 }
 
 }  // namespace audio_plugin

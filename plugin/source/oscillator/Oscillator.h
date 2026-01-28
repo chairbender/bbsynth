@@ -100,9 +100,10 @@ struct OscillatorVoice : juce::SynthesiserVoice,
   // modulator buffer
   // todo do we actually need this if we already hae oversample buffer?
   juce::AudioBuffer<float> wave2_buffer_;
-  juce::AudioBuffer<float> oversample_buffer_;
+  juce::AudioBuffer<float> oversample_backing_buffer_;
   WaveGenerator<false> waveGenerator_;
   WaveGenerator<false> wave2Generator_;
+
   OTAFilterTPTNewtonRaphson filter_tpt_;
   OTAFilterDelayedFeedback filter_dfb_;
   int filter_type_ = 1;  // 0: DFB, 1: TPT, 2: Disabled

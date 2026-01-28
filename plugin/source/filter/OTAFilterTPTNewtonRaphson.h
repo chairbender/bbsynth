@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 
 #include <array>
 #include <ranges>
@@ -35,25 +36,24 @@ enum class FilterParamId {
  * sample, which is more accurate, avoids introducing delay in the feedback, but
  * also is way more computationally expensive.
  */
+// TODO: lot of stuff to dedupe between the 2 filter types
 class OTAFilterTPTNewtonRaphson
     : public ParameterListenerManager<OTAFilterTPTNewtonRaphson, FilterParamId> {
  public:
   OTAFilterTPTNewtonRaphson(juce::AudioProcessorValueTreeState& apvts,
-                            const juce::AudioBuffer<float>& env_buffer,
+                            const juce::AudioBuffer<float>& env1_buffer,
+                            const juce::AudioBuffer<float>& env2_buffer,
                             const juce::AudioBuffer<float>& lfo_buffer);
   /**
    * Perform in place filtering on the left channel only,
    * for numSamples samples.
    */
-  void Process(juce::AudioBuffer<float>& buffers, int start_sample,
+  void Process(const juce::dsp::AudioBlock<float>& buffers, int start_sample,
                int numSamples);
-
-  void set_env_buffer(const juce::AudioBuffer<float>& env_buffer) {
-    env_buffer_ = &env_buffer;
-  }
 
   void Reset();
   void set_sample_rate(double rate);
+  void set_use_env1(bool env1);
 
   float cutoff_freq_;
   float resonance_;
@@ -76,8 +76,9 @@ class OTAFilterTPTNewtonRaphson
   // d(output)/d(out_guess) = how much does changing our guess change the predicted output?
   float ComputeJacobian(float in, float out_guess, float G, float k) const;
 
-  // todo: why one is & and other is *?
-  const juce::AudioBuffer<float>* env_buffer_;
+  const juce::AudioBuffer<float>& env1_buffer_;
+  const juce::AudioBuffer<float>& env2_buffer_;
+  bool use_env1_ = true;
   const juce::AudioBuffer<float>& lfo_buffer_;
   float sample_rate_;
   // state vars for each stage

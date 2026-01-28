@@ -3,7 +3,7 @@
 #include <ranges>
 
 namespace audio_plugin {
-constexpr auto kOversample = 1;
+constexpr auto kOversample = 2;
 constexpr double kBlepOversampleRatio = 16;
 constexpr double kBlepZeroCrossings = 16;
 // todo: may change depending on values in MinBlepGenerator
@@ -14,7 +14,7 @@ constexpr auto kMinDrive = .5f;
 constexpr auto kMinCutoff = 20.0f;
 // todo: I think it doesn't serve much purpose to allow it to go higher than the nyquist freq?
 constexpr auto kMaxCutoff = 22000.0f;
-constexpr auto kNumVoices = 4;
+constexpr auto kNumVoices = 1;
 
 // todo: not sure if putting a function here is a best practice...
 constexpr auto GetIndexSuffixedParams(const std::string_view param_prefix) {

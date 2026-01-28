@@ -8,6 +8,7 @@ https://forum.juce.com/t/open-source-square-waves-for-the-juceplugin/19915/8
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
+#include <juce_dsp/juce_dsp.h>
 
 #include "../dsp/DCBlocker.h"
 #include "MinBlepGenerator.h"
@@ -111,8 +112,8 @@ class WaveGenerator {
    * Fill the first channel of the buffer up to numSamples.
    */
   // todo: passing LFO like this is stupid, let's find a better way
-  void RenderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample,
-                       int numSamples);
+  void RenderNextBlock(const juce::dsp::AudioBlock<float>& outputBuffer,
+                       int startSample, int numSamples);
   void BuildWave(int numSamples);
 
   void MoveAngleForward(int numSamples);

@@ -1,14 +1,13 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 
 #include <array>
-#include <vector>
 
 #include "../ParameterListenerManager.h"
 #include "../dsp/DCBlocker.h"
 #include "../dsp/TanhADAA.h"
-
 #include "OTAFilterTPTNewtonRaphson.h"
 
 namespace audio_plugin {
@@ -22,21 +21,19 @@ class OTAFilterDelayedFeedback
     : public ParameterListenerManager<OTAFilterDelayedFeedback, FilterParamId> {
  public:
   OTAFilterDelayedFeedback(juce::AudioProcessorValueTreeState& apvts,
-                           const juce::AudioBuffer<float>& env_buffer,
+                           const juce::AudioBuffer<float>& env1_buffer,
+                           const juce::AudioBuffer<float>& env2_buffer,
                            const juce::AudioBuffer<float>& lfo_buffer);
   /**
    * Perform in place filtering on the left channel only,
    * for numSamples samples.
    */
-  void Process(juce::AudioBuffer<float>& buffers, int start_sample,
+  void Process(const juce::dsp::AudioBlock<float>& buffers, int start_sample,
                int numSamples);
-
-  void set_env_buffer(const juce::AudioBuffer<float>& env_buffer) {
-    env_buffer_ = &env_buffer;
-  }
 
   void Reset();
   void set_sample_rate(double rate);
+  void set_use_env1(bool env1);
 
   float cutoff_freq_;
   float resonance_;
@@ -52,7 +49,9 @@ class OTAFilterDelayedFeedback
   void FilterStage(float in, float& out, TanhADAA& tanh_in,
                    TanhADAA& tanh_state, float g, float scale) const;
 
-  const juce::AudioBuffer<float>* env_buffer_;
+  const juce::AudioBuffer<float>& env1_buffer_;
+  const juce::AudioBuffer<float>& env2_buffer_;
+  bool use_env1_ = true;
   const juce::AudioBuffer<float>& lfo_buffer_;
   float sample_rate_;
   // integrator states

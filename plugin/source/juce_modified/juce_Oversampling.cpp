@@ -767,9 +767,9 @@ void OversamplingDownsampling<SampleType>::processSamplesDown (AudioBlock<Sample
 }
 
 template <typename SampleType>
-AudioBlock<const SampleType>
+AudioBlock<SampleType>
 OversamplingDownsampling<SampleType>::getUnprocessedUpsampleBlock(
-    const AudioBlock<const SampleType>& inputBlock) noexcept
+    const AudioBlock<SampleType>& inputBlock) noexcept
 {
   jassert (! stages.isEmpty());
 

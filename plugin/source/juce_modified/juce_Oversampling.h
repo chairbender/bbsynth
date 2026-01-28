@@ -169,8 +169,8 @@ public:
      * (thanks to wavesequencer - see more explanation for usage here:
      *  https://forum.juce.com/t/how-to-use-juce-oversampling/36750/2 )
      */
-    AudioBlock<const SampleType> getUnprocessedUpsampleBlock(
-        const AudioBlock<const SampleType>& inputBlock) noexcept;
+    AudioBlock<SampleType> getUnprocessedUpsampleBlock(
+        const AudioBlock<SampleType>& inputBlock) noexcept;
 
     //==============================================================================
     /** Adds a new oversampling stage to the Oversampling class, multiplying the

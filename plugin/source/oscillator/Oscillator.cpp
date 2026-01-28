@@ -27,8 +27,8 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
                      hard_sync_reset_sample_indices_},
       wave2Generator_{lfo_buffer_, env1_buffer_, env2_buffer_, wave2_buffer_,
                       hard_sync_reset_sample_indices_},
-      filter_tpt_{apvts, env1_buffer_, lfo_buffer_},
-      filter_dfb_{apvts, env1_buffer_, lfo_buffer_} {
+      filter_tpt_{apvts, env1_buffer_, env2_buffer_, lfo_buffer_},
+      filter_dfb_{apvts, env1_buffer_, env2_buffer_, lfo_buffer_} {
   waveGenerator_.PrepareToPlay(getSampleRate() * kOversample);
   wave2Generator_.PrepareToPlay(getSampleRate() * kOversample);
   waveGenerator_.set_mode(ANTIALIAS);
@@ -36,51 +36,44 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
   filter_tpt_.set_sample_rate(getSampleRate() * kOversample);
   filter_dfb_.set_sample_rate(getSampleRate() * kOversample);
 
-  AddParameterListener("vcfFilterType", OscillatorVoiceParamId::kVcfFilterType,
-                       [this](const float value) {
-                         filter_type_ = static_cast<int>(value);
-                       });
+  AddParameterListener(
+      "vcfFilterType", OscillatorVoiceParamId::kVcfFilterType,
+      [this](const float value) { filter_type_ = static_cast<int>(value); });
 
   // ADSR 1
-  AddParameterListener("adsrAttack", OscillatorVoiceParamId::kAdsrAttack,
-                       [this](const float value) {
-                         envelope_.set_attack(value);
-                       });
-  AddParameterListener("adsrDecay", OscillatorVoiceParamId::kAdsrDecay,
-                       [this](const float value) {
-                         envelope_.set_decay(value);
-                       });
-  AddParameterListener("adsrSustain", OscillatorVoiceParamId::kAdsrSustain,
-                       [this](const float value) {
-                         envelope_.set_sustain(value);
-                       });
-  AddParameterListener("adsrRelease", OscillatorVoiceParamId::kAdsrRelease,
-                       [this](const float value) {
-                         envelope_.set_release(value);
-                       });
-  AddParameterListener("env1RetriggerRate", OscillatorVoiceParamId::kEnv1RetriggerRate,
+  AddParameterListener(
+      "adsrAttack", OscillatorVoiceParamId::kAdsrAttack,
+      [this](const float value) { envelope_.set_attack(value); });
+  AddParameterListener(
+      "adsrDecay", OscillatorVoiceParamId::kAdsrDecay,
+      [this](const float value) { envelope_.set_decay(value); });
+  AddParameterListener(
+      "adsrSustain", OscillatorVoiceParamId::kAdsrSustain,
+      [this](const float value) { envelope_.set_sustain(value); });
+  AddParameterListener(
+      "adsrRelease", OscillatorVoiceParamId::kAdsrRelease,
+      [this](const float value) { envelope_.set_release(value); });
+  AddParameterListener("env1RetriggerRate",
+                       OscillatorVoiceParamId::kEnv1RetriggerRate,
                        [this](const float value) {
                          envelope_.set_retrigger_constant_rate(value > 0.5f);
                        });
 
   // ADSR 2
-  AddParameterListener("env2Attack", OscillatorVoiceParamId::kEnv2Attack,
-                       [this](const float value) {
-                         envelope2_.set_attack(value);
-                       });
-  AddParameterListener("env2Decay", OscillatorVoiceParamId::kEnv2Decay,
-                       [this](const float value) {
-                         envelope2_.set_decay(value);
-                       });
-  AddParameterListener("env2Sustain", OscillatorVoiceParamId::kEnv2Sustain,
-                       [this](const float value) {
-                         envelope2_.set_sustain(value);
-                       });
-  AddParameterListener("env2Release", OscillatorVoiceParamId::kEnv2Release,
-                       [this](const float value) {
-                         envelope2_.set_release(value);
-                       });
-  AddParameterListener("env2RetriggerRate", OscillatorVoiceParamId::kEnv2RetriggerRate,
+  AddParameterListener(
+      "env2Attack", OscillatorVoiceParamId::kEnv2Attack,
+      [this](const float value) { envelope2_.set_attack(value); });
+  AddParameterListener(
+      "env2Decay", OscillatorVoiceParamId::kEnv2Decay,
+      [this](const float value) { envelope2_.set_decay(value); });
+  AddParameterListener(
+      "env2Sustain", OscillatorVoiceParamId::kEnv2Sustain,
+      [this](const float value) { envelope2_.set_sustain(value); });
+  AddParameterListener(
+      "env2Release", OscillatorVoiceParamId::kEnv2Release,
+      [this](const float value) { envelope2_.set_release(value); });
+  AddParameterListener("env2RetriggerRate",
+                       OscillatorVoiceParamId::kEnv2RetriggerRate,
                        [this](const float value) {
                          envelope2_.set_retrigger_constant_rate(value > 0.5f);
                        });
@@ -88,7 +81,8 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
   // VCO Mod
   auto update_vco_mod = [this, &apvts]() {
     const float lfo_freq = apvts.getRawParameterValue("vcoModLfoFreq")->load();
-    const float env1_freq = apvts.getRawParameterValue("vcoModEnv1Freq")->load();
+    const float env1_freq =
+        apvts.getRawParameterValue("vcoModEnv1Freq")->load();
 
     if (apvts.getRawParameterValue("vcoModOsc1")->load() > 0) {
       waveGenerator_.set_pitch_bend_lfo_mod(lfo_freq);
@@ -107,17 +101,24 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
     }
   };
 
-  AddParameterListener("vcoModOsc1", OscillatorVoiceParamId::kVcoModOsc1, [update_vco_mod](auto) { update_vco_mod(); });
-  AddParameterListener("vcoModOsc2", OscillatorVoiceParamId::kVcoModOsc2, [update_vco_mod](auto) { update_vco_mod(); });
-  AddParameterListener("vcoModLfoFreq", OscillatorVoiceParamId::kVcoModLfoFreq, [update_vco_mod](auto) { update_vco_mod(); });
-  AddParameterListener("vcoModEnv1Freq", OscillatorVoiceParamId::kVcoModEnv1Freq, [update_vco_mod](auto) { update_vco_mod(); });
+  AddParameterListener("vcoModOsc1", OscillatorVoiceParamId::kVcoModOsc1,
+                       [update_vco_mod](auto) { update_vco_mod(); });
+  AddParameterListener("vcoModOsc2", OscillatorVoiceParamId::kVcoModOsc2,
+                       [update_vco_mod](auto) { update_vco_mod(); });
+  AddParameterListener("vcoModLfoFreq", OscillatorVoiceParamId::kVcoModLfoFreq,
+                       [update_vco_mod](auto) { update_vco_mod(); });
+  AddParameterListener("vcoModEnv1Freq",
+                       OscillatorVoiceParamId::kVcoModEnv1Freq,
+                       [update_vco_mod](auto) { update_vco_mod(); });
   AddParameterListener("antiAlias", OscillatorVoiceParamId::kAntiAlias,
                        [this](const float value) {
-                         const auto mode = value > 0.5f ? ANTIALIAS : NO_ANTIALIAS;
+                         const auto mode =
+                             value > 0.5f ? ANTIALIAS : NO_ANTIALIAS;
                          waveGenerator_.set_mode(mode);
                          wave2Generator_.set_mode(mode);
                        });
-  AddParameterListener("antiAliasKeyScaling", OscillatorVoiceParamId::kAntiAliasKeyScaling,
+  AddParameterListener("antiAliasKeyScaling",
+                       OscillatorVoiceParamId::kAntiAliasKeyScaling,
                        [this](const float value) {
                          waveGenerator_.set_aa_key_scaling(value > 0);
                          wave2Generator_.set_aa_key_scaling(value > 0);
@@ -127,29 +128,52 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
   AddParameterListener("waveType", OscillatorVoiceParamId::kWaveType,
                        [this](const float value) {
                          switch (static_cast<int>(value)) {
-                           case 0: waveGenerator_.set_wave_type(sine); break;
-                           case 1: waveGenerator_.set_wave_type(sawFall); break;
-                           case 2: waveGenerator_.set_wave_type(triangle); break;
-                           case 3: waveGenerator_.set_wave_type(square); break;
-                           case 4: waveGenerator_.set_wave_type(random); break;
-                           default: DBG("unhandled default case");
+                           case 0:
+                             waveGenerator_.set_wave_type(sine);
+                             break;
+                           case 1:
+                             waveGenerator_.set_wave_type(sawFall);
+                             break;
+                           case 2:
+                             waveGenerator_.set_wave_type(triangle);
+                             break;
+                           case 3:
+                             waveGenerator_.set_wave_type(square);
+                             break;
+                           case 4:
+                             waveGenerator_.set_wave_type(random);
+                             break;
+                           default:
+                             DBG("unhandled default case");
                          }
                        });
   AddParameterListener("wave2Type", OscillatorVoiceParamId::kWave2Type,
                        [this](const float value) {
                          switch (static_cast<int>(value)) {
-                           case 0: wave2Generator_.set_wave_type(sine); break;
-                           case 1: wave2Generator_.set_wave_type(sawFall); break;
-                           case 2: wave2Generator_.set_wave_type(triangle); break;
-                           case 3: wave2Generator_.set_wave_type(square); break;
-                           case 4: wave2Generator_.set_wave_type(random); break;
-                           default: DBG("unhandled default case");
+                           case 0:
+                             wave2Generator_.set_wave_type(sine);
+                             break;
+                           case 1:
+                             wave2Generator_.set_wave_type(sawFall);
+                             break;
+                           case 2:
+                             wave2Generator_.set_wave_type(triangle);
+                             break;
+                           case 3:
+                             wave2Generator_.set_wave_type(square);
+                             break;
+                           case 4:
+                             wave2Generator_.set_wave_type(random);
+                             break;
+                           default:
+                             DBG("unhandled default case");
                          }
                        });
 
   // Sync / Fine / Cross
   auto update_sync_cross = [this, &apvts]() {
-    const bool hard_sync = apvts.getRawParameterValue("vco2Sync")->load() > 0.5f;
+    const bool hard_sync =
+        apvts.getRawParameterValue("vco2Sync")->load() > 0.5f;
     const float crossMod = apvts.getRawParameterValue("crossMod")->load();
 
     if (hard_sync && crossMod <= 0.f) {
@@ -170,17 +194,21 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
     }
   };
 
-  AddParameterListener("vco2Sync", OscillatorVoiceParamId::kVco2Sync, [update_sync_cross](auto) { update_sync_cross(); });
-  AddParameterListener("crossMod", OscillatorVoiceParamId::kCrossMod, [update_sync_cross](auto) { update_sync_cross(); });
-  AddParameterListener("fineTune", OscillatorVoiceParamId::kFineTune,
-                       [this](const float value) {
-                         wave2Generator_.set_pitch_offset_semis(static_cast<double>(value));
-                       });
+  AddParameterListener("vco2Sync", OscillatorVoiceParamId::kVco2Sync,
+                       [update_sync_cross](auto) { update_sync_cross(); });
+  AddParameterListener("crossMod", OscillatorVoiceParamId::kCrossMod,
+                       [update_sync_cross](auto) { update_sync_cross(); });
+  AddParameterListener(
+      "fineTune", OscillatorVoiceParamId::kFineTune, [this](const float value) {
+        wave2Generator_.set_pitch_offset_semis(static_cast<double>(value));
+      });
 
   // Pulse Width
   auto update_pw = [this, &apvts]() {
-    const int pulseWidthSource = static_cast<int>(apvts.getRawParameterValue("pulseWidthSource")->load());
-    const auto pulseWidth = static_cast<double>(apvts.getRawParameterValue("pulseWidth")->load());
+    const int pulseWidthSource = static_cast<int>(
+        apvts.getRawParameterValue("pulseWidthSource")->load());
+    const auto pulseWidth =
+        static_cast<double>(apvts.getRawParameterValue("pulseWidth")->load());
 
     const auto set_pw_type = [this](const PulseWidthModType type) {
       waveGenerator_.set_pulse_width_mod_type(type);
@@ -188,19 +216,34 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
     };
 
     switch (pulseWidthSource) {
-      case 0: set_pw_type(env2Minus); break;
-      case 1: set_pw_type(env2Plus); break;
-      case 2: set_pw_type(env1Minus); break;
-      case 3: set_pw_type(env1Plus); break;
-      case 4: set_pw_type(lfo); break;
-      case 5: set_pw_type(manual); break;
+      case 0:
+        set_pw_type(env2Minus);
+        break;
+      case 1:
+        set_pw_type(env2Plus);
+        break;
+      case 2:
+        set_pw_type(env1Minus);
+        break;
+      case 3:
+        set_pw_type(env1Plus);
+        break;
+      case 4:
+        set_pw_type(lfo);
+        break;
+      case 5:
+        set_pw_type(manual);
+        break;
       default:;
     }
     waveGenerator_.set_pulse_width_mod(pulseWidth);
     wave2Generator_.set_pulse_width_mod(pulseWidth);
   };
-  AddParameterListener("pulseWidthSource", OscillatorVoiceParamId::kPulseWidthSource, [update_pw](auto) { update_pw(); });
-  AddParameterListener("pulseWidth", OscillatorVoiceParamId::kPulseWidth, [update_pw](auto) { update_pw(); });
+  AddParameterListener("pulseWidthSource",
+                       OscillatorVoiceParamId::kPulseWidthSource,
+                       [update_pw](auto) { update_pw(); });
+  AddParameterListener("pulseWidth", OscillatorVoiceParamId::kPulseWidth,
+                       [update_pw](auto) { update_pw(); });
 
   // Gain
   AddParameterListener("vco1Level", OscillatorVoiceParamId::kVco1Level,
@@ -213,16 +256,16 @@ OscillatorVoice::OscillatorVoice(juce::AudioProcessorValueTreeState& apvts,
                        });
 
   // Filter Env Source
-  AddParameterListener("filterEnvSource", OscillatorVoiceParamId::kFilterEnvSource,
+  AddParameterListener("filterEnvSource",
+                       OscillatorVoiceParamId::kFilterEnvSource,
                        [this](const float value) {
-                         if (static_cast<int>(value) == 0) {
-                           filter_dfb_.set_env_buffer(env1_buffer_);
-                           filter_tpt_.set_env_buffer(env1_buffer_);
-                         } else {
-                           filter_dfb_.set_env_buffer(env2_buffer_);
-                           filter_tpt_.set_env_buffer(env2_buffer_);
-                         }
+                         filter_dfb_.set_use_env1(static_cast<int>(value) == 0);
+                         filter_tpt_.set_use_env1(static_cast<int>(value) == 0);
                        });
+}
+
+bool OscillatorVoice::canPlaySound(juce::SynthesiserSound* sound) {
+  return dynamic_cast<OscillatorSound*>(sound) != nullptr;
 }
 
 void OscillatorVoice::PrepareToPlay() {
@@ -233,14 +276,10 @@ void OscillatorVoice::PrepareToPlay() {
   filter_dfb_.InitializeAllParameters();
 }
 
-bool OscillatorVoice::canPlaySound(juce::SynthesiserSound* sound) {
-  return dynamic_cast<OscillatorSound*>(sound) != nullptr;
-}
-
 void OscillatorVoice::SetBlockSize(const int blockSize) {
   downsampler_.Prepare(blockSize);
   const auto oversample_samples = blockSize * kOversample;
-  oversample_buffer_.setSize(1, oversample_samples, false, true);
+  oversample_backing_buffer_.setSize(1, oversample_samples, false, true);
   wave2_buffer_.setSize(1, oversample_samples, false, true);
   env1_buffer_.setSize(1, blockSize, false, true);
   env2_buffer_.setSize(1, blockSize, false, true);
@@ -297,50 +336,57 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
   //  we need to evaluate generator 1 first as gen2 depends on it (knowing the
   //  reset sample indices).
 
-  // TODO: Oversample buffer can just start at 0 since we control it. 
+  // TODO: Oversample buffer can just start at 0 since we control it.
   //   Assumptions need to be checked of who reads from it
   // TODO: wavegenerator renderNextBlock makes assumptions about where to read
   //  from lfo / env buffers that need to be checked.
-  // TODO: for all these places where its always 0, omit even the option of passing a different value.
+  // TODO: for all these places where its always 0, omit even the option of
+  // passing a different value.
+
+  // to properly use the downsampler we have to write to what it gives us back
+  // instead of directly using the backing buffer
+
+  // create a block so we can pass it to downsampler
+  const juce::dsp::AudioBlock<float> oversample_block{oversample_backing_buffer_.getArrayOfWritePointers(),
+  1, static_cast<size_t>(oversample_samples)};
+  auto oversample_buffer =
+      downsampler_.GetOverSampleBuffer(oversample_block);
   if (waveGenerator_.cross_mod() > 0) {
     // cross mod - need to run vco2 first so it can modulate vco1
     wave2_buffer_.clear(0, oversample_samples);
-    wave2Generator_.RenderNextBlock(wave2_buffer_, 0,
-                                    oversample_samples);
-    oversample_buffer_.clear(0, oversample_samples);
+    // no downsampling needed - it's just used for cross mod and not actually
+    // output
+    const juce::dsp::AudioBlock<float> wave2_block{wave2_buffer_};
+    wave2Generator_.RenderNextBlock(wave2_block, 0, oversample_samples);
+    oversample_buffer.clear();
     // todo: Do we even need this intermediate wave2_buffer? What if we
     //  cross-mod from the oversample_buffer_ directly? if we're doing FM, we
     //  only use wave 2 for FM, we don't output it directly
-    waveGenerator_.RenderNextBlock(oversample_buffer_, 0,
-                                   oversample_samples);
+    waveGenerator_.RenderNextBlock(oversample_buffer, 0, oversample_samples);
   } else {
     // no cross mod or hard sync, need to run generator 1 first as it
     // sets the reset points for generator 2
-    oversample_buffer_.clear(0, oversample_samples);
-    waveGenerator_.RenderNextBlock(oversample_buffer_, 0,
-                                   oversample_samples);
-    wave2Generator_.RenderNextBlock(oversample_buffer_, 0,
-                                    oversample_samples);
+    oversample_buffer.clear();
+    waveGenerator_.RenderNextBlock(oversample_buffer, 0, oversample_samples);
+    wave2Generator_.RenderNextBlock(oversample_buffer, 0, oversample_samples);
   }
 
   if (filter_type_ == 0) {
-    filter_dfb_.Process(oversample_buffer_, 0,
-                        oversample_samples);
+    filter_dfb_.Process(oversample_buffer, 0, oversample_samples);
   } else if (filter_type_ == 1) {
-    filter_tpt_.Process(oversample_buffer_, 0,
-                        oversample_samples);
+    filter_tpt_.Process(oversample_buffer, 0, oversample_samples);
   }
 
   // Apply ADSR envelope to the mono oversampled buffer (VCA)
   // TODO: oversample buffer could start at 0 always.
-  const auto data_span = std::span{oversample_buffer_.getWritePointer(0),
+  const auto data_span = std::span{oversample_buffer.getChannelPointer(0),
                                    static_cast<size_t>(oversample_samples)};
   // we always start the env at 0 regardless of anything else
-  const auto env1_data_span =
-      std::span{env1_buffer_.getReadPointer(0), static_cast<size_t>(numSamples)};
+  const auto env1_data_span = std::span{env1_buffer_.getReadPointer(0),
+                                        static_cast<size_t>(numSamples)};
 
-  for (const auto [sample, env_sample] :
-       std::views::zip(data_span | std::views::chunk(kOversample), env1_data_span)) {
+  for (const auto [sample, env_sample] : std::views::zip(
+           data_span | std::views::chunk(kOversample), env1_data_span)) {
     for (auto& s : sample) {
       s *= env_sample;
     }
@@ -352,13 +398,15 @@ void OscillatorVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     // wave2Generator_.set_volume(-120);
     clearCurrentNote();
   }
-  
-  if constexpr (kOversample == 1) {
-    outputBuffer.addFrom(0, startSample, oversample_buffer_.getReadPointer(0), numSamples);
-  } else {
-    downsampler_.Process(oversample_buffer_, outputBuffer,
-                         0, oversample_samples, startSample);
-  }
 
+  if constexpr (kOversample == 1) {
+    outputBuffer.addFrom(0, startSample, oversample_buffer.getChannelPointer(0),
+                         numSamples);
+  } else {
+    juce::dsp::AudioBlock<float> outputBlock{
+        outputBuffer.getArrayOfWritePointers(), 0,
+        static_cast<size_t>(startSample), static_cast<size_t>(numSamples)};
+    downsampler_.Downsample(outputBlock);
+  }
 }
 }  // namespace audio_plugin

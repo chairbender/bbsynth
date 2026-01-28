@@ -338,7 +338,7 @@ void WaveGenerator<IsLFO>::clear() {
 // FAST RENDER (AP) :::::
 template <bool IsLFO>
 void WaveGenerator<IsLFO>::RenderNextBlock(
-    juce::AudioBuffer<float>& outputBuffer, const int startSample,
+    const juce::dsp::AudioBlock<float>& outputBuffer, const int startSample,
     const int numSamples) {
   jassert(sample_rate_ != 0.);
 
@@ -407,8 +407,11 @@ void WaveGenerator<IsLFO>::RenderNextBlock(
   // note,
   //  which produces a very loud blep
   const auto gain_stage = mode_ == ANTIALIAS ? .2f : 1.f;
-  outputBuffer.addFromWithRamp(0, startSample, wave.getRawDataPointer(),
-                               numSamples, gain_stage, gain_stage);
+  const auto output_span = std::span(outputBuffer.getChannelPointer(0) + startSample, numSamples);
+  const auto wave_span = std::span(wave.getRawDataPointer(), numSamples);
+  for (const auto [output_sample, wave_sample] : std::views::zip(output_span, wave_span)) {
+    output_sample += wave_sample * gain_stage;
+  }
 
   // todo: we aren't using gain_last_ / volume right now
   gain_last_[0] = volume_;

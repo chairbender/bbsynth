@@ -10,7 +10,8 @@
 namespace audio_plugin {
 OTAFilterDelayedFeedback::OTAFilterDelayedFeedback(
     juce::AudioProcessorValueTreeState& apvts,
-    const juce::AudioBuffer<float>& env_buffer,
+    const juce::AudioBuffer<float>& env1_buffer,
+    const juce::AudioBuffer<float>& env2_buffer,
     const juce::AudioBuffer<float>& lfo_buffer)
     : ParameterListenerManager{apvts},
       cutoff_freq_{0.f},
@@ -19,7 +20,8 @@ OTAFilterDelayedFeedback::OTAFilterDelayedFeedback(
       env_mod_{0.f},
       lfo_mod_{0.f},
       num_stages_{4},
-      env_buffer_{&env_buffer},
+env1_buffer_{env1_buffer},
+env2_buffer_{env2_buffer},
       lfo_buffer_{lfo_buffer},
       sample_rate_{0},
       s1_{0},
@@ -97,18 +99,19 @@ inline void OTAFilterDelayedFeedback::FilterStage(const float in, float& out,
   out = Sanitize(kLeak * out + g * (v - tanh_state_val * (1.f / state_scale)));
 }
 
-void OTAFilterDelayedFeedback::Process(juce::AudioBuffer<float>& buffers,
+void OTAFilterDelayedFeedback::Process(const juce::dsp::AudioBlock<float>& buffers,
                                        const int start_sample,
                                        const int numSamples) {
   ProcessDirtyParameters();
   jassert(sample_rate_ > 0);
 
+  const auto env_buffer = use_env1_ ? env1_buffer_ : env2_buffer_;
   // todo vectorize
-  const auto samples = std::span(buffers.getWritePointer(0) + start_sample,
+  const auto samples = std::span(buffers.getChannelPointer(0) + start_sample,
                                  static_cast<size_t>(numSamples));
   const auto sample_chunks = samples | std::ranges::views::chunk(kOversample);
   const auto env_data =
-      std::span(env_buffer_->getReadPointer(0) + start_sample / kOversample,
+      std::span(env_buffer.getReadPointer(0) + start_sample / kOversample,
                 static_cast<size_t>(numSamples / kOversample));
   const auto lfo_data =
       std::span(lfo_buffer_.getReadPointer(0) + start_sample / kOversample,
@@ -214,5 +217,8 @@ void OTAFilterDelayedFeedback::Reset() {
 
 void OTAFilterDelayedFeedback::set_sample_rate(const double rate) {
   sample_rate_ = static_cast<float>(rate);
+}
+void OTAFilterDelayedFeedback::set_use_env1(const bool env1) {
+  use_env1_ = env1;
 }
 }  // namespace audio_plugin

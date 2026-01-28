@@ -9,17 +9,19 @@
  * Workflow:
  * - Prepare in prepareToPlay to set max block size.
  * - Get oversampled buffer with GetOverSampleBuffer.
- * - Write oversampled audio into buffer
- * - Downsample with Downsample, passing the buffer back to Downsampler.
+ * - Write oversampled audio into buffer.
+ * - Downsample with Downsample, passing it an audio block into which you
+ *   want it to write the downsampled audio. You DON'T pass it the return value
+ *   of GetOverSampleBuffer.
  */
 namespace audio_plugin {
 class Downsampler {
 public:
   void Prepare(int max_block_size);
-  juce::dsp::AudioBlock<const float> GetOverSampleBuffer(
-      const juce::dsp::ProcessContextReplacing<float> &context);
+ juce::dsp::AudioBlock<float> GetOverSampleBuffer(
+     const juce::dsp::AudioBlock<float> &inputBlock);
 
-  void Downsample(const juce::dsp::ProcessContextReplacing<float> &context);
+  void Downsample(juce::dsp::AudioBlock<float> &inputBlock);
 
 private:
   // TODO: make below parameterized, so you can try different oversampling methods and factor as well

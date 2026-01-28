@@ -12,7 +12,8 @@
 namespace audio_plugin {
 OTAFilterTPTNewtonRaphson::OTAFilterTPTNewtonRaphson(
     juce::AudioProcessorValueTreeState& apvts,
-    const juce::AudioBuffer<float>& env_buffer,
+    const juce::AudioBuffer<float>& env1_buffer,
+    const juce::AudioBuffer<float>& env2_buffer,
     const juce::AudioBuffer<float>& lfo_buffer)
     : ParameterListenerManager{apvts},
       cutoff_freq_{0.f},
@@ -21,7 +22,8 @@ OTAFilterTPTNewtonRaphson::OTAFilterTPTNewtonRaphson(
       env_mod_{0.f},
       lfo_mod_{0.f},
       num_stages_{4},
-      env_buffer_{&env_buffer},
+      env1_buffer_{env1_buffer},
+      env2_buffer_{env2_buffer},
       lfo_buffer_{lfo_buffer},
       sample_rate_{0},
       s1_{0},
@@ -85,6 +87,9 @@ OTAFilterTPTNewtonRaphson::OTAFilterTPTNewtonRaphson(
 
 void OTAFilterTPTNewtonRaphson::set_sample_rate(const double rate) {
   sample_rate_ = static_cast<float>(rate);
+}
+void OTAFilterTPTNewtonRaphson::set_use_env1(bool env1) {
+  use_env1_ = env1;
 }
 
 void OTAFilterTPTNewtonRaphson::Reset() {
@@ -332,17 +337,18 @@ float OTAFilterTPTNewtonRaphson::ProcessSample(const float in,
   return final_out;
 }
 
-void OTAFilterTPTNewtonRaphson::Process(juce::AudioBuffer<float>& buffers,
+void OTAFilterTPTNewtonRaphson::Process(const juce::dsp::AudioBlock<float>& buffers,
                                         const int start_sample,
                                         const int numSamples) {
   ProcessDirtyParameters();
+  const auto& env_buffer = use_env1_ ? env1_buffer_ : env2_buffer_;
   const auto buffer_chunk =
-      std::span(buffers.getWritePointer(0) + start_sample, numSamples) |
+      std::span(buffers.getChannelPointer(0) + start_sample, numSamples) |
       std::views::chunk(kOversample);
   const auto start_chunk = start_sample / kOversample;
   const auto num_chunks = buffer_chunk.size();
   const auto env_samples =
-      std::span(env_buffer_->getReadPointer(0) + start_chunk, num_chunks);
+      std::span(env_buffer.getReadPointer(0) + start_chunk, num_chunks);
   const auto lfo_samples =
       std::span(lfo_buffer_.getReadPointer(0) + start_chunk, num_chunks);
   for (const auto [sample_chunk, env_sample, lfo_sample] :

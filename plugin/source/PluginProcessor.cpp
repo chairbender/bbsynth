@@ -31,19 +31,16 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
   }
   synth.addSound(new OscillatorSound(apvts_));
 
-  AddParameterListener("lfoDelayTimeSeconds",
-                       PluginProcessorParamId::kLfoDelayTimeSeconds,
-                       [this](const float value) {
-                         lfo_delay_time_s_ = value;
-                       });
+  AddParameterListener(
+      "lfoDelayTimeSeconds", PluginProcessorParamId::kLfoDelayTimeSeconds,
+      [this](const float value) { lfo_delay_time_s_ = value; });
   AddParameterListener(
       "lfoAttack", PluginProcessorParamId::kLfoAttack,
       [this](const float value) {
         lfo_ramp_step_ = 1.f / (static_cast<float>(getSampleRate()) * value);
       });
   AddParameterListener(
-      "lfoRate", PluginProcessorParamId::kLfoRate,
-      [this](const float value) {
+      "lfoRate", PluginProcessorParamId::kLfoRate, [this](const float value) {
         lfo_rate_ = value;
         lfo_generator_.set_pitch_hz(static_cast<double>(value));
       });
@@ -226,11 +223,13 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // adding to it
     // TODO: do we actually need to do this?
     lfo_buffer_.clear(0, 0, lfo_buffer_.getNumSamples());
+    const juce::dsp::AudioBlock<float> lfo_block{lfo_buffer_};
 
     // TODO: refactor the LFO logic so it doesn't clutter up this. Use state var
     //  to track the LFO state.
     // check if LFO countdown should start?
-    // TODO: channel pressure message spam likely causing dropouts here - process more efficiently
+    // TODO: channel pressure message spam likely causing dropouts here -
+    // process more efficiently
     int start_lfo_sample = -1;
     if (lfo_samples_until_start_ < 0) {
       for (const auto metadata : midiMessages) {
@@ -246,7 +245,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             //  / audio rate...
             lfo_generator_.MoveAngleForwardTo(0);
             lfo_generator_.RenderNextBlock(
-                lfo_buffer_, start_lfo_sample,
+                lfo_block, start_lfo_sample,
                 buffer.getNumSamples() - start_lfo_sample);
             lfo_samples_until_start_ = 0;
           }
@@ -263,7 +262,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         // start this buffer
         lfo_generator_.MoveAngleForwardTo(0);
         lfo_generator_.RenderNextBlock(
-            lfo_buffer_, start_lfo_sample,
+            lfo_block, start_lfo_sample,
             buffer.getNumSamples() - start_lfo_sample);
         lfo_samples_until_start_ = 0;
       }
@@ -272,8 +271,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // if we started this block, start ramping where we started
     if (lfo_ramp_ < 0 && start_lfo_sample >= 0) {
       lfo_ramp_ = 0;
-      const auto lfo_samples = std::span(lfo_buffer_.getWritePointer(0),
-                                         static_cast<size_t>(lfo_buffer_.getNumSamples()));
+      const auto lfo_samples =
+          std::span(lfo_buffer_.getWritePointer(0),
+                    static_cast<size_t>(lfo_buffer_.getNumSamples()));
       for (auto& lfo_sample : lfo_samples) {
         lfo_sample *= lfo_ramp_;
         lfo_ramp_ += lfo_ramp_step_;
@@ -289,7 +289,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // stopping), technically it will keep oscillating
     //   but it will have no effect since all voices stopped, so this is fine.
     if (lfo_samples_until_start_ == 0 && start_lfo_sample < 0) {
-      lfo_generator_.RenderNextBlock(lfo_buffer_, 0, buffer.getNumSamples());
+      lfo_generator_.RenderNextBlock(lfo_block, 0, buffer.getNumSamples());
       if (lfo_ramp_ < 1.f) {
         // if we are currently LFO ramping, continue it
         const auto lfo_samples = std::span(lfo_buffer_.getWritePointer(0),
